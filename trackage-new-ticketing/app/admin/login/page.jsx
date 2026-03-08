@@ -4,28 +4,24 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminLogin() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // ⚠️ Replace these with your real admin credentials
-  // In production, you should verify against Supabase or a secure env variable
-  const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@trackagescheme.com';
+  const ADMIN_EMAIL    = process.env.NEXT_PUBLIC_ADMIN_EMAIL    || 'admin@trackagescheme.com';
   const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'changeme123';
 
   async function handleLogin(e) {
     e.preventDefault();
     setLoading(true);
     setError('');
-
-    // Simple credential check — swap for Supabase Auth later
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       localStorage.setItem('admin_authenticated', 'true');
       router.push('/admin');
     } else {
-      setError('Invalid email or password.');
+      setError('Invalid email or password. Please try again.');
     }
     setLoading(false);
   }
@@ -33,121 +29,109 @@ export default function AdminLogin() {
   return (
     <div className="login-page">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body { background: #0a0a0a; }
+        body { background: #f9fafb; font-family: 'Inter', sans-serif; }
 
         .login-page {
           min-height: 100vh;
-          background: #0a0a0a;
+          background: #f9fafb;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-family: 'Syne', sans-serif;
-          padding: 20px;
-          position: relative;
-          overflow: hidden;
+          padding: 24px;
         }
 
-        /* Grid background */
-        .login-page::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(200,240,74,0.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(200,240,74,0.04) 1px, transparent 1px);
-          background-size: 48px 48px;
+        .login-wrap {
+          width: 100%;
+          max-width: 400px;
+        }
+
+        .login-brand {
+          text-align: center;
+          margin-bottom: 32px;
+        }
+
+        .login-logo-mark {
+          width: 48px; height: 48px;
+          background: #0a9e7f;
+          border-radius: 12px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 24px;
+          margin: 0 auto 12px;
+        }
+
+        .login-brand-name {
+          font-size: 20px;
+          font-weight: 700;
+          color: #111827;
+        }
+
+        .login-brand-sub {
+          font-size: 13px;
+          color: #9ca3af;
+          margin-top: 2px;
         }
 
         .login-card {
-          background: #111;
-          border: 1px solid #2a2a2a;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
           border-radius: 12px;
-          padding: 48px 40px;
-          width: 100%;
-          max-width: 420px;
-          position: relative;
-          z-index: 1;
+          padding: 32px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
         }
 
-        .login-card::before {
-          content: '';
-          position: absolute;
-          top: -1px; left: 40px; right: 40px;
-          height: 2px;
-          background: #c8f04a;
-          border-radius: 0 0 4px 4px;
-        }
-
-        .login-logo {
-          text-align: center;
-          margin-bottom: 36px;
-        }
-
-        .login-logo .brand {
-          font-size: 22px;
-          font-weight: 800;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          color: #c8f04a;
-        }
-
-        .login-logo .subtitle {
-          font-family: 'DM Mono', monospace;
-          font-size: 11px;
-          color: #666;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          margin-top: 4px;
-        }
-
-        .login-title {
+        .login-heading {
           font-size: 20px;
           font-weight: 700;
-          color: #f0f0f0;
+          color: #111827;
+          margin-bottom: 6px;
+        }
+
+        .login-subheading {
+          font-size: 14px;
+          color: #6b7280;
           margin-bottom: 24px;
         }
 
-        .field {
-          margin-bottom: 16px;
-        }
+        .field { margin-bottom: 16px; }
 
         .field label {
           display: block;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          color: #888;
-          margin-bottom: 8px;
-          font-family: 'DM Mono', monospace;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          margin-bottom: 6px;
         }
 
         .field input {
           width: 100%;
-          background: #1a1a1a;
-          border: 1px solid #2a2a2a;
+          border: 1.5px solid #e5e7eb;
           border-radius: 8px;
-          padding: 12px 16px;
+          padding: 10px 14px;
           font-size: 14px;
-          color: #f0f0f0;
-          font-family: 'Syne', sans-serif;
-          transition: border-color 0.2s;
+          color: #111827;
+          font-family: 'Inter', sans-serif;
+          background: #fff;
           outline: none;
+          transition: border-color 0.15s, box-shadow 0.15s;
         }
 
         .field input:focus {
-          border-color: #c8f04a;
+          border-color: #0a9e7f;
+          box-shadow: 0 0 0 3px rgba(10,158,127,0.1);
         }
 
-        .error-msg {
-          background: rgba(255,77,109,0.1);
-          border: 1px solid rgba(255,77,109,0.3);
-          color: #ff4d6d;
-          border-radius: 6px;
+        .error-box {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          color: #dc2626;
+          border-radius: 8px;
           padding: 10px 14px;
           font-size: 13px;
           margin-bottom: 16px;
@@ -155,62 +139,78 @@ export default function AdminLogin() {
 
         .login-btn {
           width: 100%;
-          background: #c8f04a;
-          color: #0a0a0a;
+          background: #0a9e7f;
+          color: #fff;
           border: none;
           border-radius: 8px;
-          padding: 14px;
+          padding: 11px;
           font-size: 14px;
-          font-weight: 800;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          font-weight: 600;
           cursor: pointer;
-          font-family: 'Syne', sans-serif;
-          transition: opacity 0.2s, transform 0.1s;
-          margin-top: 8px;
+          font-family: 'Inter', sans-serif;
+          transition: background 0.15s;
+          margin-top: 4px;
         }
 
-        .login-btn:hover { opacity: 0.9; }
-        .login-btn:active { transform: scale(0.99); }
-        .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .login-btn:hover:not(:disabled) { background: #087d65; }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .login-footer {
+          text-align: center;
+          margin-top: 24px;
+          font-size: 12px;
+          color: #9ca3af;
+        }
       `}</style>
 
-      <div className="login-card">
-        <div className="login-logo">
-          <div className="brand">Trackage</div>
-          <div className="subtitle">Admin Access</div>
+      <div className="login-wrap">
+        <div className="login-brand">
+          <div className="login-logo-mark">🎫</div>
+          <div className="login-brand-name">Trackage Scheme</div>
+          <div className="login-brand-sub">Admin Portal</div>
         </div>
 
-        <div className="login-title">Sign in</div>
+        <div className="login-card">
+          <div className="login-heading">Welcome back</div>
+          <div className="login-subheading">Sign in to your admin account</div>
 
-        <form onSubmit={handleLogin}>
-          <div className="field">
-            <label>Email</label>
-            <input
-              type="email"
-              placeholder="admin@trackagescheme.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="field">
-            <label>Password</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-          </div>
+          <form onSubmit={handleLogin}>
+            <div className="field">
+              <label>Email address</label>
+              <input
+                type="email"
+                placeholder="admin@trackagescheme.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="field">
+              <label>Password</label>
+              <input
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+            </div>
 
-          {error && <div className="error-msg">{error}</div>}
+            {error && (
+              <div className="error-box">
+                <span>⚠</span> {error}
+              </div>
+            )}
 
-          <button type="submit" className="login-btn" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign in →'}
-          </button>
-        </form>
+            <button type="submit" className="login-btn" disabled={loading}>
+              {loading ? 'Signing in…' : 'Sign in'}
+            </button>
+          </form>
+        </div>
+
+        <div className="login-footer">
+          Trackage Scheme © {new Date().getFullYear()}
+        </div>
       </div>
     </div>
   );
