@@ -1,6 +1,7 @@
 /* app/layout.jsx */
 import './globals.css';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata = {
   title: "Trackage Scheme - Malta's only online ticketing platform 100% dedicated to music",
@@ -15,7 +16,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}<Analytics /></body>
+      <body>{children}<Analytics /><SpeedInsights /></body>
     </html>
   );
 }
