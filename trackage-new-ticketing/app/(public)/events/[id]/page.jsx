@@ -939,16 +939,6 @@ export default function EventPage() {
               Continue with Google
             </button>
 
-            <button
-              onClick={async () => { await supabase.auth.signInWithOAuth({ provider:'facebook', options:{ redirectTo: window.location.href } }); }}
-              style={{ width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:10,padding:'13px 20px',borderRadius:10,fontSize:14,fontWeight:600,fontFamily:'var(--sans)',cursor:'pointer',background:'#1877F2',color:'white',border:'none' }}
-            >
-              <svg viewBox="0 0 18 18" fill="none" style={{width:18,height:18}}>
-                <path d="M18 9a9 9 0 10-10.406 8.892V11.25H5.344V9h2.25V7.012c0-2.218 1.32-3.441 3.344-3.441.969 0 1.981.173 1.981.173V5.91h-1.116c-1.099 0-1.441.682-1.441 1.382V9h2.453l-.392 2.25H10.36v6.642A9.003 9.003 0 0018 9z" fill="white"/>
-              </svg>
-              Continue with Facebook
-            </button>
-
             <div style={{ fontSize:11,color:'var(--light)',textAlign:'center',marginTop:16,lineHeight:1.5 }}>
               By signing in you agree to our <a href="/terms" style={{color:'var(--mid)'}}>Terms</a> and <a href="/privacy" style={{color:'var(--mid)'}}>Privacy Policy</a>.
             </div>
