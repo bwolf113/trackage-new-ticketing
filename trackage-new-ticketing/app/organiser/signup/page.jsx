@@ -1,8 +1,9 @@
 /* app/organiser/signup/page.jsx */
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { supabase } from '../../../lib/supabase';
 
 const CSS = `
@@ -44,6 +45,7 @@ input:focus{border-color:var(--accent)}
 
 export default function OrganiserSignupPage() {
   const router = useRouter();
+  const recaptchaRef = useRef(null);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirm: '' });
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
@@ -57,7 +59,24 @@ export default function OrganiserSignupPage() {
     if (form.password !== form.confirm) { setError('Passwords do not match'); return; }
     if (form.password.length < 6) { setError('Password must be at least 6 characters'); return; }
 
+    const token = recaptchaRef.current?.getValue();
+    if (!token) { setError('Please complete the reCAPTCHA'); return; }
+
     setLoading(true);
+
+    // Verify reCAPTCHA server-side
+    const verifyRes = await fetch('/api/verify-recaptcha', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    const verifyData = await verifyRes.json();
+    if (!verifyData.success) {
+      setError(verifyData.error || 'reCAPTCHA failed. Please try again.');
+      recaptchaRef.current?.reset();
+      setLoading(false);
+      return;
+    }
     const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
 
     try {
@@ -67,7 +86,7 @@ export default function OrganiserSignupPage() {
         options:  { data: { full_name: fullName } },
       });
 
-      if (authError) { setError(authError.message); setLoading(false); return; }
+      if (authError) { setError(authError.message); recaptchaRef.current?.reset(); setLoading(false); return; }
 
       // If email confirmation is required
       if (!data.session) {
@@ -152,6 +171,12 @@ export default function OrganiserSignupPage() {
                 <div className="form-group">
                   <label>Confirm password</label>
                   <input type="password" value={form.confirm} onChange={set('confirm')} required placeholder="••••••••" />
+                </div>
+                <div style={{ margin: '16px 0 4px' }}>
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
+                  />
                 </div>
                 <button type="submit" className="btn btn-primary" disabled={loading}>
                   {loading ? 'Creating account…' : 'Create account'}
