@@ -616,8 +616,32 @@ function TicketCard({ ticket, index, onChange, onRemove, canRemove }) {
 }
 
 /* ─── EventForm modal ────────────────────────────────────────────── */
+function toLocalDT(isoStr) {
+  // Slice "2026-03-08T23:12:00+00:00" → "2026-03-08T23:12" for datetime-local input
+  if (!isoStr) return '';
+  return isoStr.slice(0, 16);
+}
+
 function EventForm({ event: initial, organisers, onSave, onClose }) {
-  const [form, setForm]       = useState(initial || BLANK_EVENT());
+  const [form, setForm] = useState(() => {
+    if (!initial) return BLANK_EVENT();
+    // Normalise dates from ISO → datetime-local format
+    return {
+      ...BLANK_EVENT(),
+      ...initial,
+      start_time: toLocalDT(initial.start_time),
+      end_time:   toLocalDT(initial.end_time),
+      tickets: (initial.tickets && initial.tickets.length > 0)
+        ? initial.tickets.map(t => ({
+            ...BLANK_TICKET(),
+            ...t,
+            _id: t._id || t.id || uid(),
+            sale_start: toLocalDT(t.sale_start),
+            sale_end:   toLocalDT(t.sale_end),
+          }))
+        : [BLANK_TICKET()],
+    };
+  });
   const [saving, setSaving]   = useState(false);
 
   function setField(field, val) {
@@ -651,21 +675,36 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
     }
     setSaving(true);
     try {
-      const { tickets, ...eventData } = form;
+      const { tickets } = form;
+
+      // Whitelist only known event columns — nothing else goes to Supabase
+      const toNull = v => (v === '' || v === undefined ? null : v);
+      const eventData = {
+        name:             form.name,
+        slug:             form.slug             || null,
+        description:      form.description      || null,
+        start_time:       toNull(form.start_time),
+        end_time:         toNull(form.end_time),
+        venue_name:       form.venue_name        || null,
+        venue_maps_url:   form.venue_maps_url    || null,
+        organiser_id:     form.organiser_id      || null,
+        organiser_vat:    form.organiser_vat     || null,
+        platform_vat:     form.platform_vat      || null,
+        booking_fee_pct:  form.booking_fee_pct !== '' ? parseFloat(form.booking_fee_pct) : null,
+        thumbnail_url:    form.thumbnail_url     || null,
+        poster_url:       form.poster_url        || null,
+        status:           form.status            || 'draft',
+      };
 
       let eventId = initial?.id;
       if (eventId) {
-        // Update existing event
         const { error } = await supabase.from('events').update({
           ...eventData,
           updated_at: new Date().toISOString(),
         }).eq('id', eventId);
         if (error) throw error;
-
-        // Delete old tickets and re-insert
         await supabase.from('tickets').delete().eq('event_id', eventId);
       } else {
-        // Insert new event
         const { data, error } = await supabase
           .from('events')
           .insert({ ...eventData, created_at: new Date().toISOString() })
@@ -677,15 +716,21 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
 
       // Insert tickets
       if (tickets.length) {
-        const rows = tickets.map(({ _id, ...t }) => ({
-          ...t,
-          event_id: eventId,
-          price: parseFloat(t.price) || 0,
-          booking_fee_pct: parseFloat(t.booking_fee_pct) || 0,
-          inventory: parseInt(t.inventory) || 0,
-          sold: t.sold || 0,
-          created_at: new Date().toISOString(),
-        }));
+        const rows = tickets.map(({ _id, ...t }) => {
+          // Sanitise ticket date fields
+          ['sale_start', 'sale_end'].forEach(k => {
+            if (t[k] === '' || t[k] === undefined) t[k] = null;
+          });
+          return {
+            ...t,
+            event_id: eventId,
+            price: parseFloat(t.price) || 0,
+            booking_fee_pct: parseFloat(t.booking_fee_pct) || 0,
+            inventory: t.inventory !== '' && t.inventory != null ? parseInt(t.inventory) : null,
+            sold: t.sold || 0,
+            created_at: new Date().toISOString(),
+          };
+        });
         const { error } = await supabase.from('tickets').insert(rows);
         if (error) throw error;
       }
@@ -823,7 +868,7 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
               <div className="field">
                 <label>Organiser VAT number</label>
                 <input
-                  placeholder="IE1234567A"
+                  placeholder="MT12345678"
                   value={form.organiser_vat}
                   onChange={e => setField('organiser_vat', e.target.value)}
                 />
@@ -863,6 +908,9 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
           {/* ── Tickets ── */}
           <div className="form-section">
             <div className="section-label"><span className="dot" /> Tickets</div>
+            <div style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 14, lineHeight: 1.5 }}>
+              Fill in each ticket type below. Click <strong>+ Add another ticket type</strong> when you're ready to add more. All tickets are saved when you click <strong>Create event</strong>.
+            </div>
             <div className="tickets-list">
               {form.tickets.map((ticket, i) => (
                 <TicketCard
@@ -874,9 +922,17 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
                   canRemove={form.tickets.length > 1}
                 />
               ))}
-              <button type="button" className="add-ticket-btn" onClick={addTicket}>
-                + Add another ticket type
-              </button>
+            </div>
+            <button
+              type="button"
+              className="add-ticket-btn"
+              onClick={addTicket}
+              style={{ marginTop: 12, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 20px', fontSize: 14, fontWeight: 600 }}
+            >
+              <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Add another ticket type
+            </button>
+            <div style={{ marginTop: 10, padding: '10px 14px', background: 'var(--accent-bg)', border: '1px solid #6ee7b7', borderRadius: 8, fontSize: 12, color: '#065f46', display: 'flex', alignItems: 'center', gap: 7 }}>
+              ✓ All ticket types are saved together when you click <strong style={{ marginLeft: 2 }}>{initial ? 'Save changes' : 'Create event'}</strong> below
             </div>
           </div>
 
@@ -897,7 +953,7 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
 function EventPreview({ event, onClose }) {
   function formatDateTime(dt) {
     if (!dt) return null;
-    return new Date(dt).toLocaleDateString('en-IE', {
+    return new Date(dt).toLocaleDateString('en-MT', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     });
@@ -1108,7 +1164,7 @@ export default function EventsPage() {
 
   function formatDate(dt) {
     if (!dt) return '—';
-    return new Date(dt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   return (
@@ -1195,6 +1251,8 @@ export default function EventsPage() {
                   </td>
                   <td>
                     <div className="actions">
+                      <a className="btn btn-ghost btn-sm" href={`/admin/events/${ev.id}/attendees`} style={{ textDecoration: 'none' }}>👥 Attendees</a>
+                      <a className="btn btn-ghost btn-sm" href={`/admin/events/${ev.id}/orders`} style={{ textDecoration: 'none' }}>📋 Orders</a>
                       <button className="btn btn-ghost btn-sm" onClick={() => setPreviewEvent(ev)}>👁 Preview</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => openEdit(ev)}>✏️ Edit</button>
                       <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(ev)}>🗑 Delete</button>

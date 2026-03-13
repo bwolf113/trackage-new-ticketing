@@ -2,21 +2,22 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { isSampleMode, setSampleMode, getSampleOrders, getSampleEvents } from '../../../lib/sampleData';
 
 /* ─── helpers ────────────────────────────────────────────────────── */
 function fmt(n) {
-  return new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' }).format(n || 0);
+  return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 }
 function fmtDate(dt) {
   if (!dt) return '—';
-  return new Date(dt).toLocaleDateString('en-IE', {
+  return new Date(dt).toLocaleDateString('en-MT', {
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
 }
 function fmtDateShort(dt) {
   if (!dt) return '—';
-  return new Date(dt).toLocaleDateString('en-IE', {
+  return new Date(dt).toLocaleDateString('en-MT', {
     day: 'numeric', month: 'short', year: 'numeric',
   });
 }
@@ -169,6 +170,31 @@ const CSS = `
   text-align: center; padding: 56px 20px;
   color: var(--text-light); font-size: 14px;
 }
+
+/* ── sample mode banner ── */
+.sample-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fef9c3; border: 1.5px solid #fde047;
+  border-radius: 10px; padding: 11px 16px; margin-bottom: 20px;
+  flex-wrap: wrap; gap: 10px;
+}
+.sample-banner-left { display: flex; align-items: center; gap: 10px; }
+.sample-banner-title { font-size: 13px; font-weight: 700; color: #713f12; }
+.sample-banner-sub   { font-size: 12px; color: #92400e; margin-top: 1px; }
+.sample-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.sample-toggle-track {
+  position: relative; width: 44px; height: 24px;
+  background: #d1d5db; border-radius: 24px; cursor: pointer; transition: background 0.2s;
+}
+.sample-toggle-track.on { background: #f59e0b; }
+.sample-toggle-thumb {
+  position: absolute; width: 18px; height: 18px; top: 3px; left: 3px;
+  background: #fff; border-radius: 50%; transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.sample-toggle-track.on .sample-toggle-thumb { transform: translateX(20px); }
+.sample-label-off { color: #6b7280; }
+.sample-label-on  { color: #92400e; font-weight: 700; }
 
 /* ── buttons ── */
 .btn {
@@ -352,19 +378,142 @@ function StatusBadge({ status }) {
 }
 
 /* ─── OrderDetail modal ──────────────────────────────────────────── */
-function OrderDetail({ order, onClose, onRefund }) {
+function OrderDetail({ orderId, onClose, onStatusChange }) {
+  const [order,       setOrder]       = useState(null);
+  const [loading,     setLoading]     = useState(true);
+  const [editMode,    setEditMode]    = useState(false);
+  const [editName,    setEditName]    = useState('');
+  const [editEmail,   setEditEmail]   = useState('');
+  const [saving,      setSaving]      = useState(false);
+  const [resending,   setResending]   = useState(false);
+  const [noteType,    setNoteType]    = useState('private');
+  const [noteContent, setNoteContent] = useState('');
+  const [savingNote,  setSavingNote]  = useState(false);
+  const [showRefund,  setShowRefund]  = useState(false);
+  const [refundType,  setRefundType]  = useState('full');
+  const [refundAmt,   setRefundAmt]   = useState('');
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [msg, setMsg] = useState(null); // { text, ok }
+
+  useEffect(() => { fetchOrder(); }, [orderId]);
+
+  async function fetchOrder() {
+    setLoading(true);
+    try {
+      const res  = await fetch(`/api/admin/order-detail/${orderId}`);
+      const data = await res.json();
+      if (data.order) {
+        setOrder(data.order);
+        setEditName(data.order.customer_name || '');
+        setEditEmail(data.order.customer_email || '');
+        setNoteContent(''); // reset note field
+      }
+    } catch {}
+    setLoading(false);
+  }
+
+  function flash(text, ok = true) {
+    setMsg({ text, ok });
+    setTimeout(() => setMsg(null), 4000);
+  }
+
+  async function handleSaveCustomer() {
+    setSaving(true);
+    const res  = await fetch('/api/admin/update-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId, customer_name: editName, customer_email: editEmail }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setOrder(o => ({ ...o, customer_name: editName, customer_email: editEmail }));
+      setEditMode(false);
+      flash('Customer details updated.');
+      onStatusChange?.();
+    } else {
+      flash(data.error || 'Save failed', false);
+    }
+    setSaving(false);
+  }
+
+  async function handleResend() {
+    setResending(true);
+    const res  = await fetch('/api/admin/resend-ticket', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId }),
+    });
+    const data = await res.json();
+    if (data.success) flash(`Ticket email resent to ${data.to}.`);
+    else flash(data.error || 'Resend failed', false);
+    setResending(false);
+  }
+
+  async function handleSaveNote() {
+    if (!noteContent.trim()) return;
+    setSavingNote(true);
+    const res  = await fetch('/api/admin/save-note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId, type: noteType, content: noteContent }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      const field = noteType === 'private' ? 'admin_note' : 'public_note';
+      setOrder(o => ({ ...o, [field]: noteContent.trim() }));
+      setNoteContent('');
+      flash(noteType === 'public' ? 'Note saved and emailed to customer.' : 'Private note saved.');
+    } else {
+      flash(data.error || 'Save failed', false);
+    }
+    setSavingNote(false);
+  }
+
+  async function handleRefund() {
+    setRefundLoading(true);
+    let amount_cents;
+    if (refundType === 'custom') {
+      const euros = parseFloat(refundAmt);
+      if (!euros || euros <= 0) { flash('Enter a valid refund amount.', false); setRefundLoading(false); return; }
+      amount_cents = Math.round(euros * 100);
+    }
+    const res  = await fetch('/api/admin/stripe-refund', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId, amount_cents }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      flash(`✓ Refund of €${data.refunded_amount} processed successfully.`);
+      setShowRefund(false);
+      setOrder(o => ({ ...o, status: 'refunded' }));
+      onStatusChange?.();
+    } else {
+      flash(data.error || 'Refund failed', false);
+    }
+    setRefundLoading(false);
+  }
+
+  if (loading) return (
+    <div className="modal-overlay">
+      <div className="modal" style={{ padding: 48, textAlign: 'center', color: 'var(--text-light)' }}>Loading order…</div>
+    </div>
+  );
+  if (!order) return null;
+
   const items    = order.order_items || [];
   const subtotal = items.reduce((s, i) => s + ((i.unit_price || 0) * (i.quantity || 1)), 0);
-  const fees     = items.reduce((s, i) => s + ((i.booking_fee || 0) * (i.quantity || 1)), 0);
+  const bookingFee = order.booking_fee || 0;
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+      <div className="modal" style={{ maxWidth: 680 }}>
 
+        {/* Header */}
         <div className="modal-header">
           <div>
-            <div className="modal-title">Order details</div>
-            <div className="modal-title-sub">#{order.id?.slice(0, 8).toUpperCase()}</div>
+            <div className="modal-title">Order #{order.id?.slice(0, 8).toUpperCase()}</div>
+            <div className="modal-title-sub">{fmtDate(order.created_at)}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <StatusBadge status={order.status} />
@@ -372,29 +521,54 @@ function OrderDetail({ order, onClose, onRefund }) {
           </div>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+
+          {/* Flash message */}
+          {msg && (
+            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: msg.ok ? '#dcfce7' : '#fee2e2', color: msg.ok ? '#16a34a' : '#dc2626' }}>
+              {msg.text}
+            </div>
+          )}
 
           {/* ── Customer ── */}
           <div className="detail-section">
-            <div className="detail-section-title">Customer</div>
-            <div className="detail-grid">
-              <div className="detail-field">
-                <div className="detail-field-label">Name</div>
-                <div className="detail-field-value">{order.customer_name || '—'}</div>
-              </div>
-              <div className="detail-field">
-                <div className="detail-field-label">Email</div>
-                <div className="detail-field-value">{order.customer_email || '—'}</div>
-              </div>
-              <div className="detail-field">
-                <div className="detail-field-label">Phone</div>
-                <div className="detail-field-value">{order.customer_phone || '—'}</div>
-              </div>
-              <div className="detail-field">
-                <div className="detail-field-label">Order date</div>
-                <div className="detail-field-value">{fmtDate(order.created_at)}</div>
-              </div>
+            <div className="detail-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Customer</span>
+              {!editMode
+                ? <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setEditMode(true)}>✏️ Edit</button>
+                : <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setEditMode(false)} disabled={saving}>Cancel</button>
+                    <button className="btn btn-sm" style={{ fontSize: 11, background: '#0a9e7f', color: '#fff', border: 'none' }} onClick={handleSaveCustomer} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+                  </div>
+              }
             </div>
+            {editMode ? (
+              <div className="detail-grid">
+                <div className="detail-field">
+                  <div className="detail-field-label">Name</div>
+                  <input value={editName} onChange={e => setEditName(e.target.value)} style={{ width: '100%', padding: '7px 10px', border: '1.5px solid var(--border)', borderRadius: 6, fontSize: 14, fontFamily: 'Inter,sans-serif' }} />
+                </div>
+                <div className="detail-field">
+                  <div className="detail-field-label">Email</div>
+                  <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} style={{ width: '100%', padding: '7px 10px', border: '1.5px solid var(--border)', borderRadius: 6, fontSize: 14, fontFamily: 'Inter,sans-serif' }} />
+                </div>
+              </div>
+            ) : (
+              <div className="detail-grid">
+                <div className="detail-field">
+                  <div className="detail-field-label">Name</div>
+                  <div className="detail-field-value">{order.customer_name || '—'}</div>
+                </div>
+                <div className="detail-field">
+                  <div className="detail-field-label">Email</div>
+                  <div className="detail-field-value">{order.customer_email || '—'}</div>
+                </div>
+                <div className="detail-field">
+                  <div className="detail-field-label">Phone</div>
+                  <div className="detail-field-value">{order.customer_phone || '—'}</div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Event ── */}
@@ -402,8 +576,8 @@ function OrderDetail({ order, onClose, onRefund }) {
             <div className="detail-section-title">Event</div>
             <div className="detail-grid">
               <div className="detail-field">
-                <div className="detail-field-label">Event name</div>
-                <div className="detail-field-value">{order.events?.name || order.event_name || '—'}</div>
+                <div className="detail-field-label">Event</div>
+                <div className="detail-field-value">{order.events?.name || '—'}</div>
               </div>
               <div className="detail-field">
                 <div className="detail-field-label">Organiser</div>
@@ -412,25 +586,25 @@ function OrderDetail({ order, onClose, onRefund }) {
             </div>
           </div>
 
-          {/* ── Items ── */}
+          {/* ── Tickets ── */}
           <div className="detail-section">
             <div className="detail-section-title">Tickets</div>
             {items.length === 0 ? (
-              <div style={{ color: 'var(--text-light)', fontSize: 14 }}>No items found.</div>
+              <div style={{ color: 'var(--text-light)', fontSize: 13 }}>No ticket items found.</div>
             ) : (
               <table className="items-table">
                 <thead>
                   <tr>
                     <th>Ticket</th>
                     <th style={{ textAlign: 'center' }}>Qty</th>
-                    <th style={{ textAlign: 'right' }}>Unit price</th>
+                    <th style={{ textAlign: 'right' }}>Unit</th>
                     <th style={{ textAlign: 'right' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item, i) => (
                     <tr key={i}>
-                      <td>{item.ticket_name || item.tickets?.name || '—'}</td>
+                      <td>{item.ticket_name || '—'}</td>
                       <td style={{ textAlign: 'center', fontWeight: 600 }}>{item.quantity}</td>
                       <td style={{ textAlign: 'right' }}>{fmt(item.unit_price)}</td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt((item.unit_price || 0) * (item.quantity || 1))}</td>
@@ -439,23 +613,11 @@ function OrderDetail({ order, onClose, onRefund }) {
                 </tbody>
               </table>
             )}
-
-            {/* totals */}
-            <div style={{ marginTop: 14 }}>
-              <div className="totals-row">
-                <span>Subtotal</span>
-                <span>{fmt(subtotal)}</span>
-              </div>
-              {fees > 0 && (
-                <div className="totals-row">
-                  <span>Booking fees</span>
-                  <span>{fmt(fees)}</span>
-                </div>
-              )}
-              <div className="totals-row total">
-                <span>Total charged</span>
-                <span style={{ color: '#0a9e7f' }}>{fmt(order.total)}</span>
-              </div>
+            <div style={{ marginTop: 12 }}>
+              <div className="totals-row"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
+              {bookingFee > 0 && <div className="totals-row"><span>Booking fee</span><span>{fmt(bookingFee)}</span></div>}
+              {(order.discount || 0) > 0 && <div className="totals-row" style={{ color: '#0a9e7f' }}><span>Discount {order.coupon_code ? `(${order.coupon_code})` : ''}</span><span>−{fmt(order.discount)}</span></div>}
+              <div className="totals-row total"><span>Total charged</span><span style={{ color: '#0a9e7f' }}>{fmt(order.total)}</span></div>
             </div>
           </div>
 
@@ -464,38 +626,92 @@ function OrderDetail({ order, onClose, onRefund }) {
             <div className="detail-section-title">Payment</div>
             <div className="detail-grid">
               <div className="detail-field">
-                <div className="detail-field-label">Payment method</div>
+                <div className="detail-field-label">Method</div>
                 <div className="detail-field-value">Stripe</div>
               </div>
               {order.stripe_payment_intent && (
                 <div className="detail-field">
                   <div className="detail-field-label">Payment intent</div>
                   <div className="detail-field-value mono">
-                    <a
-                      className="stripe-link"
-                      href={`https://dashboard.stripe.com/payments/${order.stripe_payment_intent}`}
-                      target="_blank" rel="noreferrer"
-                    >
-                      {order.stripe_payment_intent.slice(0, 20)}… ↗
+                    <a className="stripe-link" href={`https://dashboard.stripe.com/payments/${order.stripe_payment_intent}`} target="_blank" rel="noreferrer">
+                      {order.stripe_payment_intent.slice(0, 22)}… ↗
                     </a>
                   </div>
-                </div>
-              )}
-              {order.stripe_charge_id && (
-                <div className="detail-field">
-                  <div className="detail-field-label">Charge ID</div>
-                  <div className="detail-field-value mono">{order.stripe_charge_id}</div>
                 </div>
               )}
             </div>
           </div>
 
+          {/* ── Notes ── */}
+          <div className="detail-section">
+            <div className="detail-section-title">Notes</div>
+            {order.admin_note && (
+              <div style={{ marginBottom: 10, padding: '10px 12px', background: '#fef9c3', borderRadius: 7, fontSize: 13, color: '#713f12' }}>
+                <strong>🔒 Private:</strong> {order.admin_note}
+              </div>
+            )}
+            {order.public_note && (
+              <div style={{ marginBottom: 10, padding: '10px 12px', background: '#f0fdf9', borderRadius: 7, fontSize: 13, color: '#065f46' }}>
+                <strong>📧 Public:</strong> {order.public_note}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {['private','public'].map(t => (
+                <button key={t} onClick={() => setNoteType(t)} style={{ padding: '5px 12px', fontSize: 12, fontWeight: 600, border: '1.5px solid', borderColor: noteType === t ? '#0a9e7f' : 'var(--border)', borderRadius: 6, background: noteType === t ? '#f0fdf9' : '#fff', color: noteType === t ? '#0a9e7f' : 'var(--text-mid)', cursor: 'pointer', fontFamily: 'Inter,sans-serif' }}>
+                  {t === 'private' ? '🔒 Private' : '📧 Public'}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={noteContent}
+              onChange={e => setNoteContent(e.target.value)}
+              placeholder={noteType === 'private' ? 'Internal note (only visible to admins)…' : 'Message to send to the customer via email…'}
+              rows={3}
+              style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'Inter,sans-serif', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+              <button className="btn btn-ghost btn-sm" onClick={handleSaveNote} disabled={savingNote || !noteContent.trim()}>
+                {savingNote ? 'Saving…' : noteType === 'public' ? 'Save & email customer' : 'Save note'}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Refund panel (inline) ── */}
+          {showRefund && (
+            <div style={{ border: '1.5px solid #fecaca', borderRadius: 10, padding: '16px 18px', background: '#fef2f2', marginTop: 4 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', marginBottom: 12 }}>Issue Refund — #{order.id?.slice(0,8).toUpperCase()}</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                {['full','custom'].map(t => (
+                  <button key={t} onClick={() => setRefundType(t)} style={{ padding: '6px 14px', fontSize: 12, fontWeight: 600, border: '1.5px solid', borderColor: refundType === t ? '#dc2626' : '#fecaca', borderRadius: 6, background: refundType === t ? '#fee2e2' : '#fff', color: refundType === t ? '#dc2626' : '#b91c1c', cursor: 'pointer', fontFamily: 'Inter,sans-serif' }}>
+                    {t === 'full' ? `Full refund (${fmt(order.total)})` : 'Custom amount'}
+                  </button>
+                ))}
+              </div>
+              {refundType === 'custom' && (
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#b91c1c', display: 'block', marginBottom: 5 }}>Amount (€)</label>
+                  <input type="number" step="0.01" min="0.01" max={order.total} value={refundAmt} onChange={e => setRefundAmt(e.target.value)} placeholder="0.00" style={{ padding: '8px 12px', border: '1.5px solid #fca5a5', borderRadius: 6, fontSize: 14, fontFamily: 'Inter,sans-serif', width: 160 }} />
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowRefund(false)} disabled={refundLoading}>Cancel</button>
+                <button className="btn btn-danger btn-sm" onClick={handleRefund} disabled={refundLoading}>
+                  {refundLoading ? 'Processing…' : 'Process refund via Stripe'}
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
 
+        {/* Footer */}
         <div className="modal-footer">
+          {order.status === 'completed' && !showRefund && (
+            <button className="btn btn-danger" onClick={() => setShowRefund(true)}>↩ Issue refund</button>
+          )}
           {order.status === 'completed' && (
-            <button className="btn btn-danger" onClick={() => onRefund(order)}>
-              ↩ Issue refund
+            <button className="btn btn-ghost" onClick={handleResend} disabled={resending}>
+              {resending ? '⏳ Resending…' : '📧 Resend ticket'}
             </button>
           )}
           <button className="btn btn-ghost" onClick={onClose}>Close</button>
@@ -505,31 +721,6 @@ function OrderDetail({ order, onClose, onRefund }) {
   );
 }
 
-/* ─── RefundConfirm ──────────────────────────────────────────────── */
-function RefundConfirm({ order, onConfirm, onCancel, loading }) {
-  return (
-    <div className="confirm-overlay">
-      <div className="confirm-box">
-        <div className="confirm-title">Issue refund?</div>
-        <div className="confirm-body">
-          This will mark order <strong>#{order.id?.slice(0, 8).toUpperCase()}</strong> as refunded
-          and update the status to <strong>Refunded</strong>.<br /><br />
-          To process the actual payment refund, go to your{' '}
-          <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer" style={{ color: '#0a9e7f' }}>
-            Stripe Dashboard ↗
-          </a>{' '}
-          and refund the charge there. This action only updates the order record.
-        </div>
-        <div className="confirm-actions">
-          <button className="btn btn-ghost" onClick={onCancel} disabled={loading}>Cancel</button>
-          <button className="btn btn-danger" onClick={onConfirm} disabled={loading}>
-            {loading ? 'Processing…' : 'Mark as refunded'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ─── Toast ──────────────────────────────────────────────────────── */
 function Toast({ message, type = 'success' }) {
@@ -551,13 +742,26 @@ export default function OrdersPage() {
   const [events, setEvents]           = useState([]);
   const [page, setPage]               = useState(1);
   const [total, setTotal]             = useState(0);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [refundTarget, setRefundTarget]   = useState(null);
-  const [refundLoading, setRefundLoading] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [toast, setToast]             = useState(null);
+  const [sampleMode, setSampleModeState] = useState(false);
 
-  useEffect(() => { loadEvents(); loadCounts(); }, []);
-  useEffect(() => { loadOrders(); }, [activeTab, search, eventFilter, page]);
+  useEffect(() => {
+    setSampleModeState(isSampleMode());
+    loadEvents();
+    loadCounts();
+  }, []);
+  useEffect(() => { loadOrdersWithMode(sampleMode, activeTab, search, eventFilter, page); }, [activeTab, search, eventFilter, page, sampleMode]);
+
+  function toggleSample() {
+    const next = !sampleMode;
+    setSampleMode(next);
+    setSampleModeState(next);
+    setPage(1); setSearch(''); setEventFilter('all'); setActiveTab('all');
+    // Call load functions immediately with the new value, don't wait for re-render
+    loadCountsWithMode(next);
+    loadOrdersWithMode(next, 'all', '', 'all', 1);
+  }
 
   async function loadEvents() {
     const { data } = await supabase.from('events').select('id, name').order('name');
@@ -565,7 +769,18 @@ export default function OrdersPage() {
   }
 
   async function loadCounts() {
-    // count per status
+    loadCountsWithMode(sampleMode);
+  }
+
+  async function loadCountsWithMode(useSample) {
+    if (useSample) {
+      const all = getSampleOrders();
+      const c = { all: all.length };
+      ['completed','pending_payment','cancelled','refunded','failed'].forEach(s => {
+        c[s] = all.filter(o => o.status === s).length;
+      });
+      setCounts(c); return;
+    }
     const statuses = ['completed', 'pending_payment', 'cancelled', 'refunded', 'failed'];
     const results  = await Promise.all(
       statuses.map(s =>
@@ -573,39 +788,61 @@ export default function OrdersPage() {
       )
     );
     const c = { all: 0 };
-    statuses.forEach((s, i) => {
-      c[s] = results[i].count || 0;
-      c.all += c[s];
-    });
+    statuses.forEach((s, i) => { c[s] = results[i].count || 0; c.all += c[s]; });
     setCounts(c);
   }
 
   async function loadOrders() {
+    loadOrdersWithMode(sampleMode, activeTab, search, eventFilter, page);
+  }
+
+  async function loadOrdersWithMode(useSample, tab, srch, evtFilter, pg) {
     setLoading(true);
     try {
+      if (useSample) {
+        let all = getSampleOrders();
+        if (tab !== 'all') all = all.filter(o => o.status === tab);
+        if (evtFilter !== 'all') all = all.filter(o => o.event_id === evtFilter);
+        if (srch) {
+          const s = srch.toLowerCase();
+          all = all.filter(o =>
+            o.customer_name?.toLowerCase().includes(s) ||
+            o.customer_email?.toLowerCase().includes(s) ||
+            o.id?.toLowerCase().includes(s)
+          );
+        }
+        setTotal(all.length);
+        const start = (pg - 1) * PAGE_SIZE;
+        setOrders(all.slice(start, start + PAGE_SIZE));
+        const base = getSampleOrders();
+        const c = { all: base.length };
+        ['completed','pending_payment','cancelled','refunded','failed'].forEach(s => { c[s] = base.filter(o => o.status === s).length; });
+        setCounts(c);
+        setLoading(false); return;
+      }
+
       let q = supabase
         .from('orders')
         .select(`
           id, status, total, customer_name, customer_email, customer_phone,
-          created_at, stripe_payment_intent, stripe_charge_id,
-          event_name,
+          created_at, event_id, booking_fee, discount, coupon_code,
+          stripe_session_id,
           events ( name ),
-          organisers ( name ),
           order_items (
-            id, quantity, unit_price, booking_fee, ticket_name,
-            tickets ( name )
+            id, quantity, unit_price, ticket_name
           )
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
-        .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+        .range((pg - 1) * PAGE_SIZE, pg * PAGE_SIZE - 1);
 
-      if (activeTab !== 'all') q = q.eq('status', activeTab);
-      if (eventFilter !== 'all') q = q.eq('event_id', eventFilter);
-      if (search) {
-        q = q.or(`customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,id.ilike.%${search}%`);
+      if (tab !== 'all') q = q.eq('status', tab);
+      if (evtFilter !== 'all') q = q.eq('event_id', evtFilter);
+      if (srch) {
+        q = q.or(`customer_name.ilike.%${srch}%,customer_email.ilike.%${srch}%,id.ilike.%${srch}%`);
       }
 
       const { data, count, error } = await q;
+      console.log('Orders query result:', { data, count, error });
       if (error) throw error;
       setOrders(data || []);
       setTotal(count || 0);
@@ -620,24 +857,6 @@ export default function OrdersPage() {
     setTimeout(() => setToast(null), 3500);
   }
 
-  async function handleRefund() {
-    setRefundLoading(true);
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: 'refunded', updated_at: new Date().toISOString() })
-        .eq('id', refundTarget.id);
-      if (error) throw error;
-      showToast('Order marked as refunded.');
-      setRefundTarget(null);
-      setSelectedOrder(null);
-      loadOrders();
-      loadCounts();
-    } catch (err) {
-      showToast('Refund failed: ' + err.message, 'error');
-    }
-    setRefundLoading(false);
-  }
 
   // Summary stats from current filtered set
   const completedRevenue = orders
@@ -660,10 +879,33 @@ export default function OrdersPage() {
     <div className="ord">
       <style>{CSS}</style>
 
+      {/* ── Sample Mode Banner ── */}
+      <div className="sample-banner">
+        <div className="sample-banner-left">
+          <span style={{ fontSize: 20 }}>🧪</span>
+          <div>
+            <div className="sample-banner-title">Sample Data Mode</div>
+            <div className="sample-banner-sub">
+              {sampleMode
+                ? '100 fake orders are loaded — nothing is real. Toggle off to clear.'
+                : 'Enable to load 100 fake orders for testing. No data is written to the database.'}
+            </div>
+          </div>
+        </div>
+        <div className="sample-toggle" onClick={toggleSample}>
+          <span className={sampleMode ? 'sample-label-on' : 'sample-label-off'}>
+            {sampleMode ? 'ON' : 'OFF'}
+          </span>
+          <div className={`sample-toggle-track ${sampleMode ? 'on' : ''}`}>
+            <div className="sample-toggle-thumb" />
+          </div>
+        </div>
+      </div>
+
       {/* ── Header ── */}
       <div className="page-header">
         <div>
-          <div className="page-title">Orders</div>
+          <div className="page-title">Orders {sampleMode && <span style={{ fontSize: 13, fontWeight: 600, color: '#d97706', background: '#fef3c7', padding: '2px 8px', borderRadius: 6, marginLeft: 8 }}>SAMPLE</span>}</div>
           <div className="page-sub">{total} orders {activeTab !== 'all' ? `· filtered by ${STATUS_META[activeTab]?.label}` : 'total'}</div>
         </div>
       </div>
@@ -756,7 +998,7 @@ export default function OrdersPage() {
               </thead>
               <tbody>
                 {orders.map(order => (
-                  <tr key={order.id} onClick={() => setSelectedOrder(order)}>
+                  <tr key={order.id} onClick={() => setSelectedOrderId(order.id)}>
                     <td>
                       <div className="order-id">#{order.id?.slice(0, 8).toUpperCase()}</div>
                     </td>
@@ -809,21 +1051,11 @@ export default function OrdersPage() {
       </div>
 
       {/* ── Order detail modal ── */}
-      {selectedOrder && (
+      {selectedOrderId && (
         <OrderDetail
-          order={selectedOrder}
-          onClose={() => setSelectedOrder(null)}
-          onRefund={order => { setRefundTarget(order); }}
-        />
-      )}
-
-      {/* ── Refund confirm ── */}
-      {refundTarget && (
-        <RefundConfirm
-          order={refundTarget}
-          loading={refundLoading}
-          onConfirm={handleRefund}
-          onCancel={() => setRefundTarget(null)}
+          orderId={selectedOrderId}
+          onClose={() => setSelectedOrderId(null)}
+          onStatusChange={() => { loadOrders(); loadCounts(); }}
         />
       )}
 

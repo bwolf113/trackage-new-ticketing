@@ -1,0 +1,609 @@
+/* app/admin/reports/page.jsx */
+'use client';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
+import { isSampleMode, setSampleMode, getSampleKpis, getSampleOrganisers, getSampleEvents } from '../../../lib/sampleData';
+
+/* ─── helpers ─────────────────────────────────────────────────────── */
+function fmt(n) {
+  return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
+}
+function fmtDate(dt) {
+  if (!dt) return '—';
+  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function getRange(key, cs, ce) {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const map = {
+    this_month:   [new Date(y, m, 1),       new Date(y, m+1, 0, 23,59,59)],
+    last_month:   [new Date(y, m-1, 1),     new Date(y, m, 0, 23,59,59)],
+    this_quarter: [new Date(y, Math.floor(m/3)*3, 1), new Date(y, Math.floor(m/3)*3+3, 0, 23,59,59)],
+    last_quarter: [new Date(y, Math.floor(m/3)*3-3, 1), new Date(y, Math.floor(m/3)*3, 0, 23,59,59)],
+    this_year:    [new Date(y, 0, 1),       new Date(y, 11, 31, 23,59,59)],
+    last_year:    [new Date(y-1, 0, 1),     new Date(y-1, 11, 31, 23,59,59)],
+    all_time:     [new Date('2000-01-01'),   new Date(y+1, 0, 1)],
+    custom:       [
+      cs ? new Date(cs) : new Date(y, m, 1),
+      ce ? new Date(new Date(ce).setHours(23,59,59)) : new Date(y, m+1, 0, 23,59,59)
+    ],
+  };
+  const [s, e] = map[key] || map.this_month;
+  return { start: s.toISOString(), end: e.toISOString() };
+}
+function pctChange(cur, prev) {
+  if (prev == null || prev === 0) return cur > 0 ? 100 : 0;
+  return ((cur - prev) / prev) * 100;
+}
+function fmtPct(n) {
+  const sign = n >= 0 ? '+' : '';
+  return `${sign}${n.toFixed(1)}%`;
+}
+
+/* ─── styles ──────────────────────────────────────────────────────── */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --accent:#0a9e7f;--accent-dark:#087d65;--accent-bg:#f0fdf9;
+  --text:#111827;--text-mid:#6b7280;--text-light:#9ca3af;
+  --border:#e5e7eb;--bg:#f9fafb;--white:#ffffff;
+  --danger:#ef4444;--danger-bg:#fef2f2;
+  --success:#16a34a;--success-bg:#dcfce7;
+  --warn:#d97706;--warn-bg:#fffbeb;
+  --blue:#3b82f6;--blue-bg:#eff6ff;
+  --purple:#7c3aed;--purple-bg:#ede9fe;
+  --radius:10px;
+}
+body{font-family:'Inter',sans-serif;color:var(--text);background:var(--bg)}
+
+/* page header */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.page-title{font-size:22px;font-weight:700}
+.page-sub{font-size:13px;color:var(--text-mid);margin-top:2px}
+
+/* period blocks */
+.period-block{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px}
+.period-block-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-mid);margin-bottom:10px}
+.filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filter-btn{background:var(--white);border:1.5px solid var(--border);color:#374151;padding:7px 13px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s;white-space:nowrap}
+.filter-btn:hover{border-color:var(--accent);color:var(--accent)}
+.filter-btn.active{background:var(--accent);border-color:var(--accent);color:var(--white)}
+.date-input{border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--white);outline:none}
+.date-input:focus{border-color:var(--accent)}
+
+/* compare toggle */
+.compare-toggle{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.toggle-label{font-size:13px;font-weight:600;color:var(--text-mid)}
+.toggle-switch{position:relative;width:40px;height:22px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#d1d5db;border-radius:22px;cursor:pointer;transition:background 0.2s}
+.toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:white;border-radius:50%;transition:transform 0.2s}
+.toggle-switch input:checked + .toggle-slider{background:var(--accent)}
+.toggle-switch input:checked + .toggle-slider:before{transform:translateX(18px)}
+.compare-badge{background:var(--accent-bg);border:1px solid #6ee7b7;color:#065f46;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600}
+
+/* two period layout */
+.periods-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.period-card{background:var(--white);border:2px solid var(--border);border-radius:var(--radius);padding:14px 18px}
+.period-card.primary{border-color:var(--accent)}
+.period-card.secondary{border-color:#94a3b8}
+.period-card-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px}
+.period-card.primary .period-card-label{color:var(--accent)}
+.period-card.secondary .period-card-label{color:#64748b}
+
+/* kpi grid */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:28px}
+.kpi-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.kpi-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:12px}
+.kpi-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-mid);margin-bottom:6px}
+.kpi-value{font-size:26px;font-weight:700;line-height:1;margin-bottom:4px}
+.kpi-sub{font-size:12px;color:var(--text-light)}
+.kpi-compare{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kpi-prev{font-size:12px;color:var(--text-light)}
+.kpi-change{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px}
+.kpi-change.up{background:var(--success-bg);color:var(--success)}
+.kpi-change.down{background:var(--danger-bg);color:var(--danger)}
+.kpi-change.flat{background:var(--bg);color:var(--text-mid);border:1px solid var(--border)}
+
+/* section */
+.section{margin-bottom:28px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-title{font-size:16px;font-weight:700}
+.section-sub{font-size:13px;color:var(--text-mid)}
+
+/* card */
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
+
+/* table */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--bg);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-mid);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--bg)}
+tbody td{padding:13px 16px;font-size:14px;color:var(--text)}
+.rank{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;font-size:12px;font-weight:700}
+.r1{background:#fef9c3;color:#854d0e}.r2{background:#f1f5f9;color:#475569}.r3{background:#fef3c7;color:#92400e}.rn{background:var(--bg);color:var(--text-light);border:1px solid var(--border)}
+
+/* highlights */
+.highlight-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.hl-tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:10px}
+.tag-top{background:var(--success-bg);color:var(--success)}.tag-bot{background:var(--danger-bg);color:var(--danger)}
+.hl-name{font-size:17px;font-weight:700;margin-bottom:4px}.hl-stat{font-size:13px;color:var(--text-mid)}
+
+/* bar chart */
+.bar-chart{padding:20px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.bar-row:last-child{margin-bottom:0}
+.bar-label{font-size:12px;font-weight:500;color:var(--text-mid);width:80px;flex-shrink:0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:20px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+.bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease;display:flex;align-items:center;padding-left:8px}
+.bar-val{font-size:11px;font-weight:700;color:var(--white);white-space:nowrap}
+
+/* event status */
+.evt-status{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.evt-upcoming{background:var(--blue-bg);color:var(--blue)}.evt-past{background:var(--bg);color:var(--text-mid);border:1px solid var(--border)}.evt-ongoing{background:var(--success-bg);color:var(--success)}
+
+/* breakdown */
+.breakdown-row{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);font-size:14px}
+.breakdown-row:last-child{border-bottom:none}
+.breakdown-label{color:var(--text-mid);font-weight:500}.breakdown-value{font-weight:700;color:var(--text)}
+
+/* empty / skeleton */
+.empty{text-align:center;padding:48px 20px;color:var(--text-mid)}.empty-icon{font-size:36px;margin-bottom:10px}
+.skel{background:linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+.btn-outline{display:inline-flex;align-items:center;gap:6px;background:var(--white);border:1.5px solid var(--border);color:var(--text-mid);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+
+/* sample banner */
+.sample-banner{display:flex;align-items:center;justify-content:space-between;background:#fef9c3;border:1.5px solid #fde047;border-radius:10px;padding:11px 16px;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.sample-banner-left{display:flex;align-items:center;gap:10px}
+.sample-banner-title{font-size:13px;font-weight:700;color:#713f12}
+.sample-banner-sub{font-size:12px;color:#92400e;margin-top:1px}
+.sample-toggle-wrap{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer}
+.sample-toggle-track{position:relative;width:44px;height:24px;background:#d1d5db;border-radius:24px;cursor:pointer;transition:background 0.2s}
+.sample-toggle-track.on{background:#f59e0b}
+.sample-toggle-thumb{position:absolute;width:18px;height:18px;top:3px;left:3px;background:#fff;border-radius:50%;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.sample-toggle-track.on .sample-toggle-thumb{transform:translateX(20px)}
+.sample-label-off{color:#6b7280}.sample-label-on{color:#92400e;font-weight:700}
+
+@media(max-width:768px){.two-col{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}.periods-row{grid-template-columns:1fr}}
+@media print{.filter-bar,.btn-outline,.compare-toggle,.period-block,.periods-row,.page-header button,.sample-banner{display:none!important}}
+`;
+
+const PERIODS = [
+  { key: 'this_month',   label: 'This month' },
+  { key: 'last_month',   label: 'Last month' },
+  { key: 'this_quarter', label: 'This quarter' },
+  { key: 'last_quarter', label: 'Last quarter' },
+  { key: 'this_year',    label: 'This year' },
+  { key: 'last_year',    label: 'Last year' },
+  { key: 'all_time',     label: 'All time' },
+  { key: 'custom',       label: 'Custom' },
+];
+
+async function fetchKpis(start, end) {
+  const { data: orders } = await supabase
+    .from('orders')
+    .select('id, total, organiser_id, booking_fee, created_at')
+    .eq('status', 'completed')
+    .gte('created_at', start)
+    .lte('created_at', end);
+
+  const orderIds = (orders || []).map(o => o.id);
+  let ticketCount = 0;
+  if (orderIds.length) {
+    const { data: items } = await supabase
+      .from('order_items').select('quantity').in('order_id', orderIds);
+    ticketCount = (items || []).reduce((s, i) => s + (i.quantity || 0), 0);
+  }
+  const totalRevenue     = (orders || []).reduce((s, o) => s + (o.total || 0), 0);
+  const totalBookingFees = (orders || []).reduce((s, o) => s + (o.booking_fee || 0), 0);
+  return {
+    totalRevenue, totalBookingFees,
+    totalStripeFees: totalRevenue * 0.03,
+    ticketCount, orderCount: (orders || []).length,
+    orders,
+  };
+}
+
+/* ─── component ───────────────────────────────────────────────────── */
+export default function ReportsPage() {
+  // Primary period
+  const [period,  setPeriod]  = useState('this_month');
+  const [primCS,  setPrimCS]  = useState('');
+  const [primCE,  setPrimCE]  = useState('');
+
+  // Compare period
+  const [comparing,  setComparing]  = useState(false);
+  const [compPeriod, setCompPeriod] = useState('last_month');
+  const [compCS,     setCompCS]     = useState('');
+  const [compCE,     setCompCE]     = useState('');
+
+  const [loading,  setLoading]  = useState(true);
+  const [kpis,     setKpis]     = useState(null);
+  const [prevKpis, setPrevKpis] = useState(null);
+  const [orgRanking, setOrgRanking] = useState([]);
+  const [eventPerf,  setEventPerf]  = useState([]);
+  const [revBreak,   setRevBreak]   = useState(null);
+  const [sampleMode, setSampleModeState] = useState(false);
+
+  useEffect(() => { setSampleModeState(isSampleMode()); }, []);
+  useEffect(() => { loadReport(); }, [period, primCS, primCE, comparing, compPeriod, compCS, compCE, sampleMode]);
+
+  function toggleSample() {
+    const next = !sampleMode;
+    setSampleMode(next);
+    setSampleModeState(next);
+  }
+
+  async function loadReport() {
+    setLoading(true);
+    try {
+      const { start, end } = getRange(period, primCS, primCE);
+
+      if (isSampleMode()) {
+        // ── Sample data path ──
+        const { kpis: k, orgRanking: orgs, eventPerf: evts } = getSampleKpis(start, end);
+        setKpis(k);
+        setRevBreak({ grossRevenue: k.totalRevenue, bookingFees: k.totalBookingFees, stripeFees: k.totalStripeFees, netRevenue: k.totalRevenue - k.totalStripeFees });
+        setOrgRanking(orgs);
+        setEventPerf(evts);
+
+        if (comparing) {
+          const comp = getRange(compPeriod, compCS, compCE);
+          const { kpis: pk } = getSampleKpis(comp.start, comp.end);
+          setPrevKpis(pk);
+        } else { setPrevKpis(null); }
+        setLoading(false); return;
+      }
+
+      // ── Real data path ──
+      const primary = await fetchKpis(start, end);
+      setKpis(primary);
+      setRevBreak({ grossRevenue: primary.totalRevenue, bookingFees: primary.totalBookingFees, stripeFees: primary.totalStripeFees, netRevenue: primary.totalRevenue - primary.totalStripeFees });
+
+      const byOrg = {};
+      (primary.orders || []).forEach(o => {
+        if (!o.organiser_id) return;
+        if (!byOrg[o.organiser_id]) byOrg[o.organiser_id] = { revenue: 0, orders: 0 };
+        byOrg[o.organiser_id].revenue += o.total || 0;
+        byOrg[o.organiser_id].orders  += 1;
+      });
+      const orgIds = Object.keys(byOrg);
+      if (orgIds.length) {
+        const { data: orgs } = await supabase.from('organisers').select('id, name').in('id', orgIds);
+        setOrgRanking((orgs || []).map(o => ({ ...o, ...byOrg[o.id] })).sort((a, b) => b.revenue - a.revenue));
+      } else { setOrgRanking([]); }
+
+      const { data: events } = await supabase.from('events').select('id, name, start_time, end_time, status').order('start_time', { ascending: false }).limit(20);
+      const orderIds = (primary.orders || []).map(o => o.id);
+      if (events?.length && orderIds.length) {
+        const { data: evtItems } = await supabase.from('order_items').select('event_id, quantity, price').in('order_id', orderIds);
+        const evtMap = {};
+        (evtItems || []).forEach(i => {
+          if (!i.event_id) return;
+          if (!evtMap[i.event_id]) evtMap[i.event_id] = { revenue: 0, tickets: 0 };
+          evtMap[i.event_id].revenue += (i.price || 0) * (i.quantity || 0);
+          evtMap[i.event_id].tickets += i.quantity || 0;
+        });
+        setEventPerf((events || []).map(e => ({ ...e, ...(evtMap[e.id] || { revenue: 0, tickets: 0 }) })).sort((a, b) => b.revenue - a.revenue));
+      } else { setEventPerf(events || []); }
+
+      if (comparing) {
+        const comp = getRange(compPeriod, compCS, compCE);
+        const prev = await fetchKpis(comp.start, comp.end);
+        setPrevKpis(prev);
+      } else { setPrevKpis(null); }
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  }
+
+  function handleExportCSV() {
+    if (!orgRanking.length) return;
+    const rows = [['Rank','Organiser','Orders','Revenue (€)'], ...orgRanking.map((o,i) => [i+1, o.name, o.orders, o.revenue.toFixed(2)])];
+    const blob = new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `trackage-report-${period}.csv`; a.click();
+  }
+
+  const top = orgRanking[0];
+  const bottom = orgRanking[orgRanking.length - 1];
+  const maxRev = orgRanking[0]?.revenue || 1;
+
+  function periodLabel(key, cs, ce) {
+    if (key === 'custom') return `${cs || '?'} → ${ce || '?'}`;
+    return PERIODS.find(p => p.key === key)?.label || key;
+  }
+
+  function KpiCard({ label, value, prevValue, prevRaw, curRaw, sub, icon, iconBg, iconColor }) {
+    const change = (comparing && prevRaw != null && curRaw != null) ? pctChange(curRaw, prevRaw) : null;
+    return (
+      <div className="kpi-card">
+        <div className="kpi-icon" style={{ background: iconBg, color: iconColor }}>{icon}</div>
+        <div className="kpi-label">{label}</div>
+        {loading
+          ? <div className="skel" style={{ height: 28, width: 100, marginBottom: 4 }} />
+          : <div className="kpi-value" style={{ color: iconColor }}>{value}</div>
+        }
+        {!loading && <div className="kpi-sub">{sub}</div>}
+        {!loading && comparing && prevValue != null && (
+          <div className="kpi-compare">
+            <span className="kpi-prev">vs {prevValue}</span>
+            {change !== null && !isNaN(change) && (
+              <span className={`kpi-change ${change > 0 ? 'up' : change < 0 ? 'down' : 'flat'}`}>
+                {change > 0 ? '▲' : change < 0 ? '▼' : '–'} {fmtPct(change)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function eventStatus(e) {
+    if (e.status === 'sample') return <span className="evt-status evt-past" style={{background:'#fef9c3',color:'#92400e',border:'1px solid #fde047'}}>Sample</span>;
+    const now = new Date(), start = new Date(e.start_time), end = e.end_time ? new Date(e.end_time) : null;
+    if (start > now) return <span className="evt-status evt-upcoming">Upcoming</span>;
+    if (end && end > now) return <span className="evt-status evt-ongoing">Ongoing</span>;
+    return <span className="evt-status evt-past">Past</span>;
+  }
+
+  return (
+    <>
+      <style>{CSS}</style>
+
+      {/* ── Sample Mode Banner ── */}
+      <div className="sample-banner">
+        <div className="sample-banner-left">
+          <span style={{ fontSize: 20 }}>🧪</span>
+          <div>
+            <div className="sample-banner-title">Sample Data Mode</div>
+            <div className="sample-banner-sub">
+              {sampleMode
+                ? '100 fake orders are active across all periods — toggle off to clear and show real data.'
+                : 'Enable to preview reports with 100 fake orders spread across the last 90 days.'}
+            </div>
+          </div>
+        </div>
+        <div className="sample-toggle-wrap" onClick={toggleSample}>
+          <span className={sampleMode ? 'sample-label-on' : 'sample-label-off'}>{sampleMode ? 'ON' : 'OFF'}</span>
+          <div className={`sample-toggle-track ${sampleMode ? 'on' : ''}`}>
+            <div className="sample-toggle-thumb" />
+          </div>
+        </div>
+      </div>
+
+      <div className="page-header">
+        <div>
+          <div className="page-title">Reports & Analytics {sampleMode && <span style={{ fontSize: 13, fontWeight: 600, color: '#d97706', background: '#fef3c7', padding: '2px 8px', borderRadius: 6, marginLeft: 8 }}>SAMPLE</span>}</div>
+          <div className="page-sub">Sales performance across all events and organisers</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-outline" onClick={handleExportCSV}>⬇ Export CSV</button>
+          <button className="btn-outline" onClick={() => window.print()}>🖨 Print</button>
+        </div>
+      </div>
+
+      {/* ── Primary period selector ── */}
+      <div className="period-block">
+        <div className="period-block-title">📅 Reporting Period</div>
+        <div className="filter-bar">
+          {PERIODS.map(p => (
+            <button key={p.key} className={`filter-btn ${period === p.key ? 'active' : ''}`} onClick={() => setPeriod(p.key)}>{p.label}</button>
+          ))}
+          {period === 'custom' && (
+            <>
+              <input type="date" className="date-input" value={primCS} onChange={e => setPrimCS(e.target.value)} />
+              <span style={{ color: 'var(--text-light)' }}>→</span>
+              <input type="date" className="date-input" value={primCE} onChange={e => setPrimCE(e.target.value)} />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── Compare toggle ── */}
+      <div className="compare-toggle">
+        <span className="toggle-label">Compare to another period</span>
+        <label className="toggle-switch">
+          <input type="checkbox" checked={comparing} onChange={e => setComparing(e.target.checked)} />
+          <span className="toggle-slider" />
+        </label>
+        {comparing && (
+          <span className="compare-badge">
+            Comparing: <strong>{periodLabel(period, primCS, primCE)}</strong> vs <strong>{periodLabel(compPeriod, compCS, compCE)}</strong>
+          </span>
+        )}
+      </div>
+
+      {/* ── Comparison period selector ── */}
+      {comparing && (
+        <div className="period-block" style={{ borderColor: '#94a3b8' }}>
+          <div className="period-block-title" style={{ color: '#64748b' }}>📊 Compare To</div>
+          <div className="filter-bar">
+            {PERIODS.filter(p => p.key !== 'all_time').map(p => (
+              <button key={p.key} className={`filter-btn ${compPeriod === p.key ? 'active' : ''}`}
+                style={compPeriod === p.key ? { background: '#64748b', borderColor: '#64748b' } : {}}
+                onClick={() => setCompPeriod(p.key)}>{p.label}</button>
+            ))}
+            {compPeriod === 'custom' && (
+              <>
+                <input type="date" className="date-input" value={compCS} onChange={e => setCompCS(e.target.value)} />
+                <span style={{ color: 'var(--text-light)' }}>→</span>
+                <input type="date" className="date-input" value={compCE} onChange={e => setCompCE(e.target.value)} />
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Period summary labels ── */}
+      {comparing && (
+        <div className="periods-row">
+          <div className="period-card primary">
+            <div className="period-card-label">Primary Period</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>{periodLabel(period, primCS, primCE)}</div>
+          </div>
+          <div className="period-card secondary">
+            <div className="period-card-label">Comparison Period</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>{periodLabel(compPeriod, compCS, compCE)}</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── KPI cards ── */}
+      <div className="kpi-grid">
+        <KpiCard label="Gross Revenue" icon="€" iconBg="var(--accent-bg)" iconColor="var(--accent)"
+          value={loading ? '—' : fmt(kpis?.totalRevenue)}
+          prevValue={prevKpis ? fmt(prevKpis.totalRevenue) : null}
+          curRaw={kpis?.totalRevenue} prevRaw={prevKpis?.totalRevenue}
+          sub={`${kpis?.orderCount || 0} completed orders`} />
+        <KpiCard label="Tickets Sold" icon="🎫" iconBg="var(--blue-bg)" iconColor="var(--blue)"
+          value={loading ? '—' : (kpis?.ticketCount || 0).toLocaleString()}
+          prevValue={prevKpis ? prevKpis.ticketCount.toLocaleString() : null}
+          curRaw={kpis?.ticketCount} prevRaw={prevKpis?.ticketCount}
+          sub="across all events" />
+        <KpiCard label="Booking Fees Earned" icon="💰" iconBg="var(--success-bg)" iconColor="var(--success)"
+          value={loading ? '—' : fmt(kpis?.totalBookingFees)}
+          prevValue={prevKpis ? fmt(prevKpis.totalBookingFees) : null}
+          curRaw={kpis?.totalBookingFees} prevRaw={prevKpis?.totalBookingFees}
+          sub="platform commission" />
+        <KpiCard label="Stripe Fees (est.)" icon="💳" iconBg="var(--purple-bg)" iconColor="var(--purple)"
+          value={loading ? '—' : fmt(kpis?.totalStripeFees)}
+          prevValue={prevKpis ? fmt(prevKpis.totalStripeFees) : null}
+          curRaw={kpis?.totalStripeFees} prevRaw={prevKpis?.totalStripeFees}
+          sub="~3% of gross revenue" />
+        <KpiCard label="Total Orders" icon="📋" iconBg="var(--warn-bg)" iconColor="var(--warn)"
+          value={loading ? '—' : (kpis?.orderCount || 0).toLocaleString()}
+          prevValue={prevKpis ? prevKpis.orderCount.toLocaleString() : null}
+          curRaw={kpis?.orderCount} prevRaw={prevKpis?.orderCount}
+          sub="completed transactions" />
+      </div>
+
+      {/* ── Revenue breakdown + highlights ── */}
+      {!loading && kpis && (
+        <div className="two-col">
+          <div className="section">
+            <div className="section-header"><div className="section-title">Revenue Breakdown</div></div>
+            <div className="card">
+              <div className="breakdown-row"><span className="breakdown-label">Gross Revenue</span><span className="breakdown-value">{fmt(revBreak?.grossRevenue)}</span></div>
+              <div className="breakdown-row"><span className="breakdown-label">Booking Fees (earned)</span><span className="breakdown-value" style={{color:'var(--success)'}}>+{fmt(revBreak?.bookingFees)}</span></div>
+              <div className="breakdown-row"><span className="breakdown-label">Stripe Fees (est. 3%)</span><span className="breakdown-value" style={{color:'var(--danger)'}}>−{fmt(revBreak?.stripeFees)}</span></div>
+              <div className="breakdown-row" style={{borderTop:'2px solid var(--border)',background:'var(--bg)'}}>
+                <span className="breakdown-label" style={{fontWeight:700,color:'var(--text)'}}>Net Revenue</span>
+                <span className="breakdown-value" style={{fontSize:16,color:'var(--accent)'}}>{fmt(revBreak?.netRevenue)}</span>
+              </div>
+            </div>
+          </div>
+          <div className="section">
+            <div className="section-header"><div className="section-title">Organiser Highlights</div></div>
+            {orgRanking.length >= 2 ? (
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                <div className="highlight-card"><span className="hl-tag tag-top">⬆ Top performer</span><div className="hl-name">{top?.name}</div><div className="hl-stat">{top?.orders} orders · {fmt(top?.revenue)}</div></div>
+                <div className="highlight-card"><span className="hl-tag tag-bot">⬇ Lowest sales</span><div className="hl-name">{bottom?.name}</div><div className="hl-stat">{bottom?.orders} orders · {fmt(bottom?.revenue)}</div></div>
+              </div>
+            ) : (
+              <div className="card"><div className="empty"><div className="empty-icon">👤</div><div>Not enough data for this period.</div></div></div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Bar chart ── */}
+      {!loading && orgRanking.length > 0 && (
+        <div className="section">
+          <div className="section-header"><div className="section-title">Revenue by Organiser</div><div className="section-sub">Top {Math.min(orgRanking.length,10)}</div></div>
+          <div className="card">
+            <div className="bar-chart">
+              {orgRanking.slice(0,10).map((org,i) => {
+                const colors=['#0a9e7f','#3b82f6','#7c3aed','#f59e0b','#ef4444','#06b6d4','#84cc16','#ec4899','#f97316','#6366f1'];
+                return (
+                  <div key={org.id} className="bar-row">
+                    <div className="bar-label" title={org.name}>{org.name}</div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{width:`${Math.max(4,(org.revenue/maxRev)*100)}%`,background:colors[i%colors.length]}}>
+                        <span className="bar-val">{fmt(org.revenue)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Organiser rankings table ── */}
+      <div className="section">
+        <div className="section-header"><div className="section-title">Organiser Rankings</div><button className="btn-outline" onClick={handleExportCSV}>⬇ Export CSV</button></div>
+        <div className="card">
+          {loading ? (
+            <div style={{padding:24,display:'flex',flexDirection:'column',gap:10}}>{[1,2,3,4].map(i=><div key={i} className="skel" style={{height:40}}/>)}</div>
+          ) : orgRanking.length === 0 ? (
+            <div className="empty"><div className="empty-icon">📊</div><div>No sales data for this period.</div></div>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>#</th><th>Organiser</th><th>Orders</th><th>Revenue</th><th>Share</th></tr></thead>
+                <tbody>
+                  {orgRanking.map((org,i) => {
+                    const share = kpis?.totalRevenue ? ((org.revenue/kpis.totalRevenue)*100).toFixed(1) : '0';
+                    return (
+                      <tr key={org.id}>
+                        <td><span className={`rank ${i===0?'r1':i===1?'r2':i===2?'r3':'rn'}`}>{i+1}</span></td>
+                        <td style={{fontWeight:600}}>{org.name}</td>
+                        <td style={{color:'var(--text-mid)'}}>{org.orders}</td>
+                        <td style={{fontWeight:700,color:'var(--accent)'}}>{fmt(org.revenue)}</td>
+                        <td>
+                          <div style={{display:'flex',alignItems:'center',gap:8}}>
+                            <div style={{width:60,height:6,background:'var(--bg)',borderRadius:4,border:'1px solid var(--border)',overflow:'hidden'}}>
+                              <div style={{width:`${share}%`,height:'100%',background:'var(--accent)',borderRadius:4}}/>
+                            </div>
+                            <span style={{fontSize:12,color:'var(--text-mid)'}}>{share}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Event performance ── */}
+      <div className="section">
+        <div className="section-header"><div className="section-title">Event Performance</div><div className="section-sub">Last 20 events</div></div>
+        <div className="card">
+          {loading ? (
+            <div style={{padding:24,display:'flex',flexDirection:'column',gap:10}}>{[1,2,3].map(i=><div key={i} className="skel" style={{height:40}}/>)}</div>
+          ) : eventPerf.length === 0 ? (
+            <div className="empty"><div className="empty-icon">🎫</div><div>No events found.</div></div>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Event</th><th>Date</th><th>Status</th><th>Tickets Sold</th><th>Revenue</th></tr></thead>
+                <tbody>
+                  {eventPerf.map(e => (
+                    <tr key={e.id}>
+                      <td style={{fontWeight:600}}>{e.name}</td>
+                      <td style={{color:'var(--text-mid)',fontSize:13}}>{fmtDate(e.start_time)}</td>
+                      <td>{eventStatus(e)}</td>
+                      <td style={{color:'var(--text-mid)'}}>{e.tickets||0}</td>
+                      <td style={{fontWeight:700,color:'var(--accent)'}}>{fmt(e.revenue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
