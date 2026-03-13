@@ -703,7 +703,6 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
           updated_at: new Date().toISOString(),
         }).eq('id', eventId);
         if (error) throw error;
-        await supabase.from('tickets').delete().eq('event_id', eventId);
       } else {
         const { data, error } = await supabase
           .from('events')
@@ -714,25 +713,26 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
         eventId = data.id;
       }
 
-      // Insert tickets
-      if (tickets.length) {
-        const rows = tickets.map(({ _id, ...t }) => {
-          // Sanitise ticket date fields
-          ['sale_start', 'sale_end'].forEach(k => {
-            if (t[k] === '' || t[k] === undefined) t[k] = null;
-          });
-          return {
-            ...t,
-            event_id: eventId,
-            price: parseFloat(t.price) || 0,
-            booking_fee_pct: parseFloat(t.booking_fee_pct) || 0,
-            inventory: t.inventory !== '' && t.inventory != null ? parseInt(t.inventory) : null,
-            sold: t.sold || 0,
-            created_at: new Date().toISOString(),
-          };
+      // Upsert tickets — update existing, insert new, never delete
+      for (const { _id, ...t } of tickets) {
+        ['sale_start', 'sale_end'].forEach(k => {
+          if (t[k] === '' || t[k] === undefined) t[k] = null;
         });
-        const { error } = await supabase.from('tickets').insert(rows);
-        if (error) throw error;
+        const { id, sold, created_at, ...fields } = t;
+        const row = {
+          ...fields,
+          event_id: eventId,
+          price: parseFloat(t.price) || 0,
+          booking_fee_pct: parseFloat(t.booking_fee_pct) || 0,
+          inventory: t.inventory !== '' && t.inventory != null ? parseInt(t.inventory) : null,
+        };
+        if (id) {
+          const { error } = await supabase.from('tickets').update(row).eq('id', id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from('tickets').insert({ ...row, sold: 0, created_at: new Date().toISOString() });
+          if (error) throw error;
+        }
       }
 
       onSave();
