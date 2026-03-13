@@ -2,11 +2,11 @@
    Handles OAuth redirect. Exchanges code for session, creates organiser profile.
 */
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../../../lib/supabase';
 
-export default function AuthCallbackPage() {
+function AuthCallbackPageInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState('Signing you in…');
@@ -79,5 +79,13 @@ export default function AuthCallbackPage() {
         <div style={{ fontSize: 13, color: '#6b7280' }}>Please wait…</div>
       </div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense>
+      <AuthCallbackPageInner />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 /* app/(public)/orders/success/page.jsx */
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -79,7 +79,7 @@ html,body{font-family:var(--sans);background:var(--off);color:var(--text);-webki
 }
 `;
 
-export default function SuccessPage() {
+function SuccessPageInner() {
   const searchParams = useSearchParams();
   const sessionId    = searchParams.get('session_id');
 
@@ -257,5 +257,13 @@ export default function SuccessPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense>
+      <SuccessPageInner />
+    </Suspense>
   );
 }
