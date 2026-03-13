@@ -125,10 +125,7 @@ export default function AdminLayout({ children }) {
       <aside className={`al-sidebar ${mobileOpen ? 'open' : ''}`}>
         <div className="al-logo">
           {!collapsed && (
-            <div className="al-logo-text">
-              <div className="al-logo-name">Trackage</div>
-              <div className="al-logo-sub">Admin</div>
-            </div>
+            <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '22px', width: 'auto', display: 'block' }} />
           )}
           <button className="al-collapse" onClick={toggleCollapse} title={collapsed ? 'Expand' : 'Collapse'}>
             {collapsed ? '▶' : '◀'}

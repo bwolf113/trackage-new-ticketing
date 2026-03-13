@@ -720,13 +720,7 @@ export default function HomePage() {
       {/* ── NAVBAR ── */}
       <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
         <Link href="/" className="nav-logo">
-          <div className="nav-logo-mark">
-            <svg viewBox="0 0 14 14" fill="none">
-              <circle cx="7" cy="7" r="5" stroke="#0a9e7f" strokeWidth="2"/>
-              <circle cx="7" cy="7" r="2" fill="#0a9e7f"/>
-            </svg>
-          </div>
-          Trackage Scheme
+          <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '32px', width: 'auto', display: 'block', filter: 'invert(1)' }} />
         </Link>
 
         <div className="nav-links">
