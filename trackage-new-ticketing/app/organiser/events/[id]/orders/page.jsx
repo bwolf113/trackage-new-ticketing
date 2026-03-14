@@ -80,7 +80,22 @@ tbody tr { cursor: pointer; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .msg-ok  { background: #dcfce7; color: #16a34a; border-radius: 7px; padding: 9px 12px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
 .msg-err { background: #fee2e2; color: #dc2626; border-radius: 7px; padding: 9px 12px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
-@media(max-width:700px) { .stats-row { grid-template-columns: 1fr 1fr; } }
+@media(max-width:700px) {
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .stat-val { font-size: 18px; }
+  .search-wrap { min-width: 0; }
+  .ticket-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+}
+@media(max-width:640px) {
+  .table-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 520px; }
+  .page-title { font-size: 17px; }
+  .stat-card { padding: 12px 14px; }
+  .stat-label { font-size: 10px; }
+  .stat-val { font-size: 16px; }
+  .toolbar { gap: 8px; }
+  .btn-export { padding: 7px 10px; font-size: 12px; }
+}
 `;
 
 function OrderModal({ order, organiser_id, onClose, onUpdated }) {
