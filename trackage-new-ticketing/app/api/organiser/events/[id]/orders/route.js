@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
   // Fetch tickets for summary
   const { data: tickets } = await supabase
     .from('tickets')
-    .select('id, name, price, inventory')
+    .select('id, name, price, inventory, status')
     .eq('event_id', eventId)
     .order('price');
 
