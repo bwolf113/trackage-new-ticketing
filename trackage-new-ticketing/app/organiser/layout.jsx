@@ -6,9 +6,10 @@ import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 
 const NAV_ITEMS = [
-  { href: '/organiser',        label: 'Dashboard', icon: '⊞', exact: true },
-  { href: '/organiser/events', label: 'My Events', icon: '🎫' },
-  { href: '/organiser/crm',    label: 'CRM',       icon: '📊' },
+  { href: '/organiser',         label: 'Dashboard', icon: '⊞', exact: true },
+  { href: '/organiser/events',  label: 'My Events', icon: '🎫' },
+  { href: '/organiser/crm',     label: 'CRM',       icon: '📊' },
+  { href: '/organiser/profile', label: 'Profile',   icon: '👤' },
 ];
 
 const AUTH_PATHS = ['/organiser/login', '/organiser/signup', '/organiser/auth/callback'];

@@ -379,20 +379,22 @@ function StatusBadge({ status }) {
 
 /* ─── OrderDetail modal ──────────────────────────────────────────── */
 function OrderDetail({ orderId, onClose, onStatusChange }) {
-  const [order,       setOrder]       = useState(null);
-  const [loading,     setLoading]     = useState(true);
-  const [editMode,    setEditMode]    = useState(false);
-  const [editName,    setEditName]    = useState('');
-  const [editEmail,   setEditEmail]   = useState('');
-  const [saving,      setSaving]      = useState(false);
-  const [resending,   setResending]   = useState(false);
-  const [noteType,    setNoteType]    = useState('private');
-  const [noteContent, setNoteContent] = useState('');
-  const [savingNote,  setSavingNote]  = useState(false);
-  const [showRefund,  setShowRefund]  = useState(false);
-  const [refundType,  setRefundType]  = useState('full');
-  const [refundAmt,   setRefundAmt]   = useState('');
+  const [order,         setOrder]         = useState(null);
+  const [loading,       setLoading]       = useState(true);
+  const [editMode,      setEditMode]      = useState(false);
+  const [editName,      setEditName]      = useState('');
+  const [editEmail,     setEditEmail]     = useState('');
+  const [saving,        setSaving]        = useState(false);
+  const [resending,     setResending]     = useState(false);
+  const [noteType,      setNoteType]      = useState('private');
+  const [noteContent,   setNoteContent]   = useState('');
+  const [savingNote,    setSavingNote]    = useState(false);
+  const [showRefund,    setShowRefund]    = useState(false);
+  const [refundType,    setRefundType]    = useState('full');
+  const [refundAmt,     setRefundAmt]     = useState('');
   const [refundLoading, setRefundLoading] = useState(false);
+  const [showStatus,    setShowStatus]    = useState(false);
+  const [statusSaving,  setStatusSaving]  = useState(false);
   const [msg, setMsg] = useState(null); // { text, ok }
 
   useEffect(() => { fetchOrder(); }, [orderId]);
@@ -467,6 +469,25 @@ function OrderDetail({ orderId, onClose, onStatusChange }) {
       flash(data.error || 'Save failed', false);
     }
     setSavingNote(false);
+  }
+
+  async function handleStatusChange(newStatus) {
+    setStatusSaving(true);
+    const res  = await fetch('/api/admin/update-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId, status: newStatus }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setOrder(o => ({ ...o, status: newStatus }));
+      setShowStatus(false);
+      flash(`Order status changed to ${newStatus.replace('_', ' ')}.`);
+      onStatusChange?.();
+    } else {
+      flash(data.error || 'Status change failed', false);
+    }
+    setStatusSaving(false);
   }
 
   async function handleRefund() {
@@ -676,6 +697,34 @@ function OrderDetail({ orderId, onClose, onStatusChange }) {
             </div>
           </div>
 
+          {/* ── Change Status panel ── */}
+          {showStatus && (
+            <div style={{ border: '1.5px solid var(--border)', borderRadius: 10, padding: '16px 18px', background: 'var(--bg)', marginTop: 4, marginBottom: 4 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>Change Order Status</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { key: 'completed',       label: 'Completed',  color: '#16a34a', bg: '#dcfce7' },
+                  { key: 'pending_payment', label: 'Pending',    color: '#d97706', bg: '#fef3c7' },
+                  { key: 'cancelled',       label: 'Cancelled',  color: '#6b7280', bg: '#f3f4f6' },
+                  { key: 'refunded',        label: 'Refunded',   color: '#7c3aed', bg: '#ede9fe' },
+                  { key: 'failed',          label: 'Failed',     color: '#dc2626', bg: '#fee2e2' },
+                ].map(s => (
+                  <button
+                    key={s.key}
+                    disabled={s.key === order.status || statusSaving}
+                    onClick={() => handleStatusChange(s.key)}
+                    style={{ padding: '6px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1.5px solid', borderColor: s.key === order.status ? s.color : 'var(--border)', background: s.key === order.status ? s.bg : '#fff', color: s.key === order.status ? s.color : 'var(--text-mid)', cursor: s.key === order.status ? 'default' : 'pointer', fontFamily: 'Inter,sans-serif', opacity: statusSaving ? 0.6 : 1 }}
+                  >
+                    {s.label}{s.key === order.status ? ' ✓' : ''}
+                  </button>
+                ))}
+              </div>
+              <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowStatus(false)}>Done</button>
+              </div>
+            </div>
+          )}
+
           {/* ── Refund panel (inline) ── */}
           {showRefund && (
             <div style={{ border: '1.5px solid #fecaca', borderRadius: 10, padding: '16px 18px', background: '#fef2f2', marginTop: 4 }}>
@@ -714,6 +763,9 @@ function OrderDetail({ orderId, onClose, onStatusChange }) {
               {resending ? '⏳ Resending…' : '📧 Resend ticket'}
             </button>
           )}
+          <button className="btn btn-ghost" onClick={() => { setShowStatus(v => !v); setShowRefund(false); }}>
+            🔄 Change status
+          </button>
           <button className="btn btn-ghost" onClick={onClose}>Close</button>
         </div>
       </div>
@@ -879,33 +931,10 @@ export default function OrdersPage() {
     <div className="ord">
       <style>{CSS}</style>
 
-      {/* ── Sample Mode Banner ── */}
-      <div className="sample-banner">
-        <div className="sample-banner-left">
-          <span style={{ fontSize: 20 }}>🧪</span>
-          <div>
-            <div className="sample-banner-title">Sample Data Mode</div>
-            <div className="sample-banner-sub">
-              {sampleMode
-                ? '100 fake orders are loaded — nothing is real. Toggle off to clear.'
-                : 'Enable to load 100 fake orders for testing. No data is written to the database.'}
-            </div>
-          </div>
-        </div>
-        <div className="sample-toggle" onClick={toggleSample}>
-          <span className={sampleMode ? 'sample-label-on' : 'sample-label-off'}>
-            {sampleMode ? 'ON' : 'OFF'}
-          </span>
-          <div className={`sample-toggle-track ${sampleMode ? 'on' : ''}`}>
-            <div className="sample-toggle-thumb" />
-          </div>
-        </div>
-      </div>
-
       {/* ── Header ── */}
       <div className="page-header">
         <div>
-          <div className="page-title">Orders {sampleMode && <span style={{ fontSize: 13, fontWeight: 600, color: '#d97706', background: '#fef3c7', padding: '2px 8px', borderRadius: 6, marginLeft: 8 }}>SAMPLE</span>}</div>
+          <div className="page-title">Orders</div>
           <div className="page-sub">{total} orders {activeTab !== 'all' ? `· filtered by ${STATUS_META[activeTab]?.label}` : 'total'}</div>
         </div>
       </div>

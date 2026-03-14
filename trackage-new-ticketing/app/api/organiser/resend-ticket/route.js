@@ -45,6 +45,13 @@ export async function POST(req) {
       .select('id, ticket_name, quantity, unit_price')
       .eq('order_id', order_id);
 
+    // Fetch per-ticket attendees (for multi-QR email)
+    const { data: attendees } = await supabase
+      .from('order_attendees')
+      .select('id, ticket_name, qr_token')
+      .eq('order_id', order_id)
+      .order('created_at', { ascending: true });
+
     // Fetch organiser for VAT info
     const { data: organiser } = await supabase
       .from('organisers')
@@ -60,6 +67,7 @@ export async function POST(req) {
         event,
         orderItems: orderItems || [],
         organiser,
+        attendees:  attendees || [],
       }),
     });
 

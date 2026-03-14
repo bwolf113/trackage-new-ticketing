@@ -31,6 +31,7 @@ const CSS = `
 .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 .badge-pub { background: #d1fae5; color: #065f46; }
 .badge-draft { background: #f3f4f6; color: #6b7280; }
+.badge-sold_out { background: #fef2f2; color: #b91c1c; }
 .empty-state { text-align: center; padding: 60px 24px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; }
 .empty-icon { font-size: 40px; margin-bottom: 12px; }
 .empty-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
@@ -45,6 +46,19 @@ export default function OrganiserEventsPage() {
   const [events,  setEvents]  = useState([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');
+
+  async function toggleSoldOut(ev, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const organiser_id = localStorage.getItem('organiser_id');
+    const newStatus = ev.status === 'sold_out' ? 'published' : 'sold_out';
+    setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, status: newStatus } : x));
+    await fetch(`/api/organiser/events/${ev.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ organiser_id, status: newStatus }),
+    });
+  }
 
   useEffect(() => {
     const organiser_id = localStorage.getItem('organiser_id');
@@ -109,10 +123,17 @@ export default function OrganiserEventsPage() {
                   <span>📅 {fmtDate(ev.start_time)}</span>
                   {ev.venue_name && <span>📍 {ev.venue_name}</span>}
                   <span>🎟 {ev.completed_orders} order{ev.completed_orders !== 1 ? 's' : ''}</span>
-                  <span className={`badge ${ev.status === 'published' ? 'badge-pub' : 'badge-draft'}`}>{ev.status}</span>
+                  <span className={`badge ${ev.status === 'published' ? 'badge-pub' : ev.status === 'sold_out' ? 'badge-sold_out' : 'badge-draft'}`}>{ev.status === 'sold_out' ? 'Sold Out' : ev.status}</span>
                 </div>
               </div>
               <div className="ev-actions">
+                <button
+                  className="btn-sm"
+                  onClick={e => toggleSoldOut(ev, e)}
+                  style={ev.status === 'sold_out' ? { borderColor: '#6ee7b7', color: '#065f46' } : { borderColor: '#fca5a5', color: '#b91c1c' }}
+                >
+                  {ev.status === 'sold_out' ? 'Reactivate' : 'Sold Out'}
+                </button>
                 <Link
                   href={`/organiser/events/${ev.id}/orders`}
                   className="btn-sm"

@@ -61,6 +61,54 @@ export async function POST(req) {
       return Response.json({ error: 'No tickets selected' }, { status: 400 });
     }
 
+    // ── Daily capacity validation (multi-day events) ─────────────
+    if (event_id) {
+      const { data: eventDays } = await supabase
+        .from('event_days')
+        .select('id, name, capacity')
+        .eq('event_id', event_id);
+
+      if (eventDays?.length > 0) {
+        // Fetch all tickets for this event to know their day assignments + current sold counts
+        const { data: allTickets } = await supabase
+          .from('tickets')
+          .select('id, event_day_id, sold')
+          .eq('event_id', event_id);
+
+        const ticketMap = Object.fromEntries((allTickets || []).map(t => [t.id, t]));
+
+        for (const day of eventDays) {
+          if (!day.capacity) continue; // no daily limit set
+
+          // Current occupancy for this day = day-specific tickets sold + festival pass tickets sold
+          const currentOccupancy = (allTickets || []).reduce((sum, t) => {
+            if (t.event_day_id === day.id || t.event_day_id === null) {
+              return sum + (t.sold || 0);
+            }
+            return sum;
+          }, 0);
+
+          // Quantity being purchased that applies to this day
+          const purchasingForDay = line_items.reduce((sum, li) => {
+            const ticket = ticketMap[li.ticket_id];
+            if (!ticket) return sum;
+            if (ticket.event_day_id === day.id || ticket.event_day_id === null) {
+              return sum + (li.quantity || 0);
+            }
+            return sum;
+          }, 0);
+
+          if (currentOccupancy + purchasingForDay > day.capacity) {
+            const dayName = day.name || 'this day';
+            const remaining = Math.max(0, day.capacity - currentOccupancy);
+            return Response.json({
+              error: `Sorry, only ${remaining} spot${remaining !== 1 ? 's' : ''} remaining for ${dayName}. Please reduce your quantity and try again.`,
+            }, { status: 400 });
+          }
+        }
+      }
+    }
+
     // ── Build Stripe line items ──────────────────────────────────
     const stripeLineItems = line_items.map(item => ({
       price_data: {

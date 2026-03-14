@@ -1,6 +1,6 @@
 /* app/admin/events/page.jsx */
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
@@ -21,6 +21,17 @@ const BLANK_TICKET = () => ({
   sale_end: '',
   disclaimer: '',
   footer_image_url: '',
+  event_day_id: null,
+  status: 'active',
+  _saved: false,
+});
+
+const BLANK_DAY = () => ({
+  _id: uid(),
+  name: '',
+  date: '',
+  capacity: '',
+  sort_order: 0,
 });
 
 const BLANK_EVENT = () => ({
@@ -33,8 +44,9 @@ const BLANK_EVENT = () => ({
   venue_maps_url: '',
   organiser_id: '',
   organiser_vat: '',
-  platform_vat: '',
-  booking_fee_pct: '',
+  platform_vat: '2573-6412 (exempt)',
+  booking_fee_pct: '10',
+  vat_permit: '',
   thumbnail_url: '',
   poster_url: '',
   status: 'draft',
@@ -101,6 +113,7 @@ const CSS = `
 }
 .badge-draft     { background: #f3f4f6; color: #6b7280; }
 .badge-published { background: #dcfce7; color: #16a34a; }
+.badge-sold_out  { background: #fef2f2; color: #b91c1c; }
 .badge-ended     { background: #fee2e2; color: #dc2626; }
 
 /* ── search / filter bar ── */
@@ -298,6 +311,20 @@ const CSS = `
 .toast-success { background: var(--accent); }
 .toast-error   { background: var(--danger); }
 
+/* ── multi-day ── */
+.multiday-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 6px; }
+.multiday-btn { flex: 1; padding: 9px 12px; border: none; background: #fff; color: var(--text-mid); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+.multiday-btn:first-child { border-right: 1.5px solid var(--border); }
+.multiday-btn.active { background: #f0fdf9; color: var(--accent-dark); font-weight: 600; }
+.day-card { border: 1.5px solid #bae6fd; border-radius: 10px; padding: 16px; margin-bottom: 10px; background: #f0f9ff; }
+.day-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.day-card-label { font-size: 13px; font-weight: 700; color: #0369a1; display: flex; align-items: center; gap: 6px; }
+.day-card-badge { background: #0369a1; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+.btn-copy-day { font-size: 11px; color: var(--accent); background: none; border: 1.5px solid var(--accent); border-radius: 5px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 600; padding: 3px 8px; transition: all 0.15s; }
+.btn-copy-day:hover { background: #f0fdf9; }
+.day-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: #dbeafe; color: #1d4ed8; margin-left: 6px; }
+.day-pill-festival { background: #fef3c7; color: #92400e; }
+
 /* ── responsive ── */
 @media (max-width: 640px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
@@ -359,6 +386,7 @@ const CSS = `
 }
 .pub-pill-draft     { background: rgba(255,255,255,0.15); color: #d1d5db; backdrop-filter: blur(4px); }
 .pub-pill-published { background: rgba(10,158,127,0.85); color: #fff; backdrop-filter: blur(4px); }
+.pub-pill-sold_out  { background: rgba(239,68,68,0.85);  color: #fff; backdrop-filter: blur(4px); }
 .pub-pill-ended     { background: rgba(239,68,68,0.85);  color: #fff; backdrop-filter: blur(4px); }
 
 .pub-content { padding: 20px 20px 32px; }
@@ -411,6 +439,21 @@ const CSS = `
   font-family: 'Inter', sans-serif;
 }
 .pub-no-tickets { color: #6b7280; font-size: 14px; text-align: center; padding: 20px 0; }
+
+/* ── pac (Google Places) ── */
+.pac-container-wrap { width: 100%; }
+.pac-container-wrap gmp-place-autocomplete { width: 100%; }
+gmp-place-autocomplete { --gmp-input-padding: 9px 12px; --gmp-input-border: 1.5px solid #e5e7eb; --gmp-input-border-radius: 8px; --gmp-input-font-size: 14px; --gmp-input-font-family: 'Inter', sans-serif; --gmp-input-color: #111827; width: 100%; }
+.venue-chip { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: #f0fdf9; border: 1.5px solid #6ee7b7; border-radius: 8px; font-size: 14px; color: #065f46; }
+.venue-chip-name { flex: 1; }
+.venue-chip-change { background: none; border: none; cursor: pointer; color: #6b7280; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; padding: 2px 6px; border-radius: 4px; }
+.venue-chip-change:hover { background: #d1fae5; color: #065f46; }
+
+/* ── ticket saved state ── */
+.ticket-card-saved { background: #f0fdf9; border-color: #6ee7b7; }
+.ticket-saved-row { display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap; }
+.ticket-saved-check { color: #16a34a; font-size: 15px; font-weight: 700; }
+.ticket-save-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
 
 /* ── delete confirm ── */
 .confirm-overlay {
@@ -481,136 +524,173 @@ function ImageUpload({ label, hint, value, onChange, bucket = 'event-images' }) 
 }
 
 /* ─── TicketCard component ───────────────────────────────────────── */
-function TicketCard({ ticket, index, onChange, onRemove, canRemove }) {
-  const [open, setOpen] = useState(true);
-
+function TicketCard({ ticket, index, onChange, onRemove, onSaveAndCreateAnother, canRemove, days = [], isMultiDay = false }) {
   function set(field, val) {
     onChange({ ...ticket, [field]: val });
   }
 
-  return (
-    <div className="ticket-card">
-      <div className="ticket-header" onClick={() => setOpen(o => !o)}>
-        <div className="ticket-header-left">
-          <span className="ticket-num">{index + 1}</span>
-          <span className="ticket-header-name">
-            {ticket.name || 'Untitled ticket'}
-          </span>
-          {ticket.price && (
-            <span className="ticket-header-price">· €{parseFloat(ticket.price || 0).toFixed(2)}</span>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {canRemove && (
+  const assignedDay = isMultiDay && ticket.event_day_id
+    ? days.find(d => (d._id || d.id) === ticket.event_day_id || d.id === ticket.event_day_id)
+    : null;
+
+  if (ticket._saved) {
+    const isSoldOut = ticket.status === 'sold_out';
+    return (
+      <div className="ticket-card ticket-card-saved">
+        <div className="ticket-header" style={{ cursor: 'default' }}>
+          <div className="ticket-header-left">
+            <span className="ticket-saved-check">✓</span>
+            <span className="ticket-num">{index + 1}</span>
+            <span className="ticket-header-name">{ticket.name || 'Untitled ticket'}</span>
+            {isMultiDay && (
+              assignedDay
+                ? <span className="day-pill">{assignedDay.name || `Day ${days.indexOf(assignedDay) + 1}`}</span>
+                : <span className="day-pill day-pill-festival">All Days</span>
+            )}
+            {ticket.price && (
+              <span className="ticket-header-price">· €{parseFloat(ticket.price || 0).toFixed(2)}</span>
+            )}
+            {isSoldOut && (
+              <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>Sold Out</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
             <button
               type="button"
-              className="btn btn-danger btn-sm"
-              onClick={e => { e.stopPropagation(); onRemove(); }}
+              className="btn btn-sm"
+              style={isSoldOut
+                ? { background: '#f0fdf9', color: '#065f46', border: '1.5px solid #6ee7b7' }
+                : { background: '#fef2f2', color: '#b91c1c', border: '1.5px solid #fca5a5' }}
+              onClick={() => onChange({ ...ticket, status: isSoldOut ? 'active' : 'sold_out' })}
             >
-              Remove
+              {isSoldOut ? 'Reactivate' : 'Sold Out'}
             </button>
-          )}
-          <span style={{ fontSize: 12, color: 'var(--text-light)', alignSelf: 'center' }}>
-            {open ? '▲' : '▼'}
-          </span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange({ ...ticket, _saved: false })}>
+              Edit
+            </button>
+            {canRemove && (
+              <button type="button" className="btn btn-danger btn-sm" onClick={onRemove}>Remove</button>
+            )}
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {open && (
-        <div className="ticket-body">
-          <div className="form-grid grid-2" style={{ marginBottom: 12 }}>
-            <div className="field">
-              <label>Ticket name *</label>
-              <input
-                placeholder="e.g. Early Bird, General Admission, VIP"
-                value={ticket.name}
-                onChange={e => set('name', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>Face price (€) *</label>
-              <input
-                type="number" min="0" step="0.01"
-                placeholder="0.00"
-                value={ticket.price}
-                onChange={e => set('price', e.target.value)}
-              />
-            </div>
-          </div>
+  return (
+    <div className="ticket-card">
+      <div className="ticket-header" style={{ cursor: 'default' }}>
+        <div className="ticket-header-left">
+          <span className="ticket-num">{index + 1}</span>
+          <span className="ticket-header-name">{ticket.name || 'New ticket'}</span>
+          {isMultiDay && (
+            assignedDay
+              ? <span className="day-pill">{assignedDay.name || `Day ${days.indexOf(assignedDay) + 1}`}</span>
+              : <span className="day-pill day-pill-festival">All Days</span>
+          )}
+        </div>
+        {canRemove && (
+          <button type="button" className="btn btn-danger btn-sm" onClick={onRemove}>Remove</button>
+        )}
+      </div>
 
-          <div className="form-grid grid-3" style={{ marginBottom: 12 }}>
-            <div className="field">
-              <label>Inventory *</label>
-              <input
-                type="number" min="1"
-                placeholder="e.g. 200"
-                value={ticket.inventory}
-                onChange={e => set('inventory', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>Booking fee %</label>
-              <input
-                type="number" min="0" max="100" step="0.1"
-                placeholder="e.g. 10"
-                value={ticket.booking_fee_pct}
-                onChange={e => set('booking_fee_pct', e.target.value)}
-              />
-              <span className="hint">Added on top of face price at checkout</span>
-            </div>
-            <div className="field">
-              <label>Status</label>
-              <select value={ticket.status || 'active'} onChange={e => set('status', e.target.value)}>
-                <option value="active">Active</option>
-                <option value="hidden">Hidden</option>
-                <option value="sold_out">Sold out</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-grid grid-2" style={{ marginBottom: 12 }}>
-            <div className="field">
-              <label>Sale starts</label>
-              <input
-                type="datetime-local"
-                value={ticket.sale_start}
-                onChange={e => set('sale_start', e.target.value)}
-              />
-              <span className="hint">When this ticket appears on the front end</span>
-            </div>
-            <div className="field">
-              <label>Sale ends</label>
-              <input
-                type="datetime-local"
-                value={ticket.sale_end}
-                onChange={e => set('sale_end', e.target.value)}
-              />
-              <span className="hint">When this ticket disappears from front end</span>
-            </div>
-          </div>
-
+      <div className="ticket-body">
+        {isMultiDay && (
           <div className="field" style={{ marginBottom: 12 }}>
-            <label>Disclaimer text (printed on PDF ticket)</label>
-            <textarea
-              placeholder="e.g. This ticket is non-refundable. Management reserves the right of admission..."
-              value={ticket.disclaimer}
-              onChange={e => set('disclaimer', e.target.value)}
-              rows={3}
+            <label>Assigned to day</label>
+            <select
+              value={ticket.event_day_id || ''}
+              onChange={e => set('event_day_id', e.target.value || null)}
+            >
+              <option value="">All Days (Festival Pass)</option>
+              {days.map((d, di) => (
+                <option key={d._id || d.id} value={d._id || d.id}>
+                  {d.name || `Day ${di + 1}`}{d.date ? ` — ${d.date}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="form-grid grid-2" style={{ marginBottom: 12 }}>
+          <div className="field">
+            <label>Ticket name *</label>
+            <input
+              placeholder="e.g. Early Bird, General Admission, VIP"
+              value={ticket.name}
+              onChange={e => set('name', e.target.value)}
             />
           </div>
-
           <div className="field">
-            <label>Footer image URL (printed on PDF ticket)</label>
+            <label>Face price (€) *</label>
             <input
-              type="url"
-              placeholder="https://..."
-              value={ticket.footer_image_url}
-              onChange={e => set('footer_image_url', e.target.value)}
+              type="number" min="0" step="0.01"
+              placeholder="0.00"
+              value={ticket.price}
+              onChange={e => set('price', e.target.value)}
             />
-            <span className="hint">Optional — logo or sponsor banner for the ticket footer</span>
           </div>
         </div>
-      )}
+
+        <div className="form-grid grid-2" style={{ marginBottom: 12 }}>
+          <div className="field">
+            <label>Inventory</label>
+            <input
+              type="number" min="1"
+              placeholder="Leave blank for unlimited"
+              value={ticket.inventory}
+              onChange={e => set('inventory', e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label>Status</label>
+            <select value={ticket.status || 'active'} onChange={e => set('status', e.target.value)}>
+              <option value="active">Active</option>
+              <option value="hidden">Hidden</option>
+              <option value="sold_out">Sold out</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-grid grid-2" style={{ marginBottom: 12 }}>
+          <div className="field">
+            <label>Sale starts</label>
+            <input
+              type="datetime-local"
+              value={ticket.sale_start}
+              onChange={e => set('sale_start', e.target.value)}
+            />
+            <span className="hint">Leave blank to go on sale immediately</span>
+          </div>
+          <div className="field">
+            <label>Sale ends</label>
+            <input
+              type="datetime-local"
+              value={ticket.sale_end}
+              onChange={e => set('sale_end', e.target.value)}
+            />
+            <span className="hint">Leave blank to end when event ends</span>
+          </div>
+        </div>
+
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label>Disclaimer text (printed on PDF ticket)</label>
+          <textarea
+            placeholder="e.g. This ticket is non-refundable. Management reserves the right of admission..."
+            value={ticket.disclaimer}
+            onChange={e => set('disclaimer', e.target.value)}
+            rows={3}
+          />
+        </div>
+
+        <div className="ticket-save-actions">
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => onChange({ ...ticket, _saved: true })}>
+            Save ticket
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onSaveAndCreateAnother}>
+            Save &amp; create another
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -625,7 +705,6 @@ function toLocalDT(isoStr) {
 function EventForm({ event: initial, organisers, onSave, onClose }) {
   const [form, setForm] = useState(() => {
     if (!initial) return BLANK_EVENT();
-    // Normalise dates from ISO → datetime-local format
     return {
       ...BLANK_EVENT(),
       ...initial,
@@ -636,13 +715,56 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
             ...BLANK_TICKET(),
             ...t,
             _id: t._id || t.id || uid(),
+            _saved: true,
             sale_start: toLocalDT(t.sale_start),
             sale_end:   toLocalDT(t.sale_end),
           }))
         : [BLANK_TICKET()],
     };
   });
-  const [saving, setSaving]   = useState(false);
+
+  // Multi-day state
+  const initialDays = (initial?.days || []).map(d => ({ ...d, _id: d._id || d.id || uid() }));
+  const [days, setDays]           = useState(initialDays);
+  const [isMultiDay, setIsMultiDay] = useState(initialDays.length > 0);
+  const [saving, setSaving]       = useState(false);
+
+  // Google Places autocomplete for venue — callback ref so it re-attaches when venue is cleared
+  const pacAttached = useRef(false);
+  const venueContainerRef = useCallback((node) => {
+    if (node === null) { pacAttached.current = false; return; }
+    if (pacAttached.current) return;
+    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+    if (!key) return;
+    async function init() {
+      if (!window.google) {
+        await new Promise((resolve, reject) => {
+          if (document.getElementById('gplaces-script')) {
+            const poll = setInterval(() => { if (window.google) { clearInterval(poll); resolve(); } }, 100);
+            return;
+          }
+          const s = document.createElement('script');
+          s.id = 'gplaces-script';
+          s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&loading=async`;
+          s.async = true; s.onload = resolve; s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+      const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
+      if (!node || pacAttached.current) return;
+      const pac = new PlaceAutocompleteElement();
+      pac.setAttribute('placeholder', 'Search for a venue…');
+      node.appendChild(pac);
+      pacAttached.current = true;
+      pac.addEventListener('gmp-select', async (e) => {
+        const place = e.placePrediction.toPlace();
+        await place.fetchFields({ fields: ['displayName', 'googleMapsURI'] });
+        setField('venue_name', place.displayName?.text || (typeof place.displayName === 'string' ? place.displayName : '') || '');
+        setField('venue_maps_url', place.googleMapsURI || '');
+      });
+    }
+    init().catch(console.error);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function setField(field, val) {
     setForm(f => {
@@ -664,8 +786,47 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
     setForm(f => ({ ...f, tickets: [...f.tickets, BLANK_TICKET()] }));
   }
 
+  function saveAndCreateAnother(i) {
+    setForm(f => {
+      const tickets = f.tickets.map((t, idx) => idx === i ? { ...t, _saved: true } : t);
+      return { ...f, tickets: [...tickets, BLANK_TICKET()] };
+    });
+  }
+
   function removeTicket(i) {
     setForm(f => ({ ...f, tickets: f.tickets.filter((_, idx) => idx !== i) }));
+  }
+
+  // ── Day helpers ──────────────────────────────────────────────────
+  function addDay() {
+    setDays(ds => { const d = BLANK_DAY(); d.sort_order = ds.length; return [...ds, d]; });
+  }
+  function removeDay(key) {
+    setDays(ds => ds.filter(d => (d._id || d.id) !== key));
+    setForm(f => ({ ...f, tickets: f.tickets.map(t => t.event_day_id === key ? { ...t, event_day_id: null } : t) }));
+  }
+  function updateDay(key, field, value) {
+    setDays(ds => ds.map(d => (d._id || d.id) === key ? { ...d, [field]: value } : d));
+  }
+  function copyDayBelow(sourceKey) {
+    const source = days.find(d => (d._id || d.id) === sourceKey);
+    if (!source) return;
+    let nextDate = '';
+    if (source.date) {
+      const d = new Date(source.date + 'T12:00:00');
+      d.setDate(d.getDate() + 1);
+      nextDate = d.toISOString().slice(0, 10);
+    }
+    setDays(ds => [...ds, { ...BLANK_DAY(), capacity: source.capacity, date: nextDate, sort_order: ds.length }]);
+  }
+  function switchToSingleDay() {
+    setIsMultiDay(false);
+    setDays([]);
+    setForm(f => ({ ...f, tickets: f.tickets.map(t => ({ ...t, event_day_id: null })) }));
+  }
+  function switchToMultiDay() {
+    setIsMultiDay(true);
+    if (days.length === 0) setDays([BLANK_DAY()]);
   }
 
   async function handleSave() {
@@ -676,8 +837,6 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
     setSaving(true);
     try {
       const { tickets } = form;
-
-      // Whitelist only known event columns — nothing else goes to Supabase
       const toNull = v => (v === '' || v === undefined ? null : v);
       const eventData = {
         name:             form.name,
@@ -691,48 +850,29 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
         organiser_vat:    form.organiser_vat     || null,
         platform_vat:     form.platform_vat      || null,
         booking_fee_pct:  form.booking_fee_pct !== '' ? parseFloat(form.booking_fee_pct) : null,
+        vat_permit:       form.vat_permit        || null,
         thumbnail_url:    form.thumbnail_url     || null,
         poster_url:       form.poster_url        || null,
         status:           form.status            || 'draft',
       };
 
-      let eventId = initial?.id;
-      if (eventId) {
-        const { error } = await supabase.from('events').update({
-          ...eventData,
-          updated_at: new Date().toISOString(),
-        }).eq('id', eventId);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('events')
-          .insert({ ...eventData, created_at: new Date().toISOString() })
-          .select()
-          .single();
-        if (error) throw error;
-        eventId = data.id;
-      }
-
-      // Upsert tickets — update existing, insert new, never delete
-      for (const { _id, ...t } of tickets) {
-        ['sale_start', 'sale_end'].forEach(k => {
-          if (t[k] === '' || t[k] === undefined) t[k] = null;
+      // Route all writes through the admin API (service-role key, bypasses RLS)
+      if (initial?.id) {
+        const res = await fetch(`/api/admin/events/${initial.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: eventData, tickets, days, isMultiDay }),
         });
-        const { id, sold, created_at, ...fields } = t;
-        const row = {
-          ...fields,
-          event_id: eventId,
-          price: parseFloat(t.price) || 0,
-          booking_fee_pct: parseFloat(t.booking_fee_pct) || 0,
-          inventory: t.inventory !== '' && t.inventory != null ? parseInt(t.inventory) : null,
-        };
-        if (id) {
-          const { error } = await supabase.from('tickets').update(row).eq('id', id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase.from('tickets').insert({ ...row, sold: 0, created_at: new Date().toISOString() });
-          if (error) throw error;
-        }
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Save failed');
+      } else {
+        const res = await fetch('/api/admin/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: eventData, tickets, days, isMultiDay }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Create failed');
       }
 
       onSave();
@@ -805,12 +945,26 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
               </div>
             </div>
 
+            <div className="field" style={{ marginBottom: 14 }}>
+              <label>Event type</label>
+              <div className="multiday-toggle">
+                <button type="button" className={`multiday-btn${!isMultiDay ? ' active' : ''}`} onClick={switchToSingleDay}>Single Day</button>
+                <button type="button" className={`multiday-btn${isMultiDay ? ' active' : ''}`} onClick={switchToMultiDay}>Multi-Day / Festival</button>
+              </div>
+              <span className="hint">
+                {isMultiDay
+                  ? 'Configure each day below. Assign tickets to specific days or sell as All-Days Festival Passes.'
+                  : 'Switch to Multi-Day for festivals spanning multiple dates.'}
+              </span>
+            </div>
+
             <div className="form-grid grid-2">
               <div className="field">
                 <label>Status</label>
                 <select value={form.status} onChange={e => setField('status', e.target.value)}>
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
+                  <option value="sold_out">Sold Out</option>
                   <option value="ended">Ended</option>
                 </select>
               </div>
@@ -833,11 +987,22 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
             <div className="form-grid grid-2">
               <div className="field">
                 <label>Venue name</label>
-                <input
-                  placeholder="e.g. The Grand Social, Dublin"
-                  value={form.venue_name}
-                  onChange={e => setField('venue_name', e.target.value)}
-                />
+                {process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ? (
+                  form.venue_name ? (
+                    <div className="venue-chip">
+                      <span className="venue-chip-name">📍 {form.venue_name}</span>
+                      <button type="button" className="venue-chip-change" onClick={() => setField('venue_name', '')}>× Change</button>
+                    </div>
+                  ) : (
+                    <div ref={venueContainerRef} className="pac-container-wrap" />
+                  )
+                ) : (
+                  <input
+                    placeholder="e.g. The Grand Social, Dublin"
+                    value={form.venue_name}
+                    onChange={e => setField('venue_name', e.target.value)}
+                  />
+                )}
               </div>
               <div className="field">
                 <label>Google Maps URL</label>
@@ -855,7 +1020,7 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
           {/* ── Organiser & VAT ── */}
           <div className="form-section">
             <div className="section-label"><span className="dot" /> Organiser & VAT</div>
-            <div className="form-grid grid-3">
+            <div className="form-grid grid-2" style={{ marginBottom: 14 }}>
               <div className="field">
                 <label>Organiser</label>
                 <select value={form.organiser_id} onChange={e => setField('organiser_id', e.target.value)}>
@@ -873,12 +1038,22 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
                   onChange={e => setField('organiser_vat', e.target.value)}
                 />
               </div>
+            </div>
+            <div className="form-grid grid-2">
               <div className="field">
                 <label>Trackage VAT number</label>
                 <input
-                  placeholder="IE9876543B"
+                  placeholder="2573-6412 (exempt)"
                   value={form.platform_vat}
                   onChange={e => setField('platform_vat', e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label>VAT Permit</label>
+                <input
+                  placeholder="e.g. VP-12345"
+                  value={form.vat_permit}
+                  onChange={e => setField('vat_permit', e.target.value)}
                 />
               </div>
             </div>
@@ -905,11 +1080,67 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
             </div>
           </div>
 
+          {/* ── Event Days (multi-day only) ── */}
+          {isMultiDay && (
+            <div className="form-section">
+              <div className="section-label"><span className="dot" /> Event Days</div>
+              <div style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 14, lineHeight: 1.5 }}>
+                Add one card per day. Set a <strong>Daily Capacity</strong> to cap total attendees for that day — Festival Passes count toward every day's cap.
+              </div>
+              {days.map((day, i) => {
+                const key = day._id || day.id;
+                return (
+                  <div key={key} className="day-card">
+                    <div className="day-card-header">
+                      <div className="day-card-label">
+                        <span className="day-card-badge">{i + 1}</span>
+                        {day.name || `Day ${i + 1}`}
+                        {day.date ? <span style={{ fontWeight: 400, color: '#64748b', fontSize: 12 }}>{day.date}</span> : null}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <button type="button" className="btn-copy-day" onClick={() => copyDayBelow(key)}>+ Copy as next day</button>
+                        {days.length > 1 && (
+                          <button type="button" className="btn btn-danger btn-sm" onClick={() => removeDay(key)}>Remove</button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="form-grid grid-2" style={{ marginBottom: 10 }}>
+                      <div className="field">
+                        <label>Day label</label>
+                        <input value={day.name} onChange={e => updateDay(key, 'name', e.target.value)} placeholder="e.g. Friday" />
+                      </div>
+                      <div className="field">
+                        <label>Date</label>
+                        <input type="date" value={day.date} onChange={e => updateDay(key, 'date', e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label>Daily capacity</label>
+                      <input
+                        type="number" min="0"
+                        value={day.capacity}
+                        onChange={e => updateDay(key, 'capacity', e.target.value)}
+                        placeholder="Leave blank for unlimited"
+                      />
+                      <span className="hint">Max attendees on this day. Festival Passes count against every day's cap.</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <button type="button" className="add-ticket-btn" onClick={addDay} style={{ marginTop: 4 }}>
+                <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Add Day
+              </button>
+            </div>
+          )}
+
           {/* ── Tickets ── */}
           <div className="form-section">
             <div className="section-label"><span className="dot" /> Tickets</div>
             <div style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 14, lineHeight: 1.5 }}>
-              Fill in each ticket type below. Click <strong>+ Add another ticket type</strong> when you're ready to add more. All tickets are saved when you click <strong>Create event</strong>.
+              {isMultiDay
+                ? <>Assign each ticket to a specific day, or choose <strong>All Days (Festival Pass)</strong> for tickets covering the full event.</>
+                : <>Fill in each ticket type below. Click <strong>+ Add another ticket type</strong> when you're ready to add more.</>
+              }
             </div>
             <div className="tickets-list">
               {form.tickets.map((ticket, i) => (
@@ -919,21 +1150,23 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
                   index={i}
                   onChange={t => setTicket(i, t)}
                   onRemove={() => removeTicket(i)}
+                  onSaveAndCreateAnother={() => saveAndCreateAnother(i)}
                   canRemove={form.tickets.length > 1}
+                  days={days}
+                  isMultiDay={isMultiDay}
                 />
               ))}
             </div>
-            <button
-              type="button"
-              className="add-ticket-btn"
-              onClick={addTicket}
-              style={{ marginTop: 12, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 20px', fontSize: 14, fontWeight: 600 }}
-            >
-              <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Add another ticket type
-            </button>
-            <div style={{ marginTop: 10, padding: '10px 14px', background: 'var(--accent-bg)', border: '1px solid #6ee7b7', borderRadius: 8, fontSize: 12, color: '#065f46', display: 'flex', alignItems: 'center', gap: 7 }}>
-              ✓ All ticket types are saved together when you click <strong style={{ marginLeft: 2 }}>{initial ? 'Save changes' : 'Create event'}</strong> below
-            </div>
+            {form.tickets.every(t => t._saved) && (
+              <button
+                type="button"
+                className="add-ticket-btn"
+                onClick={addTicket}
+                style={{ marginTop: 12 }}
+              >
+                <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Add ticket type
+              </button>
+            )}
           </div>
 
         </div>
@@ -995,7 +1228,7 @@ function EventPreview({ event, onClose }) {
             )}
             <div className="pub-poster-gradient" />
             <span className={`pub-status-pill pub-pill-${event.status || 'draft'}`}>
-              {event.status === 'published' ? '● On sale' : event.status === 'ended' ? '✕ Ended' : '○ Draft'}
+              {event.status === 'published' ? '● On sale' : event.status === 'ended' ? '✕ Ended' : event.status === 'sold_out' ? '✕ Sold Out' : '○ Draft'}
             </span>
           </div>
 
@@ -1118,12 +1351,14 @@ export default function EventsPage() {
 
   async function load() {
     setLoading(true);
-    const [{ data: evs }, { data: orgs }] = await Promise.all([
-      supabase.from('events').select('*, tickets(*)').order('start_time', { ascending: false }),
-      supabase.from('organisers').select('id, name').order('name'),
-    ]);
-    setEvents(evs || []);
-    setOrganisers(orgs || []);
+    try {
+      const res = await fetch('/api/admin/events');
+      const json = await res.json();
+      setEvents(json.events || []);
+      setOrganisers(json.organisers || []);
+    } catch (err) {
+      console.error('Failed to load events:', err);
+    }
     setLoading(false);
   }
 
@@ -1134,17 +1369,18 @@ export default function EventsPage() {
 
   async function handleDelete() {
     const id = deleteTarget.id;
-    await supabase.from('tickets').delete().eq('event_id', id);
-    await supabase.from('events').delete().eq('id', id);
+    await fetch(`/api/admin/events/${id}`, { method: 'DELETE' });
     setDeleteTarget(null);
     showToast('Event deleted.');
     load();
   }
 
   function openEdit(ev) {
-    // Map event + tickets into form shape
-    const tickets = (ev.tickets || []).map(t => ({ ...t, _id: t.id || uid() }));
-    setEditEvent({ ...ev, tickets: tickets.length ? tickets : [BLANK_TICKET()] });
+    const tickets = (ev.tickets || []).map(t => ({ ...BLANK_TICKET(), ...t, _id: t.id || uid() }));
+    const days = (ev.event_days || [])
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+      .map(d => ({ ...d, _id: d.id || uid(), capacity: d.capacity ?? '' }));
+    setEditEvent({ ...ev, tickets: tickets.length ? tickets : [BLANK_TICKET()], days });
     setShowForm(true);
   }
 
@@ -1153,6 +1389,18 @@ export default function EventsPage() {
     setEditEvent(null);
     showToast(editEvent ? 'Event updated!' : 'Event created!');
     load();
+  }
+
+  async function toggleSoldOut(ev) {
+    const newStatus = ev.status === 'sold_out' ? 'published' : 'sold_out';
+    setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, status: newStatus } : x));
+    const res = await fetch(`/api/admin/events/${ev.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (!res.ok) { showToast('Failed to update status', 'error'); load(); }
+    else showToast(newStatus === 'sold_out' ? 'Event marked as sold out.' : 'Event reactivated.');
   }
 
   /* filtering */
@@ -1197,6 +1445,7 @@ export default function EventsPage() {
           <option value="all">All statuses</option>
           <option value="draft">Draft</option>
           <option value="published">Published</option>
+          <option value="sold_out">Sold Out</option>
           <option value="ended">Ended</option>
         </select>
       </div>
@@ -1240,8 +1489,8 @@ export default function EventsPage() {
                   </td>
                   <td>
                     <span className={`badge badge-${ev.status}`}>
-                      {ev.status === 'published' ? '● ' : ev.status === 'draft' ? '○ ' : '✕ '}
-                      {ev.status.charAt(0).toUpperCase() + ev.status.slice(1)}
+                      {ev.status === 'published' ? '● ' : ev.status === 'draft' ? '○ ' : ev.status === 'sold_out' ? '✕ ' : '✕ '}
+                      {ev.status === 'sold_out' ? 'Sold Out' : ev.status.charAt(0).toUpperCase() + ev.status.slice(1)}
                     </span>
                   </td>
                   <td style={{ fontSize: 13, color: 'var(--text-mid)' }}>{formatDate(ev.start_time)}</td>
@@ -1255,6 +1504,15 @@ export default function EventsPage() {
                       <a className="btn btn-ghost btn-sm" href={`/admin/events/${ev.id}/orders`} style={{ textDecoration: 'none' }}>📋 Orders</a>
                       <button className="btn btn-ghost btn-sm" onClick={() => setPreviewEvent(ev)}>👁 Preview</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => openEdit(ev)}>✏️ Edit</button>
+                      <button
+                        className="btn btn-sm"
+                        style={ev.status === 'sold_out'
+                          ? { background: '#f0fdf9', color: '#065f46', border: '1.5px solid #6ee7b7' }
+                          : { background: '#fef2f2', color: '#b91c1c', border: '1.5px solid #fca5a5' }}
+                        onClick={() => toggleSoldOut(ev)}
+                      >
+                        {ev.status === 'sold_out' ? '▶ Reactivate' : '✕ Sold Out'}
+                      </button>
                       <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(ev)}>🗑 Delete</button>
                     </div>
                   </td>

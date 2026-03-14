@@ -79,6 +79,44 @@ html,body{font-family:var(--sans);background:var(--off);color:var(--text);-webki
 }
 `;
 
+function buildGoogleCalUrl(event) {
+  if (!event?.start_time) return '#';
+  const start = new Date(event.start_time);
+  const end   = event.end_time ? new Date(event.end_time) : new Date(start.getTime() + 3 * 3600000);
+  const fmt   = d => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: event.name || 'Event',
+    dates: `${fmt(start)}/${fmt(end)}`,
+    location: event.venue_name || '',
+  });
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
+function downloadIcal(event, orderId) {
+  if (!event?.start_time) return;
+  const start = new Date(event.start_time);
+  const end   = event.end_time ? new Date(event.end_time) : new Date(start.getTime() + 3 * 3600000);
+  const fmtD  = d => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const content = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Trackage//EN',
+    'BEGIN:VEVENT',
+    `UID:${orderId}@trackagescheme.com`,
+    `DTSTAMP:${fmtD(new Date())}`,
+    `DTSTART:${fmtD(start)}`,
+    `DTEND:${fmtD(end)}`,
+    `SUMMARY:${event.name || 'Event'}`,
+    `LOCATION:${event.venue_name || ''}`,
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+  const blob = new Blob([content], { type: 'text/calendar' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(event.name || 'event').replace(/\s+/g, '-').toLowerCase()}.ics`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 function SuccessPageInner() {
   const searchParams = useSearchParams();
   const sessionId    = searchParams.get('session_id');
@@ -86,6 +124,7 @@ function SuccessPageInner() {
   const [order,   setOrder]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(false);
+  const [shared,  setShared]  = useState(false);
 
   useEffect(() => {
     if (sessionId) confirmOrder();
@@ -121,10 +160,7 @@ function SuccessPageInner() {
 
       <nav className="nav">
         <Link href="/" className="nav-logo">
-          <div className="nav-logo-mark">
-            <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="#0a9e7f" strokeWidth="2"/><circle cx="7" cy="7" r="2" fill="#0a9e7f"/></svg>
-          </div>
-          Trackage Scheme
+          <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '28px', width: 'auto', display: 'block', filter: 'invert(1)' }} />
         </Link>
       </nav>
 
@@ -221,6 +257,58 @@ function SuccessPageInner() {
               <div className="total-row">
                 <span>Total paid</span>
                 <span style={{color:'var(--accent)'}}>{fmt(order.total)}</span>
+              </div>
+
+              <div className="divider" />
+
+              {/* Add to Calendar */}
+              {order.events?.start_time && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--light)', marginBottom: 12 }}>Add to calendar</div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <a
+                      href={buildGoogleCalUrl(order.events)}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 16px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 600, color: 'var(--text)', textDecoration: 'none', background: 'var(--off)', fontFamily: 'var(--sans)', transition: 'border-color 0.15s' }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#4285F4" strokeWidth="2"/><path d="M3 9h18" stroke="#4285F4" strokeWidth="2"/><path d="M8 2v4M16 2v4" stroke="#4285F4" strokeWidth="2" strokeLinecap="round"/></svg>
+                      Google Calendar
+                    </a>
+                    <button
+                      onClick={() => downloadIcal(order.events, order.id)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 16px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 600, color: 'var(--text)', background: 'var(--off)', fontFamily: 'var(--sans)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#555" strokeWidth="2"/><path d="M3 9h18" stroke="#555" strokeWidth="2"/><path d="M8 2v4M16 2v4" stroke="#555" strokeWidth="2" strokeLinecap="round"/></svg>
+                      Apple / iCal
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Share with friends */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--light)', marginBottom: 12 }}>Share with friends</div>
+                <button
+                  onClick={async () => {
+                    const shareData = {
+                      title: `I'm going to ${order.events?.name || 'an event'}!`,
+                      text: `Join me at ${order.events?.name || 'this event'}${order.events?.venue_name ? ` at ${order.events.venue_name}` : ''}. Get your tickets on Trackage Scheme!`,
+                      url: window.location.origin,
+                    };
+                    if (navigator.share) {
+                      try { await navigator.share(shareData); setShared(true); } catch {}
+                    } else {
+                      await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+                      setShared(true);
+                      setTimeout(() => setShared(false), 3000);
+                    }
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 16px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 600, color: shared ? 'var(--accent)' : 'var(--text)', background: shared ? 'var(--accent-pale)' : 'var(--off)', fontFamily: 'var(--sans)', cursor: 'pointer', borderColor: shared ? 'rgba(10,158,127,0.3)' : 'var(--border)', transition: 'all 0.2s' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="2"/><circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="2"/><circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="2"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                  {shared ? '✓ Link copied!' : 'Share with a friend'}
+                </button>
               </div>
 
               <div className="divider" />

@@ -76,7 +76,7 @@ const POWERED_BY = `
 /* ═══════════════════════════════════════════════════════════════════
    1. TICKET CONFIRMATION
    ═══════════════════════════════════════════════════════════════════ */
-export async function ticketConfirmationEmail({ order, event, orderItems, organiser }) {
+export async function ticketConfirmationEmail({ order, event, orderItems, organiser, attendees }) {
   const orderRef = (order.id || '').slice(0, 8).toUpperCase();
   const name     = order.customer_name || order.purchaser_name || '—';
   const email    = order.customer_email || order.purchaser_email || '';
@@ -84,20 +84,70 @@ export async function ticketConfirmationEmail({ order, event, orderItems, organi
     ? (organiser.vat_number.startsWith('MT') ? organiser.vat_number : `MT${organiser.vat_number}`)
     : null;
 
-  // Build the scan URL — encodes a real HTTPS URL so any QR reader can open/validate it
-  const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  const qrData   = order.qr_token
-    ? `${siteUrl}/scan/${order.qr_token}`
-    : `${siteUrl}/scan/${order.id}`;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
-  // Get real HTTPS URLs for images
-  const [logoUrl, qrUrl] = await Promise.all([
-    getLogoURL(),
-    generateQRPublicURL(qrData, `qr-${orderRef}`),
-  ]);
+  // ── Resolve QR codes ──────────────────────────────────────────
+  // If attendees were pre-generated (webhook path), use their qr_urls directly.
+  // Otherwise generate them now (resend path).
+  let resolvedAttendees = attendees || [];
+  if (resolvedAttendees.length > 0 && !resolvedAttendees[0].qr_url) {
+    resolvedAttendees = await Promise.all(resolvedAttendees.map(async (a) => {
+      const qrUrl = await generateQRPublicURL(
+        `${siteUrl}/scan/${a.qr_token}`,
+        `qr-${a.id.slice(0, 8)}`
+      );
+      return { ...a, qr_url: qrUrl };
+    }));
+  }
 
+  // Fallback: old single-QR path for orders that pre-date order_attendees
+  let fallbackQrUrl = null;
+  if (resolvedAttendees.length === 0) {
+    const qrData = order.qr_token
+      ? `${siteUrl}/scan/${order.qr_token}`
+      : `${siteUrl}/scan/${order.id}`;
+    fallbackQrUrl = await generateQRPublicURL(qrData, `qr-${orderRef}`);
+  }
+
+  const logoUrl   = await getLogoURL();
   const finalLogo = logoUrl || `${siteUrl}/logo-white.png`;
   const logoImg   = `<img src="${finalLogo}" width="220" alt="Trackage Scheme" style="display:block;margin:0 auto;max-width:220px;border:0" border="0" />`;
+
+  // ── Build per-attendee QR blocks ───────────────────────────────
+  const total = resolvedAttendees.length;
+  const qrBlocks = total > 0
+    ? resolvedAttendees.map((a, i) => `
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:${i < total - 1 ? '20px' : '0'}">
+        <tr>
+          <td valign="top" style="padding-right:16px">
+            <p style="margin:0 0 3px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#999">Ticket ${i + 1} of ${total}</p>
+            <p style="margin:0;font-size:15px;font-weight:700;color:#1a1a1a">${a.ticket_name}</p>
+          </td>
+          <td valign="top" align="right" width="140" style="width:140px">
+            <img src="${a.qr_url}" width="130" height="130" alt="QR Code" style="display:block;border-radius:6px;border:3px solid #f0f0f0;margin-left:auto" />
+            <p style="margin:5px 0 0;font-size:10px;color:#999;font-weight:600;text-align:center">Scan at door</p>
+          </td>
+        </tr>
+      </table>
+      ${i < total - 1 ? '<div style="height:1px;background:#f0f0f0;margin:4px 0 20px">&nbsp;</div>' : ''}
+    `).join('')
+    : `
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td valign="top" style="padding-right:20px">
+            <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#999">Ticket holder</p>
+            <p style="margin:0 0 3px;font-size:17px;font-weight:700;color:#1a1a1a">${name}</p>
+            <p style="margin:0 0 20px;font-size:13px;color:#666">${email}</p>
+            <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#999">Order reference</p>
+            <p style="margin:0;font-size:15px;font-weight:700;color:#1a1a1a;font-family:monospace">#${orderRef}</p>
+          </td>
+          <td valign="top" align="right" width="160" style="width:160px">
+            <img src="${fallbackQrUrl}" width="150" height="150" alt="QR Code" style="display:block;border-radius:6px;border:3px solid #f0f0f0;margin-left:auto" />
+            <p style="margin:6px 0 0;font-size:10px;color:#999;font-weight:600;text-align:center">Scan at door</p>
+          </td>
+        </tr>
+      </table>
+    `;
 
   const itemRows = (orderItems || []).map(item => `
     <tr>
@@ -168,24 +218,25 @@ export async function ticketConfirmationEmail({ order, event, orderItems, organi
   <table width="100%" cellpadding="0" cellspacing="0">
     <tr><td class="inner-pad" style="padding:28px 32px">
 
-      <!-- QR SECTION: holder left, QR right (stacks on mobile) -->
-      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+      <!-- TICKET HOLDER + ORDER REF -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
         <tr>
-          <!-- Left: holder info -->
-          <td class="qr-holder-cell" valign="top" style="padding-right:20px">
-            <p class="qr-name" style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#999">Ticket holder</p>
-            <p class="qr-name" style="margin:0 0 3px;font-size:17px;font-weight:700;color:#1a1a1a">${name}</p>
-            <p class="qr-email" style="margin:0 0 20px;font-size:13px;color:#666">${email}</p>
-            <p class="qr-ref-label" style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#999">Order reference</p>
-            <p class="qr-ref-val" style="margin:0;font-size:15px;font-weight:700;color:#1a1a1a;font-family:monospace">#${orderRef}</p>
+          <td valign="top" style="padding-right:20px">
+            <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#999">Ticket holder</p>
+            <p style="margin:0 0 3px;font-size:17px;font-weight:700;color:#1a1a1a">${name}</p>
+            <p style="margin:0;font-size:13px;color:#666">${email}</p>
           </td>
-          <!-- Right: QR code -->
-          <td class="qr-code-cell" valign="top" align="right" width="160" style="width:160px">
-            <img class="qr-img" src="${qrUrl}" width="150" height="150" alt="QR Code" style="display:block;border-radius:6px;border:3px solid #f0f0f0;margin-left:auto" />
-            <p style="margin:6px 0 0;font-size:10px;color:#999;font-weight:600;text-align:center">Scan at door</p>
+          <td valign="top" align="right">
+            <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#999;text-align:right">Order reference</p>
+            <p style="margin:0;font-size:15px;font-weight:700;color:#1a1a1a;font-family:monospace;text-align:right">#${orderRef}</p>
           </td>
         </tr>
       </table>
+
+      <!-- QR CODES — one per physical ticket -->
+      <div style="margin-bottom:24px;padding:16px;border:1.5px solid #e8e8e6;border-radius:10px">
+        ${qrBlocks}
+      </div>
 
       <!-- DIVIDER -->
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">

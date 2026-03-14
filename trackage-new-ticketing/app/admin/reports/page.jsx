@@ -357,30 +357,9 @@ export default function ReportsPage() {
     <>
       <style>{CSS}</style>
 
-      {/* ── Sample Mode Banner ── */}
-      <div className="sample-banner">
-        <div className="sample-banner-left">
-          <span style={{ fontSize: 20 }}>🧪</span>
-          <div>
-            <div className="sample-banner-title">Sample Data Mode</div>
-            <div className="sample-banner-sub">
-              {sampleMode
-                ? '100 fake orders are active across all periods — toggle off to clear and show real data.'
-                : 'Enable to preview reports with 100 fake orders spread across the last 90 days.'}
-            </div>
-          </div>
-        </div>
-        <div className="sample-toggle-wrap" onClick={toggleSample}>
-          <span className={sampleMode ? 'sample-label-on' : 'sample-label-off'}>{sampleMode ? 'ON' : 'OFF'}</span>
-          <div className={`sample-toggle-track ${sampleMode ? 'on' : ''}`}>
-            <div className="sample-toggle-thumb" />
-          </div>
-        </div>
-      </div>
-
       <div className="page-header">
         <div>
-          <div className="page-title">Reports & Analytics {sampleMode && <span style={{ fontSize: 13, fontWeight: 600, color: '#d97706', background: '#fef3c7', padding: '2px 8px', borderRadius: 6, marginLeft: 8 }}>SAMPLE</span>}</div>
+          <div className="page-title">Reports & Analytics</div>
           <div className="page-sub">Sales performance across all events and organisers</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

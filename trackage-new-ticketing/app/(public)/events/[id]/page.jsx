@@ -27,7 +27,14 @@ function fmtDay(dt) {
   if (!dt) return '';
   return new Date(dt).getDate();
 }
-function ticketAvailable(ticket) {
+function ticketAvailable(ticket, eventEndTime) {
+  if (ticket.status === 'sold_out') return false;
+  const now = new Date();
+  // If sale_start is set, ticket isn't on sale yet
+  if (ticket.sale_start && new Date(ticket.sale_start) > now) return false;
+  // If sale_end is set, use it; otherwise fall back to event end time
+  const saleEnd = ticket.sale_end || eventEndTime;
+  if (saleEnd && new Date(saleEnd) < now) return false;
   const inv = ticket.inventory ?? ticket.quantity_available;
   if (inv == null) return true;
   return (ticket.sold ?? ticket.quantity_sold ?? 0) < inv;
@@ -117,15 +124,15 @@ body{font-family:var(--sans);background:var(--white);color:var(--text);-webkit-f
 .ticket-row:last-child{border-bottom:none}
 .ticket-row.selected{background:rgba(10,158,127,0.03)}
 .ticket-row.soldout{opacity:0.5}
-.ticket-row-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.ticket-row-main{display:flex;align-items:center;gap:12px}
+.ticket-row-info{flex:1;min-width:0}
 .ticket-name{font-size:15px;font-weight:600;color:var(--text)}
 .ticket-desc{font-size:12px;color:var(--mid);margin-top:2px;line-height:1.4}
 .ticket-price-wrap{text-align:right;flex-shrink:0}
-.ticket-price{font-size:18px;font-weight:700;color:var(--black);font-family:var(--serif)}
+.ticket-price{font-size:16px;font-weight:700;color:var(--black);font-family:var(--serif)}
 .ticket-price.free{color:var(--accent)}
 .ticket-fee{font-size:10px;color:var(--light);margin-top:1px}
-.ticket-qty-row{display:flex;align-items:center;justify-content:space-between}
-.ticket-remaining{font-size:11px;font-weight:600;color:var(--warn)}
+.ticket-remaining{font-size:11px;font-weight:600;color:var(--warn);margin-top:3px}
 .ticket-qty-control{display:flex;align-items:center;gap:10px}
 .qty-btn{width:32px;height:32px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);color:var(--text);font-size:18px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;line-height:1;font-family:var(--sans)}
 .qty-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:var(--accent-pale)}
@@ -200,6 +207,19 @@ body{font-family:var(--sans);background:var(--white);color:var(--text);-webkit-f
 .skel{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
+/* ── DAY TABS ── */
+.day-tabs{display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin:0 0 0 0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.day-tabs::-webkit-scrollbar{display:none}
+.day-tab{flex-shrink:0;padding:12px 18px;font-size:13px;font-weight:600;font-family:var(--sans);color:var(--mid);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;transition:all 0.15s;white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:2px}
+.day-tab:hover{color:var(--black)}
+.day-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.day-tab-date{font-size:10px;font-weight:500;color:var(--light);letter-spacing:0.03em}
+.day-tab.active .day-tab-date{color:var(--accent)}
+.day-tab.festival-tab{border-left:1px solid #e5e7eb;margin-left:4px;padding-left:20px}
+.day-capacity-bar{margin:0 24px 16px;padding:8px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;display:flex;align-items:center;gap:8px;font-size:12px;color:#0369a1}
+.day-capacity-bar.low{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.day-capacity-bar.critical{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+
 /* ── SOLD OUT BANNER ── */
 .soldout-banner{background:var(--danger-bg);border:1.5px solid #fecaca;border-radius:12px;padding:16px 20px;display:flex;gap:12px;align-items:flex-start;margin:16px 24px 0}
 .soldout-banner-icon{font-size:20px;flex-shrink:0}
@@ -228,6 +248,8 @@ export default function EventPage() {
   const router  = useRouter();
 
   const [event,       setEvent]       = useState(null);
+  const [eventDays,   setEventDays]   = useState([]); // ordered event_days rows
+  const [activeDay,   setActiveDay]   = useState(null); // day id or 'festival' or null
   const [loading,     setLoading]     = useState(true);
   const [notFound,    setNotFound]    = useState(false);
   const [quantities,  setQuantities]  = useState({}); // ticketId → qty
@@ -235,6 +257,7 @@ export default function EventPage() {
   const [coupon,      setCoupon]      = useState(null); // validated coupon object
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
+  const [hasCoupons,  setHasCoupons]  = useState(false); // true if any active coupon is bound to this event
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [user,        setUser]        = useState(null);
   const [authOpen,    setAuthOpen]    = useState(false);
@@ -264,20 +287,28 @@ export default function EventPage() {
   async function loadEvent() {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .select(`
-          id, name, description, venue_name, start_time, end_time,
-          thumbnail_url, poster_url, status, booking_fee_pct,
-          organisers ( id, name ),
-          tickets ( id, name, price, inventory, sold )
-        `)
-        .eq('id', id)
-        .single();
+      const [eventRes, daysRes] = await Promise.all([
+        supabase
+          .from('events')
+          .select(`
+            id, name, description, venue_name, venue_maps_url, start_time, end_time,
+            thumbnail_url, poster_url, status, booking_fee_pct,
+            organisers ( id, name ),
+            tickets ( id, name, price, inventory, sold, event_day_id, sale_start, sale_end, status )
+          `)
+          .eq('id', id)
+          .single(),
+        supabase
+          .from('event_days')
+          .select('id, name, date, capacity, sort_order')
+          .eq('event_id', id)
+          .order('sort_order'),
+      ]);
 
-      console.log('EVENT PAGE data:', data, 'error:', error);
+      if (eventRes.error || !eventRes.data) { setNotFound(true); setLoading(false); return; }
 
-      if (error || !data) { setNotFound(true); setLoading(false); return; }
+      const data = eventRes.data;
+      const days = daysRes.data || [];
 
       // Sort tickets by price
       if (data.tickets) {
@@ -285,17 +316,24 @@ export default function EventPage() {
       }
 
       setEvent(data);
+      setEventDays(days);
 
-      // Default first available ticket to 1
+      // Check if any active coupon is bound specifically to this event
+      const { data: couponRows } = await supabase
+        .from('coupons')
+        .select('id')
+        .eq('status', 'active')
+        .contains('event_ids', [id])
+        .limit(1);
+      setHasCoupons((couponRows?.length || 0) > 0);
+
+      // Set active day tab: first day if multi-day, else null
+      const firstDay = days[0]?.id || null;
+      setActiveDay(firstDay);
+
+      // Default quantities to 0 for all tickets
       const q = {};
-      let defaulted = false;
-      (data.tickets || []).forEach(t => {
-        const inv  = t.inventory ?? t.quantity_available;
-        const sold = t.sold ?? t.quantity_sold ?? 0;
-        const available = inv == null || sold < inv;
-        if (!defaulted && available) { q[t.id] = 1; defaulted = true; }
-        else q[t.id] = 0;
-      });
+      (data.tickets || []).forEach(t => { q[t.id] = 0; });
       setQuantities(q);
     } catch (err) {
       console.error('loadEvent error:', err);
@@ -305,7 +343,7 @@ export default function EventPage() {
   }
 
   function setQty(ticketId, delta) {
-    const ticket = event.tickets.find(t => t.id === ticketId);
+    const ticket = (event?.tickets || []).find(t => t.id === ticketId);
     if (!ticket) return;
     const max = ticket.max_per_order || 10;
     const rem = ticketRemaining(ticket);
@@ -317,7 +355,33 @@ export default function EventPage() {
     });
   }
 
-  // ── Totals ─────────────────────────────────────────────────────
+  // ── Day helpers ─────────────────────────────────────────────────
+  const isMultiDay = eventDays.length > 0;
+
+  // Tickets visible in the current tab
+  const visibleTickets = isMultiDay
+    ? (event?.tickets || []).filter(t => {
+        if (activeDay === 'festival') return t.event_day_id === null;
+        return t.event_day_id === activeDay;
+      })
+    : (event?.tickets || []);
+
+  // Festival pass tickets (event_day_id === null)
+  const festivalTickets = (event?.tickets || []).filter(t => t.event_day_id === null);
+  const hasFestivalTab = isMultiDay && festivalTickets.length > 0;
+
+  // Day remaining capacity (for display only — server enforces)
+  function getDayRemaining(day) {
+    if (!day.capacity) return null;
+    const allTix = event?.tickets || [];
+    const used = allTix.reduce((sum, t) => {
+      if (t.event_day_id === day.id || t.event_day_id === null) return sum + (t.sold || 0);
+      return sum;
+    }, 0);
+    return Math.max(0, day.capacity - used);
+  }
+
+  // ── Totals — always computed across ALL tickets (cart persists across tabs) ──
   const selectedLines = (event?.tickets || [])
     .filter(t => (quantities[t.id] || 0) > 0)
     .map(t => ({
@@ -345,8 +409,10 @@ export default function EventPage() {
 
   const total = Math.max(0, subtotal + bookingFee - discount);
   const totalTickets = selectedLines.reduce((s, l) => s + l.qty, 0);
-  const allSoldOut = (event?.tickets || []).length > 0 &&
-    (event?.tickets || []).every(t => !ticketAvailable(t));
+  const allSoldOut = event?.status === 'sold_out' || (
+    (event?.tickets || []).length > 0 &&
+    (event?.tickets || []).every(t => !ticketAvailable(t, event?.end_time)));
+  const tabSoldOut = visibleTickets.length > 0 && visibleTickets.every(t => !ticketAvailable(t, event?.end_time));
 
   // ── Coupon validation ───────────────────────────────────────────
   async function applyCoupon() {
@@ -377,6 +443,13 @@ export default function EventPage() {
       // Check usage limit
       if (data.usage_limit && (data.usage_count || 0) >= data.usage_limit) {
         setCouponError('This coupon has reached its usage limit.');
+        setCouponLoading(false);
+        return;
+      }
+
+      // Check event binding — coupon must include this event in its event_ids
+      if (!Array.isArray(data.event_ids) || !data.event_ids.includes(id)) {
+        setCouponError('This coupon is not valid for this event.');
         setCouponLoading(false);
         return;
       }
@@ -558,21 +631,48 @@ export default function EventPage() {
           </div>
           <h1 className="event-hero-title">{event.name}</h1>
           <div className="event-hero-meta">
-            {event.start_time && (
-              <span className="event-hero-meta-item">
-                📅 {fmtFull(event.start_time)}
-              </span>
-            )}
-            {event.start_time && (
+            {isMultiDay && eventDays.length > 0 ? (
               <>
-                <div className="event-hero-dot" />
-                <span className="event-hero-meta-item">🕐 {fmtTime(event.start_time)}</span>
+                <span className="event-hero-meta-item">
+                  📅 {eventDays.length}-day festival
+                  {eventDays[0]?.date && eventDays[eventDays.length - 1]?.date
+                    ? ` · ${new Date(eventDays[0].date + 'T12:00:00').toLocaleDateString('en-MT', { day: 'numeric', month: 'short' })} – ${new Date(eventDays[eventDays.length - 1].date + 'T12:00:00').toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                    : ''}
+                </span>
+                {event.venue_name && (
+                  <>
+                    <div className="event-hero-dot" />
+                    <span className="event-hero-meta-item">
+                      {event.venue_maps_url
+                        ? <a href={event.venue_maps_url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>📍 {event.venue_name}</a>
+                        : <>📍 {event.venue_name}</>}
+                    </span>
+                  </>
+                )}
               </>
-            )}
-            {event.venue_name && (
+            ) : (
               <>
-                <div className="event-hero-dot" />
-                <span className="event-hero-meta-item">📍 {event.venue_name}</span>
+                {event.start_time && (
+                  <span className="event-hero-meta-item">
+                    📅 {fmtFull(event.start_time)}
+                  </span>
+                )}
+                {event.start_time && (
+                  <>
+                    <div className="event-hero-dot" />
+                    <span className="event-hero-meta-item">🕐 {fmtTime(event.start_time)}</span>
+                  </>
+                )}
+                {event.venue_name && (
+                  <>
+                    <div className="event-hero-dot" />
+                    <span className="event-hero-meta-item">
+                      {event.venue_maps_url
+                        ? <a href={event.venue_maps_url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>📍 {event.venue_name}</a>
+                        : <>📍 {event.venue_name}</>}
+                    </span>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -588,7 +688,19 @@ export default function EventPage() {
           {/* Info cards */}
           <div className="section">
             <div className="info-grid">
-              {event.start_time && (
+              {isMultiDay && eventDays.length > 0 ? (
+                <div className="info-card">
+                  <div className="info-icon">📅</div>
+                  <div>
+                    <div className="info-label">Festival Dates</div>
+                    {eventDays.map(day => (
+                      <div key={day.id} className="info-value" style={{ fontSize: 14, marginBottom: 2 }}>
+                        {day.name}{day.date ? ` — ${new Date(day.date + 'T12:00:00').toLocaleDateString('en-MT', { weekday: 'long', day: 'numeric', month: 'long' })}` : ''}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : event.start_time ? (
                 <div className="info-card">
                   <div className="info-icon">📅</div>
                   <div>
@@ -597,13 +709,17 @@ export default function EventPage() {
                     <div className="info-sub">{fmtTime(event.start_time)}{event.end_time ? ` – ${fmtTime(event.end_time)}` : ''}</div>
                   </div>
                 </div>
-              )}
+              ) : null}
               {event.venue_name && (
                 <div className="info-card">
                   <div className="info-icon">📍</div>
                   <div>
                     <div className="info-label">Venue</div>
-                    <div className="info-value">{event.venue_name}</div>
+                    <div className="info-value">
+                      {event.venue_maps_url
+                        ? <a href={event.venue_maps_url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>{event.venue_name}</a>
+                        : event.venue_name}
+                    </div>
                     {event.address && <div className="info-sub">{event.address}</div>}
                   </div>
                 </div>
@@ -651,12 +767,60 @@ export default function EventPage() {
               <div className="ticket-panel-sub">
                 {allSoldOut
                   ? 'This event is sold out'
-                  : event.start_time
-                    ? `${fmtMonth(event.start_time)} ${fmtDay(event.start_time)} · ${fmtTime(event.start_time)}`
-                    : 'Select your tickets below'
+                  : isMultiDay
+                    ? `${eventDays.length}-day festival · ${event.venue_name || 'Select your tickets'}`
+                    : event.start_time
+                      ? `${fmtMonth(event.start_time)} ${fmtDay(event.start_time)} · ${fmtTime(event.start_time)}`
+                      : 'Select your tickets below'
                 }
               </div>
             </div>
+
+            {/* ── Day tabs (multi-day only) ── */}
+            {isMultiDay && !allSoldOut && (
+              <div className="day-tabs">
+                {eventDays.map(day => (
+                  <button
+                    key={day.id}
+                    className={`day-tab ${activeDay === day.id ? 'active' : ''}`}
+                    onClick={() => setActiveDay(day.id)}
+                  >
+                    {day.name || `Day`}
+                    {day.date && (
+                      <span className="day-tab-date">
+                        {new Date(day.date + 'T12:00:00').toLocaleDateString('en-MT', { day: 'numeric', month: 'short' })}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                {hasFestivalTab && (
+                  <button
+                    className={`day-tab festival-tab ${activeDay === 'festival' ? 'active' : ''}`}
+                    onClick={() => setActiveDay('festival')}
+                  >
+                    🎪 Festival Pass
+                    <span className="day-tab-date">All days</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Day capacity bar */}
+            {isMultiDay && !allSoldOut && activeDay && activeDay !== 'festival' && (() => {
+              const day = eventDays.find(d => d.id === activeDay);
+              if (!day || !day.capacity) return null;
+              const rem = getDayRemaining(day);
+              const pct = rem / day.capacity;
+              const cls = pct < 0.1 ? 'critical' : pct < 0.25 ? 'low' : '';
+              return (
+                <div className={`day-capacity-bar ${cls}`}>
+                  <span style={{ fontSize: 14 }}>{cls === 'critical' ? '🔴' : cls === 'low' ? '🟠' : '🟢'}</span>
+                  <span>
+                    <strong>{rem.toLocaleString()}</strong> of {day.capacity.toLocaleString()} spots remaining for {day.name || 'this day'}
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Sold out banner */}
             {allSoldOut && (
@@ -672,13 +836,13 @@ export default function EventPage() {
             {/* Ticket list */}
             {!allSoldOut && (
               <div className="ticket-list">
-                {(event.tickets || []).length === 0 ? (
+                {visibleTickets.length === 0 ? (
                   <div style={{ padding: '24px', textAlign: 'center', color: 'var(--light)', fontSize: 13 }}>
-                    No tickets available yet.
+                    No tickets available for this selection.
                   </div>
-                ) : (event.tickets || []).map(ticket => {
+                ) : visibleTickets.map(ticket => {
                   const qty       = quantities[ticket.id] || 0;
-                  const available = ticketAvailable(ticket);
+                  const available = ticketAvailable(ticket, event?.end_time);
                   const remaining = ticketRemaining(ticket);
                   const max       = ticket.max_per_order || 10;
                   const maxQty    = remaining !== null ? Math.min(max, remaining) : max;
@@ -688,11 +852,14 @@ export default function EventPage() {
                       key={ticket.id}
                       className={`ticket-row ${qty > 0 ? 'selected' : ''} ${!available ? 'soldout' : ''}`}
                     >
-                      <div className="ticket-row-top">
-                        <div>
+                      <div className="ticket-row-main">
+                        <div className="ticket-row-info">
                           <div className="ticket-name">{ticket.name}</div>
                           {ticket.description && (
                             <div className="ticket-desc">{ticket.description}</div>
+                          )}
+                          {available && remaining !== null && remaining <= 5 && (
+                            <div className="ticket-remaining">Only {remaining} left!</div>
                           )}
                         </div>
                         <div className="ticket-price-wrap">
@@ -703,18 +870,9 @@ export default function EventPage() {
                             <div className="ticket-fee">+ booking fee</div>
                           )}
                         </div>
-                      </div>
-
-                      <div className="ticket-qty-row">
                         {!available ? (
                           <span className="soldout-tag">Sold out</span>
-                        ) : remaining !== null && remaining <= 5 ? (
-                          <span className="ticket-remaining">Only {remaining} left!</span>
                         ) : (
-                          <div />
-                        )}
-
-                        {available && (
                           <div className="ticket-qty-control">
                             <button
                               className={`qty-btn ${qty > 0 ? 'has-qty' : ''}`}
@@ -733,11 +891,28 @@ export default function EventPage() {
                     </div>
                   );
                 })}
+
+                {/* Cross-tab cart summary (multi-day only — shows tickets selected from other tabs) */}
+                {isMultiDay && selectedLines.some(l => !visibleTickets.find(t => t.id === l.ticket.id)) && (
+                  <div style={{ margin: '12px 0 0', padding: '10px 14px', background: '#f0fdf9', borderRadius: 8, border: '1px solid #a7f3d0' }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#065f46', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Also in your cart
+                    </div>
+                    {selectedLines
+                      .filter(l => !visibleTickets.find(t => t.id === l.ticket.id))
+                      .map(l => (
+                        <div key={l.ticket.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#047857', padding: '2px 0' }}>
+                          <span>{l.qty}× {l.ticket.name}</span>
+                          <span>{fmt(l.subtotal)}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Coupon */}
-            {!allSoldOut && totalTickets > 0 && (
+            {/* Coupon — only shown when at least one active coupon is bound to this event */}
+            {!allSoldOut && totalTickets > 0 && hasCoupons && (
               <div className="coupon-section">
                 {coupon ? (
                   <div className="coupon-applied">

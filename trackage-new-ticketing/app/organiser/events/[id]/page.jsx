@@ -20,13 +20,13 @@ export default function EditEventPage() {
       .then(r => r.json())
       .then(json => {
         if (json.error) { setError(json.error); setLoading(false); return; }
-        setInitial({ event: json.event, tickets: json.tickets });
+        setInitial({ event: json.event, tickets: json.tickets, days: json.days || [] });
         setLoading(false);
       })
       .catch(err => { setError(err.message); setLoading(false); });
   }, [id]);
 
-  async function handleSave({ event, tickets }) {
+  async function handleSave({ event, tickets, days }) {
     const organiser_id = localStorage.getItem('organiser_id');
     setSaving(true);
     setError('');
@@ -34,7 +34,7 @@ export default function EditEventPage() {
       const res  = await fetch(`/api/organiser/events/${id}`, {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ organiser_id, event, tickets }),
+        body:    JSON.stringify({ organiser_id, event, tickets, days }),
       });
       const json = await res.json();
       if (!res.ok) { setError(json.error || 'Failed to save'); setSaving(false); return; }

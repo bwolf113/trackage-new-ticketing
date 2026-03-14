@@ -31,6 +31,13 @@ export async function POST(req) {
     if (error || !order) return Response.json({ error: 'Order not found' }, { status: 404 });
     if (!order.customer_email) return Response.json({ error: 'Order has no email address' }, { status: 400 });
 
+    // Fetch per-ticket attendees (for multi-QR email)
+    const { data: attendees } = await supabase
+      .from('order_attendees')
+      .select('id, ticket_name, qr_token')
+      .eq('order_id', order_id)
+      .order('created_at', { ascending: true });
+
     const result = await sendEmail({
       to: order.customer_email,
       subject: `🎫 Your tickets for ${order.events?.name || 'the event'} — #${order_id.slice(0, 8).toUpperCase()}`,
@@ -39,6 +46,7 @@ export async function POST(req) {
         event: order.events,
         orderItems: order.order_items || [],
         organiser: order.organisers,
+        attendees: attendees || [],
       }),
     });
 

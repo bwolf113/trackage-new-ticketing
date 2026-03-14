@@ -2,6 +2,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail, ticketConfirmationEmail, bookingFeeReceiptEmail, adminNewOrderEmail } from '../../../lib/sendEmail';
+import { generateQRPublicURL } from '../../../lib/qrcode';
 
 export async function POST(req) {
   const body      = await req.text();
@@ -85,6 +86,38 @@ export async function POST(req) {
           if (t) await supabase.from('tickets').update({ sold: (t.sold || 0) + (item.quantity || 0) }).eq('id', t.id);
         }
 
+        // ── Create one order_attendee row per physical ticket ─────
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        const attendeeInserts = [];
+        for (const item of orderItems || []) {
+          for (let i = 0; i < (item.quantity || 1); i++) {
+            attendeeInserts.push({
+              order_id:    orderId,
+              ticket_name: item.ticket_name,
+              qr_token:    crypto.randomUUID(),
+            });
+          }
+        }
+        let attendees = [];
+        if (attendeeInserts.length > 0) {
+          const { data: createdAttendees, error: attendeeError } = await supabase
+            .from('order_attendees')
+            .insert(attendeeInserts)
+            .select('id, ticket_name, qr_token');
+          if (attendeeError) {
+            console.error('order_attendees insert failed:', attendeeError.message);
+          } else if (createdAttendees) {
+            attendees = await Promise.all(createdAttendees.map(async (a) => {
+              const qrUrl = await generateQRPublicURL(
+                `${siteUrl}/scan/${a.qr_token}`,
+                `qr-${a.id.slice(0, 8)}`
+              );
+              return { ...a, qr_url: qrUrl };
+            }));
+          }
+        }
+        console.log(`Created ${attendees.length} attendee QR codes for order ${orderId}`);
+
         // ── Fetch full order data for emails ──────────────────────
         const { data: order } = await supabase
           .from('orders')
@@ -114,7 +147,7 @@ export async function POST(req) {
           const ticketResult = await sendEmail({
             to:      toEmail,
             subject: `🎫 Your tickets for ${eventData?.name || 'the event'} — #${orderId.slice(0,8).toUpperCase()}`,
-            html:    await ticketConfirmationEmail({ order, event: eventData, orderItems: items, organiser: organiserData }),
+            html:    await ticketConfirmationEmail({ order, event: eventData, orderItems: items, organiser: organiserData, attendees }),
           });
           console.log(`Ticket email to ${toEmail}:`, ticketResult);
         }

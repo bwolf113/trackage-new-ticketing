@@ -511,7 +511,7 @@ export default function HomePage() {
   const [filter,      setFilter]      = useState('all');
   const [search,      setSearch]      = useState('');
   const [scrolled,    setScrolled]    = useState(false);
-  const [authOpen,    setAuthOpen]    = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [user,        setUser]        = useState(null);
   const [email,       setEmail]       = useState('');
   const [subDone,     setSubDone]     = useState(false);
@@ -730,29 +730,42 @@ export default function HomePage() {
         </div>
 
         <div className="nav-right">
-          {user ? (
-            <>
-              <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>
-                {user.email?.split('@')[0]}
-              </span>
-              <button
-                onClick={handleLogout}
-                style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--sans)', color: 'var(--text-mid)' }}
-              >Log out</button>
-            </>
-          ) : (
-            <button className="nav-login-btn" onClick={() => setAuthOpen(true)}>
-              Sign in
-            </button>
-          )}
+          <Link href="/organiser/signup" className="nav-login-btn" style={{ background: 'transparent', color: 'var(--black)', border: '1.5px solid var(--border)' }}>
+            Sell Tickets
+          </Link>
+          <Link href="/organiser/login" className="nav-login-btn">
+            Sign in
+          </Link>
         </div>
 
-        <button className="nav-hamburger" aria-label="Menu">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-            <path d="M3 6h16M3 11h16M3 16h16" stroke="#111" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
+        <button className="nav-hamburger" aria-label="Menu" onClick={() => setMobileNavOpen(v => !v)}>
+          {mobileNavOpen ? (
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              <path d="M5 5l12 12M17 5L5 17" stroke="#111" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              <path d="M3 6h16M3 11h16M3 16h16" stroke="#111" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+          )}
         </button>
       </nav>
+
+      {/* ── MOBILE NAV ── */}
+      {mobileNavOpen && (
+        <div style={{
+          position: 'fixed', top: 64, left: 0, right: 0, zIndex: 99,
+          background: 'white', borderBottom: '1px solid var(--border)',
+          padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        }}>
+          <Link href="/" className="nav-link" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 15 }} onClick={() => setMobileNavOpen(false)}>Events</Link>
+          <Link href="/about" className="nav-link" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 15 }} onClick={() => setMobileNavOpen(false)}>About</Link>
+          <Link href="https://trackagescheme.com" target="_blank" className="nav-link" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 15 }} onClick={() => setMobileNavOpen(false)}>Main site ↗</Link>
+          <Link href="/organiser/signup" className="nav-link" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 15 }} onClick={() => setMobileNavOpen(false)}>Sell Tickets</Link>
+          <Link href="/organiser/login" onClick={() => setMobileNavOpen(false)} style={{ display: 'block', marginTop: 8, padding: '12px 0', background: 'var(--black)', color: 'white', borderRadius: 8, textAlign: 'center', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
+        </div>
+      )}
 
       {/* ── HERO ── */}
       {!loading && heroEvent && (
@@ -924,30 +937,6 @@ export default function HomePage() {
         </div>
       </footer>
 
-      {/* ── AUTH MODAL ── */}
-      {authOpen && (
-        <div className="modal-overlay" onClick={() => setAuthOpen(false)}>
-          <div className="auth-modal" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setAuthOpen(false)}>✕</button>
-            <div className="auth-title">Welcome back</div>
-            <div className="auth-sub">Sign in to access your tickets and order history.</div>
-
-            <button className="social-btn btn-google" onClick={handleGoogleLogin}>
-              <svg viewBox="0 0 18 18" fill="none">
-                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
-                <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
-                <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-              </svg>
-              Continue with Google
-            </button>
-
-            <div className="auth-terms">
-              By signing in you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

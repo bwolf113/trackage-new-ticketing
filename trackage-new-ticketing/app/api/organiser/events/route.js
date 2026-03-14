@@ -59,7 +59,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { organiser_id, event: eventData, tickets } = body;
+    const { organiser_id, event: eventData, tickets, days } = body;
 
     if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
     if (!eventData?.name) return Response.json({ error: 'Event name required' }, { status: 400 });
@@ -87,6 +87,7 @@ export async function POST(req) {
         venue_maps_url:  eventData.venue_maps_url   || null,
         organiser_vat:   eventData.organiser_vat    || null,
         platform_vat:    eventData.platform_vat     || null,
+        vat_permit:      eventData.vat_permit       || null,
         booking_fee_pct: eventData.booking_fee_pct  || 0,
         thumbnail_url:   eventData.thumbnail_url    || null,
         poster_url:      eventData.poster_url       || null,
@@ -100,20 +101,49 @@ export async function POST(req) {
       return Response.json({ error: eventError.message }, { status: 500 });
     }
 
-    // Insert tickets
-    if (tickets?.length > 0) {
-      const ticketRows = tickets.map(t => ({
-        event_id:        event.id,
-        name:            t.name            || 'General Admission',
-        price:           parseFloat(t.price)           || 0,
-        booking_fee_pct: parseFloat(t.booking_fee_pct) || 0,
-        inventory:       t.inventory !== '' && t.inventory != null ? parseInt(t.inventory) : null,
-        sale_start:      t.sale_start      || null,
-        sale_end:        t.sale_end        || null,
-        disclaimer:      t.disclaimer      || null,
-        footer_image_url: t.footer_image_url || null,
-        sold:            0,
+    // Insert event_days and build client _id → db id map
+    const dayIdMap = {}; // client temp _id → real db id
+    if (days?.length > 0) {
+      const dayRows = days.map((d, i) => ({
+        event_id:   event.id,
+        name:       d.name || `Day ${i + 1}`,
+        date:       d.date,
+        capacity:   d.capacity !== '' && d.capacity != null ? parseInt(d.capacity) : null,
+        sort_order: d.sort_order ?? i,
       }));
+      const { data: createdDays, error: daysError } = await supabase
+        .from('event_days')
+        .insert(dayRows)
+        .select('id');
+      if (daysError) {
+        console.error('event_days insert error:', daysError);
+      } else if (createdDays) {
+        days.forEach((d, i) => {
+          const clientKey = d._id || d.id;
+          if (clientKey) dayIdMap[clientKey] = createdDays[i]?.id;
+        });
+      }
+    }
+
+    // Insert tickets (map client-side event_day_id → real db id)
+    if (tickets?.length > 0) {
+      const ticketRows = tickets.map(t => {
+        const rawDayId = t.event_day_id;
+        const mappedDayId = rawDayId ? (dayIdMap[rawDayId] || null) : null;
+        return {
+          event_id:         event.id,
+          name:             t.name            || 'General Admission',
+          price:            parseFloat(t.price)           || 0,
+          booking_fee_pct:  parseFloat(t.booking_fee_pct) || 0,
+          inventory:        t.inventory !== '' && t.inventory != null ? parseInt(t.inventory) : null,
+          sale_start:       t.sale_start      || null,
+          sale_end:         t.sale_end        || null,
+          disclaimer:       t.disclaimer      || null,
+          footer_image_url: t.footer_image_url || null,
+          sold:             0,
+          event_day_id:     mappedDayId,
+        };
+      });
 
       const { error: ticketError } = await supabase.from('tickets').insert(ticketRows);
       if (ticketError) console.error('Ticket insert error:', ticketError);

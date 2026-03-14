@@ -132,13 +132,7 @@ export default function OrganiserSignupPage() {
         <div className="card">
           <div className="card-top">
             <Link href="/" className="logo">
-              <div className="logo-mark">
-                <svg viewBox="0 0 14 14" fill="none" width="18" height="18">
-                  <circle cx="7" cy="7" r="5" stroke="#fff" strokeWidth="2"/>
-                  <circle cx="7" cy="7" r="2" fill="#fff"/>
-                </svg>
-              </div>
-              <span className="logo-name">Trackage</span>
+              <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '28px', width: 'auto', display: 'block' }} />
             </Link>
             <div className="card-title">Create your account</div>
             <div className="card-sub">Start selling tickets in minutes</div>
