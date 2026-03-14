@@ -64,7 +64,7 @@ body{font-family:var(--sans);background:var(--white);color:var(--text);-webkit-f
 /* ── NAV ── */
 .nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:rgba(255,255,255,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);box-shadow:0 1px 20px rgba(0,0,0,0.06)}
 .nav-logo{text-decoration:none;display:flex;align-items:center}
-.nav-logo img{height:30px;width:auto;display:block;filter:invert(1) brightness(0)}
+.nav-logo img{height:30px;width:auto;display:block;filter:invert(1)}
 .nav-back{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--mid);text-decoration:none;transition:color 0.15s}
 .nav-back:hover{color:var(--text)}
 .nav-right{display:flex;align-items:center;gap:12px}

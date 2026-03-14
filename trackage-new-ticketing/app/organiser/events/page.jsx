@@ -132,7 +132,7 @@ export default function OrganiserEventsPage() {
                   onClick={e => toggleSoldOut(ev, e)}
                   style={ev.status === 'sold_out' ? { borderColor: '#6ee7b7', color: '#065f46' } : { borderColor: '#fca5a5', color: '#b91c1c' }}
                 >
-                  {ev.status === 'sold_out' ? 'Reactivate' : 'Sold Out'}
+                  {ev.status === 'sold_out' ? 'Reactivate' : 'Mark Sold Out'}
                 </button>
                 <Link
                   href={`/organiser/events/${ev.id}/orders`}

@@ -563,7 +563,7 @@ function TicketCard({ ticket, index, onChange, onRemove, onSaveAndCreateAnother,
                 : { background: '#fef2f2', color: '#b91c1c', border: '1.5px solid #fca5a5' }}
               onClick={() => onChange({ ...ticket, status: isSoldOut ? 'active' : 'sold_out' })}
             >
-              {isSoldOut ? 'Reactivate' : 'Sold Out'}
+              {isSoldOut ? 'Reactivate' : 'Mark Sold Out'}
             </button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange({ ...ticket, _saved: false })}>
               Edit
@@ -1530,7 +1530,7 @@ export default function EventsPage() {
                           : { background: '#fef2f2', color: '#b91c1c', border: '1.5px solid #fca5a5' }}
                         onClick={() => toggleSoldOut(ev)}
                       >
-                        {ev.status === 'sold_out' ? '▶ Reactivate' : '✕ Sold Out'}
+                        {ev.status === 'sold_out' ? '▶ Reactivate' : '✕ Mark Sold Out'}
                       </button>
                       <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(ev)}>🗑 Delete</button>
                     </div>

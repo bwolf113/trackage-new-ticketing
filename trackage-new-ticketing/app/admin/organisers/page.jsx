@@ -263,11 +263,16 @@ export default function OrganisersPage() {
   }
 
   /* ── save (add / edit) ── */
+  const MT_VAT_RE = /^MT\d{8}$/i;
+
   async function handleSave() {
     setFormError('');
     if (!form.name.trim())  return setFormError('Name is required.');
     if (!form.email.trim()) return setFormError('Email is required.');
     if (modal === 'add' && !form.password.trim()) return setFormError('Password is required for new organisers.');
+    if (form.vat_number.trim() && !MT_VAT_RE.test(form.vat_number.trim())) {
+      return setFormError('Invalid VAT number. Must be in the format MT12345678 (MT + 8 digits).');
+    }
 
     setSaving(true);
     try {
@@ -546,8 +551,11 @@ export default function OrganisersPage() {
                   <input
                     placeholder="MT12345678"
                     value={form.vat_number}
-                    onChange={e => setForm(f => ({ ...f, vat_number: e.target.value }))}
+                    onChange={e => setForm(f => ({ ...f, vat_number: e.target.value.toUpperCase() }))}
                   />
+                  {form.vat_number.trim() && !/^MT\d{8}$/i.test(form.vat_number.trim()) && (
+                    <div className="field-hint" style={{ color: '#ef4444' }}>Must be MT + 8 digits, e.g. MT12345678</div>
+                  )}
                 </div>
                 <div className="field">
                   <label>VAT Rate (%)</label>

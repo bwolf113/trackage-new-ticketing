@@ -730,11 +730,11 @@ export default function HomePage() {
         </div>
 
         <div className="nav-right">
-          <Link href="/organiser/signup" className="nav-login-btn" style={{ background: 'transparent', color: 'var(--black)', border: '1.5px solid var(--border)' }}>
-            Sell Tickets
-          </Link>
-          <Link href="/organiser/login" className="nav-login-btn">
+          <Link href="/organiser/login" className="nav-login-btn" style={{ background: 'transparent', color: 'var(--black)', border: '1.5px solid var(--border)' }}>
             Sign in
+          </Link>
+          <Link href="/organiser/signup" className="nav-login-btn">
+            Sell Tickets
           </Link>
         </div>
 

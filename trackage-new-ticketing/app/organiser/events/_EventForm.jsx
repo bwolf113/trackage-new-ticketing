@@ -422,10 +422,12 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
                   <input value={event.venue_name} onChange={e => setEv('venue_name', e.target.value)} placeholder="e.g. The Grand Social, Dublin" />
                 )}
               </div>
-              <div className="form-group">
-                <label>Google Maps URL</label>
-                <input type="url" value={event.venue_maps_url} onChange={e => setEv('venue_maps_url', e.target.value)} placeholder="https://maps.google.com/…" />
-              </div>
+              {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY && (
+                <div className="form-group">
+                  <label>Google Maps URL</label>
+                  <input type="url" value={event.venue_maps_url} onChange={e => setEv('venue_maps_url', e.target.value)} placeholder="https://maps.google.com/…" />
+                </div>
+              )}
             </div>
 
             {/* ── Event Days (multi-day only) ── */}
