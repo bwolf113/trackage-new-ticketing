@@ -142,10 +142,10 @@ export default function OrganiserLayout({ children }) {
         @media (max-width: 768px) {
           .ol-sidebar { width: 220px !important; transform: translateX(-100%); transition: transform 0.25s ease; }
           .ol-sidebar.open { transform: translateX(0); }
-          .ol-main { margin-left: 0 !important; }
+          .ol-main { margin-left: 0 !important; width: 100%; max-width: 100vw; overflow-x: hidden; }
           .ol-menu-btn { display: block; }
           .ol-overlay.show { display: block; }
-          .ol-content { padding: 20px 16px; }
+          .ol-content { padding: 20px 16px; width: 100%; box-sizing: border-box; }
           .ol-topbar { padding: 0 16px; }
           .ol-collapse { display: none; }
         }

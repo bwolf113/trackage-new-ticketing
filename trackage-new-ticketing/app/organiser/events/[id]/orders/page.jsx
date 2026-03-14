@@ -29,7 +29,7 @@ const CSS = `
 .back-link:hover { color: var(--text); }
 .page-header { margin-bottom: 24px; }
 .page-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.page-sub { font-size: 13px; color: var(--text-mid); }
+.page-sub { font-size: 13px; color: var(--text-mid); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
 .stat-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
 .stat-label { font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
