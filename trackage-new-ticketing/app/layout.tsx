@@ -19,6 +19,11 @@ const dmSans = DM_Sans({
   variable: '--font-dm-sans',
 });
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export const metadata = {
   title: "Trackage Scheme - Malta's only online ticketing platform 100% dedicated to music",
   description: "Buy tickets for Malta's best underground and alternative music events — concerts, festivals, album launches, electronic parties and more.",
