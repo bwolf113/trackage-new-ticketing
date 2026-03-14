@@ -14,14 +14,14 @@ function adminSupabase() {
 export async function GET() {
   try {
     const supabase = adminSupabase();
-    const [{ data: events, error: evErr }, { data: orgs, error: orgErr }] = await Promise.all([
+    const [{ data: events, error: evErr }, { data: orgs }] = await Promise.all([
       supabase
         .from('events')
         .select('*, tickets(*), event_days(*)')
         .order('start_time', { ascending: false }),
       supabase
         .from('organisers')
-        .select('id, name')
+        .select('id, name, vat_number')
         .order('name'),
     ]);
     if (evErr) return Response.json({ error: evErr.message }, { status: 500 });

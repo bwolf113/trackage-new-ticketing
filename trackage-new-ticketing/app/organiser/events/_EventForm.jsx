@@ -220,6 +220,7 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
   const [tickets,    setTickets]    = useState(() => normaliseTickets(initial?.tickets));
   const [days,       setDays]       = useState(() => normaliseDays(initial?.days));
   const [isMultiDay, setIsMultiDay] = useState(() => (initial?.days?.length || 0) > 0);
+  const [vatError,   setVatError]   = useState('');
   useEffect(() => {
     if (initial) {
       setEvent(normaliseEvent(initial.event));
@@ -326,9 +327,16 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
     return d.name || `Day ${days.indexOf(d) + 1}`;
   }
 
+  const MT_VAT_RE = /^MT\d{8}$/i;
+
   function handleSubmit(e) {
     e.preventDefault();
     if (!event.name?.trim()) return;
+    if (event.organiser_vat && !MT_VAT_RE.test(event.organiser_vat.trim())) {
+      setVatError('Invalid VAT number. Must be in the format MT12345678 (MT + 8 digits).');
+      return;
+    }
+    setVatError('');
     onSave({ event, tickets, days: isMultiDay ? days : [] });
   }
 
@@ -352,7 +360,7 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
         </div>
       </div>
 
-      {error && <div className="error">{error}</div>}
+      {(error || vatError) && <div className="error">{vatError || error}</div>}
 
       <form onSubmit={handleSubmit}>
         <div className="form-layout">
@@ -630,7 +638,10 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
               <div className="section-title">Financials</div>
               <div className="form-group">
                 <label>VAT Number</label>
-                <input value={event.organiser_vat} onChange={e => setEv('organiser_vat', e.target.value)} placeholder="MT12345678" />
+                <input value={event.organiser_vat} onChange={e => setEv('organiser_vat', e.target.value.toUpperCase())} placeholder="MT12345678" />
+                {event.organiser_vat && !/^MT\d{8}$/i.test(event.organiser_vat.trim()) && (
+                  <div className="hint" style={{ color: '#ef4444' }}>Must be MT + 8 digits, e.g. MT12345678</div>
+                )}
               </div>
               <div className="form-group">
                 <label>VAT Permit</label>

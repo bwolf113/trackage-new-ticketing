@@ -62,8 +62,14 @@ export default function OrganiserProfilePage() {
     setTimeout(() => setMsg(null), 4000);
   }
 
+  const MT_VAT_RE = /^MT\d{8}$/i;
+
   async function handleSave(e) {
     e.preventDefault();
+    if (profile.vat_number && !MT_VAT_RE.test(profile.vat_number.trim())) {
+      flash('Invalid VAT number. Must be in the format MT12345678 (MT + 8 digits).', false);
+      return;
+    }
     setSaving(true);
     const res  = await fetch('/api/organiser/profile', {
       method: 'POST',
@@ -128,11 +134,14 @@ export default function OrganiserProfilePage() {
                   : <input
                       className="field-input"
                       value={profile.vat_number}
-                      onChange={e => setProfile(p => ({ ...p, vat_number: e.target.value }))}
+                      onChange={e => setProfile(p => ({ ...p, vat_number: e.target.value.toUpperCase() }))}
                       placeholder="e.g. MT12345678"
                     />
                 }
-                <div className="field-hint">Leave blank if you are not VAT registered.</div>
+                {profile.vat_number && !/^MT\d{8}$/i.test(profile.vat_number.trim())
+                  ? <div className="field-hint" style={{ color: '#ef4444' }}>Must be MT + 8 digits, e.g. MT12345678</div>
+                  : <div className="field-hint">Leave blank if you are not VAT registered.</div>
+                }
               </div>
             </div>
           </div>

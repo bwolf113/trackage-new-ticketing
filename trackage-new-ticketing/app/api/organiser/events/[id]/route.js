@@ -89,6 +89,11 @@ export async function PUT(req, { params }) {
 
     if (eventError) return Response.json({ error: eventError.message }, { status: 500 });
 
+    // Sync organiser_vat to organiser's profile if provided
+    if (eventData.organiser_vat && organiser_id) {
+      await supabase.from('organisers').update({ vat_number: eventData.organiser_vat }).eq('id', organiser_id);
+    }
+
     // ── Reconcile event_days ─────────────────────────────────
     const { data: existingDays } = await supabase
       .from('event_days').select('id').eq('event_id', id);

@@ -829,9 +829,15 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
     if (days.length === 0) setDays([BLANK_DAY()]);
   }
 
+  const MT_VAT_RE = /^MT\d{8}$/i;
+
   async function handleSave() {
     if (!form.name || !form.start_time) {
       alert('Event name and start time are required.');
+      return;
+    }
+    if (form.organiser_vat && !MT_VAT_RE.test(form.organiser_vat.trim())) {
+      alert('Invalid VAT number. Must be in the format MT12345678 (MT + 8 digits).');
       return;
     }
     setSaving(true);
@@ -1023,7 +1029,17 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
             <div className="form-grid grid-2" style={{ marginBottom: 14 }}>
               <div className="field">
                 <label>Organiser</label>
-                <select value={form.organiser_id} onChange={e => setField('organiser_id', e.target.value)}>
+                <select
+                  value={form.organiser_id}
+                  onChange={e => {
+                    const orgId = e.target.value;
+                    setField('organiser_id', orgId);
+                    if (orgId) {
+                      const org = organisers.find(o => o.id === orgId);
+                      if (org?.vat_number) setField('organiser_vat', org.vat_number.toUpperCase());
+                    }
+                  }}
+                >
                   <option value="">— Select organiser —</option>
                   {organisers.map(o => (
                     <option key={o.id} value={o.id}>{o.name}</option>
@@ -1035,8 +1051,11 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
                 <input
                   placeholder="MT12345678"
                   value={form.organiser_vat}
-                  onChange={e => setField('organiser_vat', e.target.value)}
+                  onChange={e => setField('organiser_vat', e.target.value.toUpperCase())}
                 />
+                {form.organiser_vat && !/^MT\d{8}$/i.test(form.organiser_vat.trim()) && (
+                  <span className="hint" style={{ color: '#ef4444' }}>Must be MT + 8 digits, e.g. MT12345678</span>
+                )}
               </div>
             </div>
             <div className="form-grid grid-2">

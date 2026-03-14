@@ -63,9 +63,8 @@ body{font-family:var(--sans);background:var(--white);color:var(--text);-webkit-f
 
 /* ── NAV ── */
 .nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:rgba(255,255,255,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);box-shadow:0 1px 20px rgba(0,0,0,0.06)}
-.nav-logo{font-family:var(--sans);font-size:17px;font-weight:700;color:var(--black);text-decoration:none;letter-spacing:-0.02em;text-transform:uppercase;display:flex;align-items:center;gap:10px}
-.nav-logo-mark{width:28px;height:28px;background:var(--black);border-radius:6px;display:flex;align-items:center;justify-content:center}
-.nav-logo-mark svg{width:14px;height:14px}
+.nav-logo{text-decoration:none;display:flex;align-items:center}
+.nav-logo img{height:30px;width:auto;display:block;filter:invert(1) brightness(0)}
 .nav-back{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--mid);text-decoration:none;transition:color 0.15s}
 .nav-back:hover{color:var(--text)}
 .nav-right{display:flex;align-items:center;gap:12px}
@@ -551,10 +550,7 @@ export default function EventPage() {
       <style>{CSS}</style>
       <nav className="nav">
         <Link href="/" className="nav-logo">
-          <div className="nav-logo-mark">
-            <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="#0a9e7f" strokeWidth="2"/><circle cx="7" cy="7" r="2" fill="#0a9e7f"/></svg>
-          </div>
-          Trackage Scheme
+          <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
         </Link>
         <Link href="/" className="nav-back">← Back to events</Link>
       </nav>
@@ -577,10 +573,7 @@ export default function EventPage() {
       <style>{CSS}</style>
       <nav className="nav">
         <Link href="/" className="nav-logo">
-          <div className="nav-logo-mark">
-            <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="#0a9e7f" strokeWidth="2"/><circle cx="7" cy="7" r="2" fill="#0a9e7f"/></svg>
-          </div>
-          Trackage Scheme
+          <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
         </Link>
       </nav>
       <div className="page-center" style={{ marginTop: 64 }}>
@@ -604,10 +597,7 @@ export default function EventPage() {
       {/* ── NAV ── */}
       <nav className="nav">
         <Link href="/" className="nav-logo">
-          <div className="nav-logo-mark">
-            <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="#0a9e7f" strokeWidth="2"/><circle cx="7" cy="7" r="2" fill="#0a9e7f"/></svg>
-          </div>
-          Trackage Scheme
+          <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
         </Link>
         <Link href="/" className="nav-back">← All events</Link>
         <div className="nav-right">
