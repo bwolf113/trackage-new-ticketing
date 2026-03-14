@@ -169,13 +169,13 @@ export async function POST(req, { params }) {
     const { error } = await supabase
       .from('order_attendees').update({ checked_in_at: now }).eq('id', attendee.id);
     if (error) return Response.json({ valid: false, status: 'error', error: error.message }, { status: 500 });
-    result.attendee = { ...attendee, checked_in_at: now };
   } else {
     const { error } = await supabase
       .from('orders').update({ checked_in_at: now }).eq('id', order.id);
     if (error) return Response.json({ valid: false, status: 'error', error: error.message }, { status: 500 });
-    result.order = { ...order, checked_in_at: now };
   }
 
+  // Build response using original result (checked_in_at still null) so status is 'ok',
+  // then override checked_in_at with the timestamp we just wrote.
   return Response.json({ ...buildResponse(result), checked_in_at: now });
 }
