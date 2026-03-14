@@ -1,5 +1,5 @@
 // Base URL of the Next.js ticketing backend
-export const BASE_URL = 'http://192.168.1.54:3000';
+export const BASE_URL = 'https://tickets.trackagescheme.com';
 
 async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`${BASE_URL}${path}`, options);
