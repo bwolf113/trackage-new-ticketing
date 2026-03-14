@@ -95,9 +95,19 @@ export default function EventsScreen() {
               {ev.venue_name ? <Text style={styles.meta}>{ev.venue_name}</Text> : null}
               <Text style={styles.meta}>{ev.completed_orders ?? 0} order{ev.completed_orders !== 1 ? 's' : ''}</Text>
             </View>
-            <View style={[styles.badge, ev.status === 'published' ? styles.badgePub : styles.badgeDraft]}>
-              <Text style={[styles.badgeText, ev.status === 'published' ? styles.badgePubText : styles.badgeDraftText]}>
-                {ev.status}
+            <View style={[
+              styles.badge,
+              ev.status === 'published' ? styles.badgePub :
+              ev.status === 'sold_out'  ? styles.badgeSoldOut :
+              styles.badgeDraft,
+            ]}>
+              <Text style={[
+                styles.badgeText,
+                ev.status === 'published' ? styles.badgePubText :
+                ev.status === 'sold_out'  ? styles.badgeSoldOutText :
+                styles.badgeDraftText,
+              ]}>
+                {ev.status === 'sold_out' ? 'Sold Out' : ev.status}
               </Text>
             </View>
           </TouchableOpacity>
@@ -152,9 +162,11 @@ const styles = StyleSheet.create({
   badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   badgePub: { backgroundColor: '#d1fae5' },
   badgeDraft: { backgroundColor: '#f3f4f6' },
+  badgeSoldOut: { backgroundColor: '#fef2f2' },
   badgeText: { fontSize: 11, fontWeight: '700' },
   badgePubText: { color: '#065f46' },
   badgeDraftText: { color: '#6b7280' },
+  badgeSoldOutText: { color: '#b91c1c' },
   empty: { alignItems: 'center' },
   emptyIcon: { fontSize: 40, marginBottom: 12 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 6 },

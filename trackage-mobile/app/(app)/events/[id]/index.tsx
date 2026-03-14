@@ -84,7 +84,14 @@ function OrdersTab({ eventId, organiserId }: { eventId: string; organiserId: str
           {summary.map((t: any, i: number) => (
             <View key={i} style={styles.ticketRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.ticketName}>{t.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.ticketName}>{t.name}</Text>
+                  {t.status === 'sold_out' && (
+                    <View style={styles.ticketSoldOutBadge}>
+                      <Text style={styles.ticketSoldOutText}>Sold Out</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.ticketPrice}>{fmtEur(t.price)}</Text>
               </View>
               <Text style={styles.ticketSold}>
@@ -546,6 +553,8 @@ const styles = StyleSheet.create({
   ticketName: { fontSize: 14, fontWeight: '600', color: '#111827' },
   ticketPrice: { fontSize: 12, color: '#6b7280' },
   ticketSold: { fontSize: 14, fontWeight: '700', color: GREEN },
+  ticketSoldOutBadge: { backgroundColor: '#fef2f2', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 },
+  ticketSoldOutText: { fontSize: 10, fontWeight: '700', color: '#b91c1c' },
   orderRow: {
     flexDirection: 'row',
     alignItems: 'center',
