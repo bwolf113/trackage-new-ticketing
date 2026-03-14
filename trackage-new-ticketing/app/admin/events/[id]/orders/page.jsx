@@ -7,6 +7,10 @@ import Link from 'next/link';
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 }
+function fmtComp(n) {
+  if (!n || n === 0) return '€0 (Free/Comp)';
+  return fmt(n);
+}
 function fmtDate(dt) {
   if (!dt) return '—';
   return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -244,7 +248,7 @@ export default function EventOrdersPage() {
                       <td><div className="name-cell">{order.customer_name || '—'}</div></td>
                       <td><div className="email-cell">{order.customer_email || '—'}</div></td>
                       <td style={{ fontSize: 13, color: 'var(--text-mid)', whiteSpace: 'nowrap' }}>{fmtDateShort(order.created_at)}</td>
-                      <td style={{ fontWeight: 600, color: '#0a9e7f', whiteSpace: 'nowrap' }}>{fmt(order.total)}</td>
+                      <td style={{ fontWeight: 600, color: '#0a9e7f', whiteSpace: 'nowrap' }}>{fmtComp(order.total)}</td>
                     </tr>
                   ))}
                 </tbody>

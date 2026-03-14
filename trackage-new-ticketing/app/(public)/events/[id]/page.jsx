@@ -47,7 +47,6 @@ function ticketRemaining(ticket) {
 
 /* ── CSS ──────────────────────────────────────────────────────────── */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --accent:#0a9e7f; --accent-dark:#087d65; --accent-pale:#e6f7f4;
@@ -238,6 +237,18 @@ body{font-family:var(--sans);background:var(--white);color:var(--text);-webkit-f
   .event-hero{height:300px}
   .event-hero-content{padding:24px 20px}
   .info-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .page-body{padding:16px 14px 60px}
+  .event-hero{height:260px}
+  .event-hero-content{padding:16px 14px}
+  .event-hero-title{font-size:clamp(24px,7vw,40px)}
+  .ticket-panel-header{padding:16px 18px}
+  .ticket-row{padding:12px 18px}
+  .order-summary{padding:16px 18px}
+  .customer-grid{grid-template-columns:1fr}
+  .coupon-section{padding:12px 18px}
+  .checkout-section{padding:12px 18px 16px}
 }
 `;
 

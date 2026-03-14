@@ -42,8 +42,6 @@ function isSoldOut(tickets) {
 
 /* ── CSS ──────────────────────────────────────────────────────────── */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap');
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -253,7 +251,7 @@ body { font-family: var(--sans); background: var(--white); color: var(--text); -
 .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
 .filter-chip.active { background: var(--black); border-color: var(--black); color: var(--white); }
 .search-bar {
-  flex: 1; min-width: 200px; max-width: 340px;
+  flex: 1; min-width: 160px; max-width: 340px;
   position: relative;
 }
 .search-bar input {
@@ -483,6 +481,14 @@ body { font-family: var(--sans); background: var(--white); color: var(--text); -
 @media (max-width: 600px) {
   .events-grid { grid-template-columns: 1fr; }
   .filter-row { gap: 6px; }
+  .search-bar { min-width: 100%; max-width: 100%; order: -1; }
+  .filter-row { flex-wrap: wrap; }
+  .hero-content { padding: 32px 16px 40px; }
+  .section { padding: 40px 16px; }
+  .stats-bar { padding: 28px 16px; }
+  .newsletter { padding: 40px 16px; }
+  .footer { padding: 36px 16px 24px; }
+  .hero-title { font-size: clamp(32px, 8vw, 56px); }
 }
 `;
 

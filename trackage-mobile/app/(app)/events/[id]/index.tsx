@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  ScrollView, RefreshControl, Alert, TextInput, Modal, FlatList,
+  ScrollView, RefreshControl, Alert, TextInput, Modal, FlatList, Pressable, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { useAuth } from '../../../../lib/AuthContext';
@@ -40,11 +40,147 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+// ── Edit Order Modal ──
+function EditOrderModal({
+  order, organiserId, onClose, onUpdated,
+}: {
+  order: { id: string; customer_name: string; customer_email: string; status?: string; total?: number; created_at?: string };
+  organiserId: string;
+  onClose: () => void;
+  onUpdated: (name: string, email: string) => void;
+}) {
+  const [name, setName] = useState(order.customer_name || '');
+  const [email, setEmail] = useState(order.customer_email || '');
+  const [saving, setSaving] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`${BASE_URL}/api/organiser/update-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: order.id, organiser_id: organiserId, customer_name: name, customer_email: email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMsg({ text: 'Details updated.', ok: true });
+        onUpdated(name, email);
+      } else {
+        setMsg({ text: data.error || 'Save failed', ok: false });
+      }
+    } catch (e: any) {
+      setMsg({ text: e.message, ok: false });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleResend() {
+    setResending(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`${BASE_URL}/api/organiser/resend-ticket`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: order.id, organiser_id: organiserId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMsg({ text: `Ticket resent to ${data.to || email}.`, ok: true });
+      } else {
+        setMsg({ text: data.error || 'Resend failed', ok: false });
+      }
+    } catch (e: any) {
+      setMsg({ text: e.message, ok: false });
+    } finally {
+      setResending(false);
+    }
+  }
+
+  const isComp = !order.total || order.total === 0;
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%', alignItems: 'center' }}>
+          <Pressable style={styles.modalBox} onPress={() => {}}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Order #{order.id?.slice(0, 8).toUpperCase()}</Text>
+                {order.created_at ? <Text style={styles.modalSub}>{fmtDate(order.created_at)}</Text> : null}
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+              {msg && (
+                <View style={[styles.msgBanner, msg.ok ? styles.msgOk : styles.msgErr]}>
+                  <Text style={msg.ok ? styles.msgOkText : styles.msgErrText}>{msg.text}</Text>
+                </View>
+              )}
+
+              <Text style={styles.modalLabel}>Name</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={name}
+                onChangeText={setName}
+                placeholder="Customer name"
+                placeholderTextColor="#9ca3af"
+              />
+
+              <Text style={styles.modalLabel}>Email</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="customer@email.com"
+                placeholderTextColor="#9ca3af"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <Text style={styles.modalLabel}>Total Paid</Text>
+              <Text style={[styles.modalValue, { color: GREEN }]}>
+                {isComp ? '€0 (Free/Comp)' : fmtEur(order.total ?? 0)}
+              </Text>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              {order.status === 'completed' && (
+                <TouchableOpacity
+                  style={[styles.btnResend, resending && { opacity: 0.6 }]}
+                  onPress={handleResend}
+                  disabled={resending}
+                >
+                  <Text style={styles.btnResendText}>{resending ? 'Resending…' : '📧 Resend'}</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.btnSave, saving && { opacity: 0.6 }]}
+                onPress={handleSave}
+                disabled={saving}
+              >
+                <Text style={styles.btnSaveText}>{saving ? 'Saving…' : 'Save'}</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ── Orders Tab ──
 function OrdersTab({ eventId, organiserId }: { eventId: string; organiserId: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [editOrder, setEditOrder] = useState<any | null>(null);
 
   async function load(refresh = false) {
     if (refresh) setRefreshing(true); else setLoading(true);
@@ -65,68 +201,87 @@ function OrdersTab({ eventId, organiserId }: { eventId: string; organiserId: str
   const summary: any[] = data?.ticketSummary || [];
 
   return (
-    <ScrollView
-      style={styles.tabScroll}
-      contentContainerStyle={styles.tabContent}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={GREEN} />}
-    >
-      {/* Summary stats */}
-      <View style={styles.statsRow}>
-        <StatCard label="Revenue" value={fmtEur(stats.total_revenue)} />
-        <StatCard label="Tickets sold" value={stats.tickets_sold ?? 0} />
-        <StatCard label="Orders" value={stats.order_count ?? 0} />
-      </View>
-
-      {/* Ticket type summary */}
-      {summary.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ticket Sales</Text>
-          {summary.map((t: any, i: number) => (
-            <View key={i} style={styles.ticketRow}>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.ticketName}>{t.name}</Text>
-                  {t.status === 'sold_out' && (
-                    <View style={styles.ticketSoldOutBadge}>
-                      <Text style={styles.ticketSoldOutText}>Sold Out</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.ticketPrice}>{fmtEur(t.price)}</Text>
-              </View>
-              <Text style={styles.ticketSold}>
-                {t.sold} / {t.inventory ?? '∞'}
-              </Text>
-            </View>
-          ))}
-        </View>
+    <>
+      {editOrder && (
+        <EditOrderModal
+          order={editOrder}
+          organiserId={organiserId}
+          onClose={() => setEditOrder(null)}
+          onUpdated={(name, email) => {
+            setData((d: any) => ({
+              ...d,
+              orders: (d?.orders || []).map((o: any) =>
+                o.id === editOrder.id ? { ...o, customer_name: name, customer_email: email } : o
+              ),
+            }));
+            setEditOrder((o: any) => o ? { ...o, customer_name: name, customer_email: email } : null);
+          }}
+        />
       )}
+      <ScrollView
+        style={styles.tabScroll}
+        contentContainerStyle={styles.tabContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={GREEN} />}
+      >
+        {/* Summary stats */}
+        <View style={styles.statsRow}>
+          <StatCard label="Revenue" value={fmtEur(stats.total_revenue)} />
+          <StatCard label="Tickets sold" value={stats.tickets_sold ?? 0} />
+          <StatCard label="Orders" value={stats.order_count ?? 0} />
+        </View>
 
-      {/* Order list */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Orders ({orders.length})</Text>
-        {orders.length === 0
-          ? <Text style={styles.emptyText}>No orders yet.</Text>
-          : orders.map((o: any) => (
-            <View key={o.id} style={styles.orderRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.orderName}>{o.customer_name || '—'}</Text>
-                <Text style={styles.orderEmail}>{o.customer_email || ''}</Text>
-                <Text style={styles.orderMeta}>{fmtDate(o.created_at)}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.orderTotal}>{fmtEur(o.total)}</Text>
-                <View style={[styles.statusBadge, o.status === 'completed' ? styles.statusOk : styles.statusOther]}>
-                  <Text style={[styles.statusText, o.status === 'completed' ? styles.statusOkText : styles.statusOtherText]}>
-                    {o.status}
-                  </Text>
+        {/* Ticket type summary */}
+        {summary.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Ticket Sales</Text>
+            {summary.map((t: any, i: number) => (
+              <View key={i} style={styles.ticketRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.ticketName}>{t.name}</Text>
+                    {t.status === 'sold_out' && (
+                      <View style={styles.ticketSoldOutBadge}>
+                        <Text style={styles.ticketSoldOutText}>Sold Out</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.ticketPrice}>{fmtEur(t.price)}</Text>
                 </View>
+                <Text style={styles.ticketSold}>
+                  {t.sold} / {t.inventory ?? '∞'}
+                </Text>
               </View>
-            </View>
-          ))
-        }
-      </View>
-    </ScrollView>
+            ))}
+          </View>
+        )}
+
+        {/* Order list */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Orders ({orders.length})</Text>
+          {orders.length === 0
+            ? <Text style={styles.emptyText}>No orders yet.</Text>
+            : orders.map((o: any) => (
+              <TouchableOpacity key={o.id} style={styles.orderRow} onPress={() => setEditOrder(o)} activeOpacity={0.7}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.orderName}>{o.customer_name || '—'}</Text>
+                  <Text style={styles.orderEmail}>{o.customer_email || ''}</Text>
+                  <Text style={styles.orderMeta}>{fmtDate(o.created_at)}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.orderTotal}>{!o.total || o.total === 0 ? '€0 (Comp)' : fmtEur(o.total)}</Text>
+                  <View style={[styles.statusBadge, o.status === 'completed' ? styles.statusOk : styles.statusOther]}>
+                    <Text style={[styles.statusText, o.status === 'completed' ? styles.statusOkText : styles.statusOtherText]}>
+                      {o.status}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.rowChevron}>›</Text>
+              </TouchableOpacity>
+            ))
+          }
+        </View>
+      </ScrollView>
+    </>
   );
 }
 
@@ -136,6 +291,7 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [editOrder, setEditOrder] = useState<any | null>(null);
 
   async function load(refresh = false) {
     if (refresh) setRefreshing(true); else setLoading(true);
@@ -159,6 +315,22 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
 
   return (
     <View style={{ flex: 1 }}>
+      {editOrder && (
+        <EditOrderModal
+          order={editOrder}
+          organiserId={organiserId}
+          onClose={() => setEditOrder(null)}
+          onUpdated={(name, email) => {
+            setData((d: any) => ({
+              ...d,
+              attendees: (d?.attendees || []).map((a: any) =>
+                a.order_id === editOrder.id ? { ...a, name, email } : a
+              ),
+            }));
+            setEditOrder((o: any) => o ? { ...o, customer_name: name, customer_email: email } : null);
+          }}
+        />
+      )}
       <View style={styles.searchWrap}>
         <View style={styles.searchIconWrap}>
           <View style={styles.searchCircle} />
@@ -182,7 +354,18 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
           const allIn = a.checkin_total > 0 && a.checkin_count === a.checkin_total;
           const partialIn = a.checkin_count > 0 && !allIn;
           return (
-            <View style={styles.attendeeRow}>
+            <TouchableOpacity
+              style={styles.attendeeRow}
+              activeOpacity={0.7}
+              onPress={() => setEditOrder({
+                id: a.order_id,
+                customer_name: a.name,
+                customer_email: a.email,
+                status: 'completed',
+                total: a.total,
+                created_at: a.created_at,
+              })}
+            >
               <View style={{ flex: 1 }}>
                 <Text style={styles.attendeeName}>{a.name || '—'}</Text>
                 <Text style={styles.attendeeEmail}>{a.email || ''}</Text>
@@ -204,8 +387,9 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
                     <Text style={[styles.checkinBadgeText, styles.checkinPartialText]}>{a.checkin_count}/{a.checkin_total} in</Text>
                   </View>
                 ) : null}
+                <Text style={styles.rowChevron}>›</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         }}
       />
@@ -670,4 +854,52 @@ const styles = StyleSheet.create({
   },
   issueBtnDisabled: { opacity: 0.6 },
   issueBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  rowChevron: { fontSize: 20, color: '#d1d5db', marginLeft: 4 },
+  // modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center', padding: 20,
+  },
+  modalBox: {
+    backgroundColor: '#fff', borderRadius: 16, width: '100%',
+    maxWidth: 480, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2, shadowRadius: 20, elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    padding: 20, borderBottomWidth: 1, borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  modalSub: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  modalCloseBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center',
+  },
+  modalCloseText: { fontSize: 14, color: '#6b7280', fontWeight: '600' },
+  modalLabel: { fontSize: 11, fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 16 },
+  modalInput: {
+    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827',
+  },
+  modalValue: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  modalFooter: {
+    flexDirection: 'row', gap: 8, padding: 16,
+    borderTopWidth: 1, borderTopColor: '#e5e7eb', backgroundColor: '#f9fafb',
+  },
+  btnResend: {
+    flex: 1, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 8,
+    paddingVertical: 10, alignItems: 'center', backgroundColor: '#fff',
+  },
+  btnResendText: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  btnSave: {
+    flex: 1, backgroundColor: GREEN, borderRadius: 8,
+    paddingVertical: 10, alignItems: 'center',
+  },
+  btnSaveText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  msgBanner: { borderRadius: 8, padding: 10, marginTop: 12 },
+  msgOk: { backgroundColor: '#d1fae5' },
+  msgErr: { backgroundColor: '#fee2e2' },
+  msgOkText: { fontSize: 13, fontWeight: '600', color: '#065f46' },
+  msgErrText: { fontSize: 13, fontWeight: '600', color: '#991b1b' },
 });

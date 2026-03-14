@@ -8,6 +8,10 @@ import { isSampleMode, setSampleMode, getSampleOrders, getSampleEvents } from '.
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 }
+function fmtComp(n) {
+  if (!n || n === 0) return '€0 (Free/Comp)';
+  return fmt(n);
+}
 function fmtDate(dt) {
   if (!dt) return '—';
   return new Date(dt).toLocaleDateString('en-MT', {
@@ -638,7 +642,7 @@ function OrderDetail({ orderId, onClose, onStatusChange }) {
               <div className="totals-row"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
               {bookingFee > 0 && <div className="totals-row"><span>Booking fee</span><span>{fmt(bookingFee)}</span></div>}
               {(order.discount || 0) > 0 && <div className="totals-row" style={{ color: '#0a9e7f' }}><span>Discount {order.coupon_code ? `(${order.coupon_code})` : ''}</span><span>−{fmt(order.discount)}</span></div>}
-              <div className="totals-row total"><span>Total charged</span><span style={{ color: '#0a9e7f' }}>{fmt(order.total)}</span></div>
+              <div className="totals-row total"><span>Total charged</span><span style={{ color: '#0a9e7f' }}>{fmtComp(order.total)}</span></div>
             </div>
           </div>
 
@@ -1042,7 +1046,7 @@ export default function OrdersPage() {
                       {fmtDateShort(order.created_at)}
                     </td>
                     <td style={{ fontWeight: 600, color: '#0a9e7f', whiteSpace: 'nowrap' }}>
-                      {fmt(order.total)}
+                      {fmtComp(order.total)}
                     </td>
                     <td>
                       <StatusBadge status={order.status} />

@@ -68,14 +68,25 @@ export async function GET(req, { params }) {
     totalRevenue = completedOrders.reduce((s, o) => s + (o.total || 0), 0);
   }
 
+  const compOrders = completedOrders.filter(o => !o.total || o.total === 0);
+  let compTicketsCount = 0;
+  if (compOrders.length > 0) {
+    const { data: compItems } = await supabase
+      .from('order_items')
+      .select('quantity')
+      .in('order_id', compOrders.map(o => o.id));
+    compTicketsCount = (compItems || []).reduce((s, i) => s + (i.quantity || 0), 0);
+  }
+
   return Response.json({
     event,
     orders: orders || [],
     ticketSummary,
     stats: {
-      total_revenue:    totalRevenue,
-      tickets_sold:     totalTicketsSold,
-      order_count:      completedOrders.length,
+      total_revenue:      totalRevenue,
+      tickets_sold:       totalTicketsSold,
+      order_count:        completedOrders.length,
+      comp_tickets_count: compTicketsCount,
     },
   });
 }

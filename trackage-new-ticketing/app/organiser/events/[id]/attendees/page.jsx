@@ -7,6 +7,10 @@ import Link from 'next/link';
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 }
+function fmtComp(n) {
+  if (!n || n === 0) return '€0 (Free/Comp)';
+  return fmt(n);
+}
 function fmtDate(dt) {
   if (!dt) return '—';
   return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -203,7 +207,7 @@ export default function OrgAttendeesPage() {
                     <td style={{ fontWeight: 500 }}>{a.name}</td>
                     <td style={{ fontSize: 13, color: 'var(--text-mid)' }}>{a.email}</td>
                     <td style={{ fontSize: 13, color: 'var(--text-mid)' }}>{a.ticket_summary || '—'}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(a.total)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtComp(a.total)}</td>
                     <td style={{ fontSize: 13, color: 'var(--text-mid)' }}>{fmtDate(a.created_at)}</td>
                     <td>
                       {allCheckedIn ? (

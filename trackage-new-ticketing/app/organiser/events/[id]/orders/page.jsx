@@ -7,6 +7,10 @@ import Link from 'next/link';
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 }
+function fmtComp(n) {
+  if (!n || n === 0) return '€0 (Free/Comp)';
+  return fmt(n);
+}
 function fmtDate(dt) {
   if (!dt) return '—';
   return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -26,7 +30,7 @@ const CSS = `
 .page-header { margin-bottom: 24px; }
 .page-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
 .page-sub { font-size: 13px; color: var(--text-mid); }
-.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
 .stat-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
 .stat-label { font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
 .stat-val { font-size: 22px; font-weight: 700; color: var(--text); }
@@ -76,7 +80,7 @@ tbody tr { cursor: pointer; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .msg-ok  { background: #dcfce7; color: #16a34a; border-radius: 7px; padding: 9px 12px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
 .msg-err { background: #fee2e2; color: #dc2626; border-radius: 7px; padding: 9px 12px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
-@media(max-width:600px) { .stats-row { grid-template-columns: 1fr 1fr; } }
+@media(max-width:700px) { .stats-row { grid-template-columns: 1fr 1fr; } }
 `;
 
 function OrderModal({ order, organiser_id, onClose, onUpdated }) {
@@ -172,7 +176,7 @@ function OrderModal({ order, organiser_id, onClose, onUpdated }) {
           <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 16px' }} />
 
           <div className="field-label">Total paid</div>
-          <div className="field-value" style={{ color: 'var(--accent)', fontWeight: 700 }}>{fmt(order.total)}</div>
+          <div className="field-value" style={{ color: 'var(--accent)', fontWeight: 700 }}>{fmtComp(order.total)}</div>
         </div>
 
         <div className="modal-footer">
@@ -289,6 +293,10 @@ export default function OrgEventOrdersPage() {
           <div className="stat-label">Revenue</div>
           {loading ? <div className="skel" style={{ height: 24, width: '50%' }} /> : <div className="stat-val stat-accent">{fmt(stats.total_revenue)}</div>}
         </div>
+        <div className="stat-card">
+          <div className="stat-label">Comp Tickets</div>
+          {loading ? <div className="skel" style={{ height: 24, width: '50%' }} /> : <div className="stat-val">{stats.comp_tickets_count || 0}</div>}
+        </div>
       </div>
 
       {/* Ticket type breakdown */}
@@ -356,7 +364,7 @@ export default function OrgEventOrdersPage() {
                       </span>
                     </td>
                     <td style={{ color: 'var(--text-mid)', fontSize: 13 }}>{fmtDate(o.created_at)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(o.total)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtComp(o.total)}</td>
                   </tr>
                 );
               })}

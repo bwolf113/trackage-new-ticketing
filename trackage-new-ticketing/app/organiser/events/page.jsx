@@ -38,7 +38,11 @@ const CSS = `
 .empty-sub { font-size: 14px; color: var(--text-mid); margin-bottom: 24px; }
 .skel { height: 80px; border-radius: 12px; background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-@media(max-width:600px) { .ev-actions { display: none; } }
+@media(max-width:600px) {
+  .ev-card { flex-wrap: wrap; }
+  .ev-actions { width: 100%; overflow-x: auto; padding-bottom: 2px; flex-shrink: 0; scrollbar-width: none; }
+  .ev-actions::-webkit-scrollbar { display: none; }
+}
 `;
 
 export default function OrganiserEventsPage() {
