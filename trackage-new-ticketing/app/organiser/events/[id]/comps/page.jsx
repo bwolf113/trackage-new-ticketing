@@ -178,8 +178,8 @@ export default function IssueCompsPage() {
 
       {result && (
         <div className={`result-banner ${result.sent > 0 && result.failed === 0 ? 'success' : result.sent > 0 ? 'partial' : 'error'}`}>
-          {result.sent > 0 && result.failed === 0 && `✓ ${result.sent} ticket${result.sent !== 1 ? 's' : ''} sent successfully.`}
-          {result.sent > 0 && result.failed > 0  && `✓ ${result.sent} sent, ${result.failed} failed.`}
+          {result.sent > 0 && result.failed === 0 && `✓ ${result.tickets_sent} ticket${result.tickets_sent !== 1 ? 's' : ''} sent successfully.`}
+          {result.sent > 0 && result.failed > 0  && `✓ ${result.tickets_sent} ticket${result.tickets_sent !== 1 ? 's' : ''} sent, ${result.failed} recipient${result.failed !== 1 ? 's' : ''} failed.`}
           {result.sent === 0 && `Failed to send tickets. ${result.error || ''}`}
           {result.failed > 0 && (
             <div className="failed-list">
@@ -298,7 +298,7 @@ export default function IssueCompsPage() {
             {validRows.length} recipient{validRows.length !== 1 ? 's' : ''} ready to send
           </div>
           <button className="btn-send" onClick={handleSend} disabled={!canSend}>
-            {sending ? 'Sending…' : `Send Ticket${validRows.length !== 1 ? 's' : ''}`}
+            {sending ? 'Sending…' : 'Send Ticket(s)'}
           </button>
         </div>
       </div>

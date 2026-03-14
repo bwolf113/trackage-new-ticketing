@@ -4,6 +4,7 @@
 */
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail, ticketConfirmationEmail } from '../../../../lib/sendEmail';
+import { generateQRPublicURL } from '../../../../lib/qrcode.js';
 import crypto from 'crypto';
 
 function adminSupabase() {
@@ -101,17 +102,39 @@ export async function POST(req) {
         unit_price:  0,
       });
 
-      // Build and send ticket email
+      // Create one order_attendee per ticket (with individual QR tokens)
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tickets.trackagescheme.com';
+      const attendeeInserts = Array.from({ length: qty }, () => ({
+        order_id:    order.id,
+        ticket_name: ticket.name,
+        qr_token:    crypto.randomUUID(),
+      }));
+      const { data: createdAttendees } = await supabase
+        .from('order_attendees')
+        .insert(attendeeInserts)
+        .select('id, ticket_name, qr_token');
+
+      // Generate QR images for each attendee
+      const attendees = await Promise.all((createdAttendees || []).map(async (a) => {
+        const qrUrl = await generateQRPublicURL(
+          `${siteUrl}/scan/${a.qr_token}`,
+          `qr-${a.id.slice(0, 8)}`
+        );
+        return { ...a, qr_url: qrUrl };
+      }));
+
+      // Build and send ticket email with individual QR codes
       const html = await ticketConfirmationEmail({
         order,
         event,
         orderItems: [{ ticket_name: ticket.name, quantity: qty, unit_price: 0 }],
         organiser,
+        attendees,
       });
 
       const emailResult = await sendEmail({
         to:      email,
-        subject: `🎫 Your complimentary ticket — ${event.name}`,
+        subject: `🎫 Your complimentary ticket${qty > 1 ? 's' : ''} — ${event.name}`,
         html,
       });
 
@@ -119,14 +142,17 @@ export async function POST(req) {
         email,
         success:  emailResult.success,
         order_id: order.id,
+        quantity: qty,
         error:    emailResult.success ? undefined : emailResult.error,
       });
     }
 
+    const successfulResults = results.filter(r => r.success);
     return Response.json({
-      success: results.some(r => r.success),
-      sent:    results.filter(r => r.success).length,
-      failed:  results.filter(r => !r.success).length,
+      success:      successfulResults.length > 0,
+      sent:         successfulResults.length,
+      tickets_sent: successfulResults.reduce((s, r) => s + (r.quantity || 1), 0),
+      failed:       results.filter(r => !r.success).length,
       results,
     });
   } catch (err) {

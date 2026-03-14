@@ -38,6 +38,11 @@ body { font-family: 'Inter', sans-serif; color: var(--text); background: var(--b
 .count-chip { display: inline-block; background: #f3f4f6; color: var(--text-mid); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 8px; border: 1px solid var(--border); }
 .btn-export { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--white); color: var(--text-mid); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; text-decoration: none; white-space: nowrap; }
 .btn-export:hover { border-color: var(--accent); color: var(--accent); }
+.checkin-done { font-size: 12px; color: #065f46; font-weight: 600; }
+.checkin-partial { font-size: 12px; color: #92400e; font-weight: 500; }
+.btn-checkin { padding: 5px 11px; border: 1.5px solid #a7f3d0; border-radius: 6px; background: #f0fdf9; color: #065f46; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; }
+.btn-checkin:hover { background: #d1fae5; }
+.btn-checkin:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
 
 export default function AttendeesPage() {
@@ -46,6 +51,7 @@ export default function AttendeesPage() {
   const [attendees,  setAttendees] = useState([]);
   const [loading,    setLoading]   = useState(true);
   const [search,     setSearch]    = useState('');
+  const [checkingIn, setCheckingIn] = useState({});
 
   useEffect(() => { fetchData(); }, [eventId]);
 
@@ -58,6 +64,27 @@ export default function AttendeesPage() {
       setAttendees(data.attendees || []);
     } catch {}
     setLoading(false);
+  }
+
+  async function checkIn(orderId) {
+    setCheckingIn(c => ({ ...c, [orderId]: 'loading' }));
+    try {
+      const res  = await fetch(`/api/admin/event-attendees/${eventId}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ order_id: orderId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setAttendees(prev => prev.map(a =>
+          a.order_id === orderId
+            ? { ...a, checked_in_at: json.checked_in_at, checkin_count: a.checkin_total }
+            : a
+        ));
+      }
+    } finally {
+      setCheckingIn(c => ({ ...c, [orderId]: 'done' }));
+    }
   }
 
   function exportCSV() {
@@ -139,28 +166,63 @@ export default function AttendeesPage() {
                 <th>Order #</th>
                 <th>Tickets</th>
                 <th>Total qty</th>
+                <th>Check-in</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((a, i) => (
-                <tr key={i}>
-                  <td>
-                    <div className="name-cell">{a.customer_name || '—'}</div>
-                  </td>
-                  <td>
-                    <div style={{ fontSize: 13, color: 'var(--text-mid)' }}>{a.customer_email || '—'}</div>
-                  </td>
-                  <td>
-                    <div className="mono">#{a.order_ref}</div>
-                  </td>
-                  <td>
-                    {(a.tickets || []).map((t, j) => (
-                      <span key={j} className="ticket-badge">{t.ticket_name} ×{t.quantity}</span>
-                    ))}
-                  </td>
-                  <td style={{ fontWeight: 600 }}>{a.total_qty}</td>
-                </tr>
-              ))}
+              {filtered.map((a, i) => {
+                const allCheckedIn = a.checkin_total > 0 && a.checkin_count === a.checkin_total;
+                const partialCheckedIn = a.checkin_count > 0 && !allCheckedIn;
+                return (
+                  <tr key={i}>
+                    <td>
+                      <div className="name-cell">{a.customer_name || '—'}</div>
+                    </td>
+                    <td>
+                      <div style={{ fontSize: 13, color: 'var(--text-mid)' }}>{a.customer_email || '—'}</div>
+                    </td>
+                    <td>
+                      <div className="mono">#{a.order_ref}</div>
+                    </td>
+                    <td>
+                      {(a.tickets || []).map((t, j) => (
+                        <span key={j} className="ticket-badge">{t.ticket_name} ×{t.quantity}</span>
+                      ))}
+                    </td>
+                    <td style={{ fontWeight: 600 }}>{a.total_qty}</td>
+                    <td>
+                      {allCheckedIn ? (
+                        <div>
+                          <div className="checkin-done">✓ Checked in</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 2 }}>
+                            {new Date(a.checked_in_at).toLocaleString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      ) : partialCheckedIn ? (
+                        <div>
+                          <div className="checkin-partial">{a.checkin_count}/{a.checkin_total} checked in</div>
+                          <button
+                            className="btn-checkin"
+                            style={{ marginTop: 4 }}
+                            disabled={checkingIn[a.order_id] === 'loading'}
+                            onClick={() => checkIn(a.order_id)}
+                          >
+                            {checkingIn[a.order_id] === 'loading' ? '…' : 'Check in remaining'}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn-checkin"
+                          disabled={checkingIn[a.order_id] === 'loading'}
+                          onClick={() => checkIn(a.order_id)}
+                        >
+                          {checkingIn[a.order_id] === 'loading' ? '…' : 'Check in'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

@@ -178,21 +178,36 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
         contentContainerStyle={styles.tabContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={GREEN} />}
         ListEmptyComponent={<Text style={styles.emptyText}>{search ? 'No matches.' : 'No attendees yet.'}</Text>}
-        renderItem={({ item: a }) => (
-          <View style={styles.attendeeRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.attendeeName}>{a.name || '—'}</Text>
-              <Text style={styles.attendeeEmail}>{a.email || ''}</Text>
-              {a.ticket_summary
-                ? <Text style={styles.attendeeMeta}>{a.ticket_summary}</Text>
-                : (a.tickets || []).map((t: any, i: number) => (
-                    <Text key={i} style={styles.attendeeMeta}>{t.quantity}× {t.ticket_name}</Text>
-                  ))
-              }
+        renderItem={({ item: a }) => {
+          const allIn = a.checkin_total > 0 && a.checkin_count === a.checkin_total;
+          const partialIn = a.checkin_count > 0 && !allIn;
+          return (
+            <View style={styles.attendeeRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.attendeeName}>{a.name || '—'}</Text>
+                <Text style={styles.attendeeEmail}>{a.email || ''}</Text>
+                {a.ticket_summary
+                  ? <Text style={styles.attendeeMeta}>{a.ticket_summary}</Text>
+                  : (a.tickets || []).map((t: any, i: number) => (
+                      <Text key={i} style={styles.attendeeMeta}>{t.quantity}× {t.ticket_name}</Text>
+                    ))
+                }
+              </View>
+              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                <Text style={styles.attendeeRef}>#{a.order_id?.slice(-6).toUpperCase()}</Text>
+                {allIn ? (
+                  <View style={styles.checkinBadge}>
+                    <Text style={styles.checkinBadgeText}>✓ Checked in</Text>
+                  </View>
+                ) : partialIn ? (
+                  <View style={[styles.checkinBadge, styles.checkinPartial]}>
+                    <Text style={[styles.checkinBadgeText, styles.checkinPartialText]}>{a.checkin_count}/{a.checkin_total} in</Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
-            <Text style={styles.attendeeRef}>#{a.order_id?.slice(-6).toUpperCase()}</Text>
-          </View>
-        )}
+          );
+        }}
       />
     </View>
   );
@@ -342,7 +357,8 @@ function CompsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
         })),
       });
       if (result.sent > 0) {
-        Alert.alert('Done', `${result.sent} comp ticket(s) issued successfully.`);
+        const total = result.tickets_sent ?? result.sent;
+        Alert.alert('Done', `${total} comp ticket${total !== 1 ? 's' : ''} issued successfully.`);
         setRows([{ first_name: '', last_name: '', email: '', quantity: '1', ticket_id: tickets[0]?.id || '' }]);
       } else {
         Alert.alert('Failed', result.results?.map((r: any) => r.error).filter(Boolean).join('\n') || 'Failed to issue comps.');
@@ -610,6 +626,10 @@ const styles = StyleSheet.create({
   attendeeEmail: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   attendeeMeta: { fontSize: 12, color: '#6b7280', marginTop: 3 },
   attendeeRef: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
+  checkinBadge: { backgroundColor: '#d1fae5', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
+  checkinBadgeText: { fontSize: 10, fontWeight: '700', color: '#065f46' },
+  checkinPartial: { backgroundColor: '#fef3c7' },
+  checkinPartialText: { color: '#92400e' },
   tableHeader: { flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: '#e5e7eb', paddingBottom: 6, marginBottom: 2 },
   tableHead: { fontSize: 11, fontWeight: '700', color: '#6b7280', textTransform: 'uppercase' },
   tableRow: { flexDirection: 'row', paddingVertical: 7 },

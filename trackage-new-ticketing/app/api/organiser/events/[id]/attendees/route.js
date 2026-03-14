@@ -1,5 +1,6 @@
 /* app/api/organiser/events/[id]/attendees/route.js
-   GET — attendee list for an event (query: organiser_id)
+   GET   — attendee list for an event (query: organiser_id)
+   PATCH — manually check in all attendees for an order (body: { organiser_id, order_id })
 */
 import { createClient } from '@supabase/supabase-js';
 
@@ -32,7 +33,7 @@ export async function GET(req, { params }) {
   // Completed orders for this event
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, customer_name, customer_email, customer_phone, total, created_at, qr_token, marketing_consent')
+    .select('id, customer_name, customer_email, customer_phone, total, created_at, qr_token, marketing_consent, checked_in_at')
     .eq('event_id', eventId)
     .eq('status', 'completed')
     .order('created_at', { ascending: false });
@@ -55,20 +56,75 @@ export async function GET(req, { params }) {
     itemsByOrder[item.order_id].push(item);
   }
 
-  const attendees = orders.map(order => ({
-    order_id:          order.id,
-    name:              order.customer_name   || '—',
-    email:             order.customer_email  || '—',
-    phone:             order.customer_phone  || '—',
-    total:             order.total,
-    created_at:        order.created_at,
-    qr_token:          order.qr_token,
-    marketing_consent: order.marketing_consent || false,
-    tickets:           itemsByOrder[order.id] || [],
-    ticket_summary:    (itemsByOrder[order.id] || [])
-      .map(i => `${i.quantity}× ${i.ticket_name}`)
-      .join(', '),
-  }));
+  // Fetch order_attendees check-in data
+  const { data: orderAttendees } = await supabase
+    .from('order_attendees')
+    .select('id, order_id, checked_in_at')
+    .in('order_id', orderIds);
+
+  const attendeesByOrder = {};
+  for (const row of orderAttendees || []) {
+    if (!attendeesByOrder[row.order_id]) attendeesByOrder[row.order_id] = [];
+    attendeesByOrder[row.order_id].push(row);
+  }
+
+  const attendees = orders.map(order => {
+    const oa = attendeesByOrder[order.id] || [];
+    const checkedRows = oa.filter(a => a.checked_in_at);
+    // For legacy orders (no order_attendees), fall back to orders.checked_in_at
+    const lastCheckedAt = checkedRows.length > 0
+      ? checkedRows.reduce((max, a) => a.checked_in_at > max ? a.checked_in_at : max, '')
+      : (oa.length === 0 ? order.checked_in_at : null);
+    return {
+      order_id:           order.id,
+      name:               order.customer_name   || '—',
+      email:              order.customer_email  || '—',
+      phone:              order.customer_phone  || '—',
+      total:              order.total,
+      created_at:         order.created_at,
+      qr_token:           order.qr_token,
+      marketing_consent:  order.marketing_consent || false,
+      tickets:            itemsByOrder[order.id] || [],
+      ticket_summary:     (itemsByOrder[order.id] || [])
+        .map(i => `${i.quantity}× ${i.ticket_name}`)
+        .join(', '),
+      checkin_total:   oa.length || (order.checked_in_at ? 1 : 0),
+      checkin_count:   checkedRows.length || (order.checked_in_at ? 1 : 0),
+      checked_in_at:   lastCheckedAt,
+    };
+  });
 
   return Response.json({ event, attendees });
+}
+
+export async function PATCH(req, { params }) {
+  const { id: eventId } = await params;
+  const { organiser_id, order_id } = await req.json();
+  if (!organiser_id || !order_id) return Response.json({ error: 'organiser_id and order_id required' }, { status: 400 });
+
+  const supabase = adminSupabase();
+
+  // Verify ownership
+  const { data: event } = await supabase
+    .from('events').select('organiser_id').eq('id', eventId).single();
+  if (!event || event.organiser_id !== organiser_id) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  // Verify order belongs to this event
+  const { data: order } = await supabase
+    .from('orders').select('id, event_id').eq('id', order_id).single();
+  if (!order || order.event_id !== eventId) {
+    return Response.json({ error: 'Order not found' }, { status: 404 });
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('order_attendees')
+    .update({ checked_in_at: now })
+    .eq('order_id', order_id)
+    .is('checked_in_at', null);
+
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ success: true, checked_in_at: now });
 }

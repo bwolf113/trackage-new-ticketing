@@ -39,6 +39,12 @@ tr:hover td { background: #fafafa; }
 .btn-resend.sent { border-color: #a7f3d0; color: #065f46; background: #f0fdf9; }
 .skel { height: 14px; border-radius: 4px; background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.checkin-done { font-size: 12px; color: #065f46; font-weight: 600; }
+.checkin-partial { font-size: 12px; color: #92400e; font-weight: 500; }
+.checkin-none { font-size: 12px; color: var(--text-light); }
+.btn-checkin { padding: 5px 11px; border: 1.5px solid #a7f3d0; border-radius: 6px; background: #f0fdf9; color: #065f46; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; }
+.btn-checkin:hover { background: #d1fae5; }
+.btn-checkin:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
 
 export default function OrgAttendeesPage() {
@@ -47,7 +53,8 @@ export default function OrgAttendeesPage() {
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');
-  const [resending, setResending] = useState({}); // order_id → 'sending' | 'sent' | 'error'
+    const [resending,  setResending]  = useState({}); // order_id → 'sending' | 'sent' | 'error'
+  const [checkingIn, setCheckingIn] = useState({}); // order_id → 'loading' | 'done'
 
   useEffect(() => {
     const organiser_id = localStorage.getItem('organiser_id');
@@ -70,6 +77,31 @@ export default function OrgAttendeesPage() {
       a.order_id?.toLowerCase().includes(q)
     );
   });
+
+  async function checkIn(orderId) {
+    const organiser_id = localStorage.getItem('organiser_id');
+    setCheckingIn(c => ({ ...c, [orderId]: 'loading' }));
+    try {
+      const res  = await fetch(`/api/organiser/events/${eventId}/attendees`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ organiser_id, order_id: orderId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setData(prev => ({
+          ...prev,
+          attendees: prev.attendees.map(a =>
+            a.order_id === orderId
+              ? { ...a, checked_in_at: json.checked_in_at, checkin_count: a.checkin_total }
+              : a
+          ),
+        }));
+      }
+    } finally {
+      setCheckingIn(c => ({ ...c, [orderId]: 'done' }));
+    }
+  }
 
   async function resendTicket(orderId) {
     const organiser_id = localStorage.getItem('organiser_id');
@@ -156,12 +188,15 @@ export default function OrgAttendeesPage() {
                 <th>Tickets</th>
                 <th style={{ textAlign: 'right' }}>Total</th>
                 <th>Date</th>
+                <th>Check-in</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(a => {
-                const state = resending[a.order_id];
+                const resendState = resending[a.order_id];
+                const allCheckedIn = a.checkin_total > 0 && a.checkin_count === a.checkin_total;
+                const partialCheckedIn = a.checkin_count > 0 && !allCheckedIn;
                 return (
                   <tr key={a.order_id}>
                     <td className="mono">#{a.order_id?.slice(0,8).toUpperCase()}</td>
@@ -171,14 +206,44 @@ export default function OrgAttendeesPage() {
                     <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(a.total)}</td>
                     <td style={{ fontSize: 13, color: 'var(--text-mid)' }}>{fmtDate(a.created_at)}</td>
                     <td>
+                      {allCheckedIn ? (
+                        <div>
+                          <div className="checkin-done">✓ Checked in</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 2 }}>
+                            {new Date(a.checked_in_at).toLocaleString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      ) : partialCheckedIn ? (
+                        <div>
+                          <div className="checkin-partial">{a.checkin_count}/{a.checkin_total} checked in</div>
+                          <button
+                            className="btn-checkin"
+                            style={{ marginTop: 4 }}
+                            disabled={checkingIn[a.order_id] === 'loading'}
+                            onClick={() => checkIn(a.order_id)}
+                          >
+                            {checkingIn[a.order_id] === 'loading' ? '…' : 'Check in remaining'}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn-checkin"
+                          disabled={checkingIn[a.order_id] === 'loading'}
+                          onClick={() => checkIn(a.order_id)}
+                        >
+                          {checkingIn[a.order_id] === 'loading' ? '…' : 'Check in'}
+                        </button>
+                      )}
+                    </td>
+                    <td>
                       <button
-                        className={`btn-resend ${state === 'sent' ? 'sent' : ''}`}
-                        disabled={state === 'sending'}
+                        className={`btn-resend ${resendState === 'sent' ? 'sent' : ''}`}
+                        disabled={resendState === 'sending'}
                         onClick={() => resendTicket(a.order_id)}
                       >
-                        {state === 'sending' ? 'Sending…'
-                          : state === 'sent'  ? '✓ Sent'
-                          : state === 'error' ? 'Retry'
+                        {resendState === 'sending' ? 'Sending…'
+                          : resendState === 'sent'  ? '✓ Sent'
+                          : resendState === 'error' ? 'Retry'
                           : '↩ Resend'}
                       </button>
                     </td>

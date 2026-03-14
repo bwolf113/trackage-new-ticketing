@@ -1,4 +1,7 @@
-/* app/api/admin/event-attendees/[id]/route.js */
+/* app/api/admin/event-attendees/[id]/route.js
+   GET   — attendee list
+   PATCH — manually check in all attendees for an order (body: { order_id })
+*/
 import { createClient } from '@supabase/supabase-js';
 
 function adminSupabase() {
@@ -15,7 +18,7 @@ export async function GET(req, { params }) {
   const [{ data: event }, { data: orders }] = await Promise.all([
     supabase.from('events').select('id, name, start_time, venue_name').eq('id', eventId).single(),
     supabase.from('orders')
-      .select('id, customer_name, customer_email, marketing_consent')
+      .select('id, customer_name, customer_email, marketing_consent, checked_in_at')
       .eq('event_id', eventId)
       .eq('status', 'completed')
       .order('created_at', { ascending: false }),
@@ -39,14 +42,65 @@ export async function GET(req, { params }) {
     itemsByOrder[item.order_id].push(item);
   }
 
-  const attendees = (orders || []).map(o => ({
-    order_ref:         (o.id || '').slice(0, 8).toUpperCase(),
-    customer_name:     o.customer_name,
-    customer_email:    o.customer_email,
-    marketing_consent: o.marketing_consent || false,
-    tickets:           itemsByOrder[o.id] || [],
-    total_qty:         (itemsByOrder[o.id] || []).reduce((s, t) => s + (t.quantity || 0), 0),
-  }));
+  // Fetch order_attendees check-in data
+  let allOA = [];
+  if (orderIds.length > 0) {
+    const { data: oa } = await supabase
+      .from('order_attendees')
+      .select('id, order_id, checked_in_at')
+      .in('order_id', orderIds);
+    allOA = oa || [];
+  }
+
+  const oaByOrder = {};
+  for (const row of allOA) {
+    if (!oaByOrder[row.order_id]) oaByOrder[row.order_id] = [];
+    oaByOrder[row.order_id].push(row);
+  }
+
+  const attendees = (orders || []).map(o => {
+    const oa = oaByOrder[o.id] || [];
+    const checkedRows = oa.filter(a => a.checked_in_at);
+    const lastCheckedAt = checkedRows.length > 0
+      ? checkedRows.reduce((max, a) => a.checked_in_at > max ? a.checked_in_at : max, '')
+      : (oa.length === 0 ? o.checked_in_at : null);
+    return {
+      order_id:          o.id,
+      order_ref:         (o.id || '').slice(0, 8).toUpperCase(),
+      customer_name:     o.customer_name,
+      customer_email:    o.customer_email,
+      marketing_consent: o.marketing_consent || false,
+      tickets:           itemsByOrder[o.id] || [],
+      total_qty:         (itemsByOrder[o.id] || []).reduce((s, t) => s + (t.quantity || 0), 0),
+      checkin_total:     oa.length || (o.checked_in_at ? 1 : 0),
+      checkin_count:     checkedRows.length || (o.checked_in_at ? 1 : 0),
+      checked_in_at:     lastCheckedAt,
+    };
+  });
 
   return Response.json({ event, attendees });
+}
+
+export async function PATCH(req, { params }) {
+  const { id: eventId } = await params;
+  const { order_id } = await req.json();
+  if (!order_id) return Response.json({ error: 'order_id required' }, { status: 400 });
+
+  const supabase = adminSupabase();
+
+  const { data: order } = await supabase
+    .from('orders').select('id, event_id').eq('id', order_id).single();
+  if (!order || order.event_id !== eventId) {
+    return Response.json({ error: 'Order not found' }, { status: 404 });
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('order_attendees')
+    .update({ checked_in_at: now })
+    .eq('order_id', order_id)
+    .is('checked_in_at', null);
+
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ success: true, checked_in_at: now });
 }
