@@ -45,14 +45,6 @@ export default function EditEventPage() {
     }
   }
 
-  async function handleDelete() {
-    if (!confirm('Delete this event and all its tickets? This cannot be undone.')) return;
-    const organiser_id = localStorage.getItem('organiser_id');
-    const res = await fetch(`/api/organiser/events/${id}?organiser_id=${organiser_id}`, { method: 'DELETE' });
-    if (res.ok) router.push('/organiser/events');
-    else setError('Failed to delete event');
-  }
-
   if (loading) return (
     <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-mid)', fontFamily: 'Inter, sans-serif' }}>
       Loading event…
@@ -63,7 +55,6 @@ export default function EditEventPage() {
     <EventForm
       initial={initial}
       onSave={handleSave}
-      onDelete={handleDelete}
       saving={saving}
       error={error}
       eventId={id}

@@ -199,7 +199,11 @@ export async function PATCH(req, { params }) {
   }
 }
 
-export async function DELETE(req, { params }) {
+export async function DELETE() {
+  return Response.json({ error: 'Event deletion is not permitted via the organiser API. Please contact an admin.' }, { status: 403 });
+}
+
+export async function _DELETE_DISABLED(req, { params }) {
   const { id } = await params;
   try {
     const { searchParams } = new URL(req.url);
