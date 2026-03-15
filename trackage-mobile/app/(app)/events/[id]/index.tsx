@@ -8,8 +8,8 @@ import { useAuth } from '../../../../lib/AuthContext';
 import {
   getEventOrders, getEventAttendees, getEventStats, issueComp, BASE_URL,
 } from '../../../../lib/api';
+import { colors, fonts } from '../../../../lib/theme';
 
-const GREEN = '#0a9e7f';
 type Tab = 'orders' | 'attendees' | 'stats' | 'comps';
 
 function fmtDate(dt: string | null) {
@@ -42,10 +42,10 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 
 // ── Edit Order Modal ──
 function EditOrderModal({
-  order, organiserId, onClose, onUpdated,
+  order, accessToken, onClose, onUpdated,
 }: {
   order: { id: string; customer_name: string; customer_email: string; status?: string; total?: number; created_at?: string };
-  organiserId: string;
+  accessToken: string;
   onClose: () => void;
   onUpdated: (name: string, email: string) => void;
 }) {
@@ -61,8 +61,8 @@ function EditOrderModal({
     try {
       const res = await fetch(`${BASE_URL}/api/organiser/update-order`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: order.id, organiser_id: organiserId, customer_name: name, customer_email: email }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ order_id: order.id, customer_name: name, customer_email: email }),
       });
       const data = await res.json();
       if (data.success) {
@@ -84,8 +84,8 @@ function EditOrderModal({
     try {
       const res = await fetch(`${BASE_URL}/api/organiser/resend-ticket`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: order.id, organiser_id: organiserId }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ order_id: order.id }),
       });
       const data = await res.json();
       if (data.success) {
@@ -130,7 +130,7 @@ function EditOrderModal({
                 value={name}
                 onChangeText={setName}
                 placeholder="Customer name"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.muted}
               />
 
               <Text style={styles.modalLabel}>Email</Text>
@@ -139,13 +139,13 @@ function EditOrderModal({
                 value={email}
                 onChangeText={setEmail}
                 placeholder="customer@email.com"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.muted}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
 
               <Text style={styles.modalLabel}>Total Paid</Text>
-              <Text style={[styles.modalValue, { color: GREEN }]}>
+              <Text style={[styles.modalValue, { color: colors.green }]}>
                 {isComp ? '€0 (Free/Comp)' : fmtEur(order.total ?? 0)}
               </Text>
             </ScrollView>
@@ -176,7 +176,7 @@ function EditOrderModal({
 }
 
 // ── Orders Tab ──
-function OrdersTab({ eventId, organiserId }: { eventId: string; organiserId: string }) {
+function OrdersTab({ eventId, accessToken }: { eventId: string; accessToken: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -185,7 +185,7 @@ function OrdersTab({ eventId, organiserId }: { eventId: string; organiserId: str
   async function load(refresh = false) {
     if (refresh) setRefreshing(true); else setLoading(true);
     try {
-      const d = await getEventOrders(eventId, organiserId);
+      const d = await getEventOrders(eventId, accessToken);
       setData(d);
     } finally {
       setLoading(false);
@@ -194,7 +194,7 @@ function OrdersTab({ eventId, organiserId }: { eventId: string; organiserId: str
   }
   useEffect(() => { load(); }, []);
 
-  if (loading) return <View style={styles.tabCenter}><ActivityIndicator color={GREEN} /></View>;
+  if (loading) return <View style={styles.tabCenter}><ActivityIndicator color={colors.green} /></View>;
 
   const orders: any[] = data?.orders || [];
   const stats = data?.stats || {};
@@ -205,7 +205,7 @@ function OrdersTab({ eventId, organiserId }: { eventId: string; organiserId: str
       {editOrder && (
         <EditOrderModal
           order={editOrder}
-          organiserId={organiserId}
+          accessToken={accessToken}
           onClose={() => setEditOrder(null)}
           onUpdated={(name, email) => {
             setData((d: any) => ({
@@ -221,7 +221,7 @@ function OrdersTab({ eventId, organiserId }: { eventId: string; organiserId: str
       <ScrollView
         style={styles.tabScroll}
         contentContainerStyle={styles.tabContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={GREEN} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.green} />}
       >
         {/* Summary stats */}
         <View style={styles.statsRow}>
@@ -286,7 +286,7 @@ function OrdersTab({ eventId, organiserId }: { eventId: string; organiserId: str
 }
 
 // ── Attendees Tab ──
-function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: string }) {
+function AttendeesTab({ eventId, accessToken }: { eventId: string; accessToken: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -296,7 +296,7 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
   async function load(refresh = false) {
     if (refresh) setRefreshing(true); else setLoading(true);
     try {
-      const d = await getEventAttendees(eventId, organiserId);
+      const d = await getEventAttendees(eventId, accessToken);
       setData(d);
     } finally {
       setLoading(false);
@@ -305,7 +305,7 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
   }
   useEffect(() => { load(); }, []);
 
-  if (loading) return <View style={styles.tabCenter}><ActivityIndicator color={GREEN} /></View>;
+  if (loading) return <View style={styles.tabCenter}><ActivityIndicator color={colors.green} /></View>;
 
   const attendees: any[] = (data?.attendees || []).filter((a: any) => {
     if (!search) return true;
@@ -318,7 +318,7 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
       {editOrder && (
         <EditOrderModal
           order={editOrder}
-          organiserId={organiserId}
+          accessToken={accessToken}
           onClose={() => setEditOrder(null)}
           onUpdated={(name, email) => {
             setData((d: any) => ({
@@ -339,7 +339,7 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
         <TextInput
           style={styles.searchInput}
           placeholder="Search attendees…"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.muted}
           value={search}
           onChangeText={setSearch}
         />
@@ -348,7 +348,7 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
         data={attendees}
         keyExtractor={(_, i) => String(i)}
         contentContainerStyle={styles.tabContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={GREEN} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.green} />}
         ListEmptyComponent={<Text style={styles.emptyText}>{search ? 'No matches.' : 'No attendees yet.'}</Text>}
         renderItem={({ item: a }) => {
           const allIn = a.checkin_total > 0 && a.checkin_count === a.checkin_total;
@@ -398,7 +398,7 @@ function AttendeesTab({ eventId, organiserId }: { eventId: string; organiserId: 
 }
 
 // ── Stats Tab ──
-function StatsTab({ eventId, organiserId }: { eventId: string; organiserId: string }) {
+function StatsTab({ eventId, accessToken }: { eventId: string; accessToken: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -406,7 +406,7 @@ function StatsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
   async function load(refresh = false) {
     if (refresh) setRefreshing(true); else setLoading(true);
     try {
-      const d = await getEventStats(eventId, organiserId);
+      const d = await getEventStats(eventId, accessToken);
       setData(d);
     } finally {
       setLoading(false);
@@ -415,7 +415,7 @@ function StatsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
   }
   useEffect(() => { load(); }, []);
 
-  if (loading) return <View style={styles.tabCenter}><ActivityIndicator color={GREEN} /></View>;
+  if (loading) return <View style={styles.tabCenter}><ActivityIndicator color={colors.green} /></View>;
 
   const summary = data?.summary || {};
   const dailySales: any[] = data?.daily_sales || [];
@@ -426,7 +426,7 @@ function StatsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
     <ScrollView
       style={styles.tabScroll}
       contentContainerStyle={styles.tabContent}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={GREEN} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.green} />}
     >
       {/* Summary */}
       <View style={styles.statsRow}>
@@ -487,18 +487,17 @@ function StatsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
 }
 
 // ── Issue Comp Tab ──
-function CompsTab({ eventId, organiserId }: { eventId: string; organiserId: string }) {
+function CompsTab({ eventId, accessToken }: { eventId: string; accessToken: string }) {
   const [tickets, setTickets] = useState<any[]>([]);
   const [rows, setRows] = useState([{ first_name: '', last_name: '', email: '', quantity: '1', ticket_id: '' }]);
   const [loading, setLoading] = useState(false);
   const [ticketsLoading, setTicketsLoading] = useState(true);
 
   useEffect(() => {
-    getEventOrders(eventId, organiserId).then(d => {
-      // We don't have a dedicated tickets endpoint for organiser, but getEventOrders returns ticketSummary
-      // We need ticket ids — use the stats/orders response to find them
-      fetch(`${BASE_URL}/api/organiser/events/${eventId}?organiser_id=${organiserId}`)
-        .then(r => r.json())
+    fetch(`${BASE_URL}/api/organiser/events/${eventId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then(r => r.json())
         .then(d => {
           setTickets(d.tickets || []);
           if (d.tickets?.length > 0) {
@@ -507,7 +506,6 @@ function CompsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
           setTicketsLoading(false);
         })
         .catch(() => setTicketsLoading(false));
-    }).catch(() => setTicketsLoading(false));
   }, []);
 
   function updateRow(i: number, field: string, val: string) {
@@ -530,7 +528,6 @@ function CompsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
     setLoading(true);
     try {
       const result = await issueComp({
-        organiser_id: organiserId,
         event_id: eventId,
         attendees: rows.map(r => ({
           first_name: r.first_name.trim(),
@@ -539,7 +536,7 @@ function CompsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
           quantity: Math.max(1, parseInt(r.quantity) || 1),
           ticket_id: r.ticket_id || undefined,
         })),
-      });
+      }, accessToken);
       if (result.sent > 0) {
         const total = result.tickets_sent ?? result.sent;
         Alert.alert('Done', `${total} comp ticket${total !== 1 ? 's' : ''} issued successfully.`);
@@ -554,7 +551,7 @@ function CompsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
     }
   }
 
-  if (ticketsLoading) return <View style={styles.tabCenter}><ActivityIndicator color={GREEN} /></View>;
+  if (ticketsLoading) return <View style={styles.tabCenter}><ActivityIndicator color={colors.green} /></View>;
 
   return (
     <ScrollView style={styles.tabScroll} contentContainerStyle={[styles.tabContent, { paddingBottom: 40 }]}>
@@ -572,13 +569,13 @@ function CompsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
           </View>
 
           <Text style={styles.label}>First name *</Text>
-          <TextInput style={styles.input} value={row.first_name} onChangeText={v => updateRow(i, 'first_name', v)} placeholder="John" placeholderTextColor="#9ca3af" />
+          <TextInput style={styles.input} value={row.first_name} onChangeText={v => updateRow(i, 'first_name', v)} placeholder="John" placeholderTextColor={colors.muted} />
 
           <Text style={styles.label}>Last name</Text>
-          <TextInput style={styles.input} value={row.last_name} onChangeText={v => updateRow(i, 'last_name', v)} placeholder="Doe" placeholderTextColor="#9ca3af" />
+          <TextInput style={styles.input} value={row.last_name} onChangeText={v => updateRow(i, 'last_name', v)} placeholder="Doe" placeholderTextColor={colors.muted} />
 
           <Text style={styles.label}>Email *</Text>
-          <TextInput style={styles.input} value={row.email} onChangeText={v => updateRow(i, 'email', v)} placeholder="john@example.com" placeholderTextColor="#9ca3af" keyboardType="email-address" autoCapitalize="none" />
+          <TextInput style={styles.input} value={row.email} onChangeText={v => updateRow(i, 'email', v)} placeholder="john@example.com" placeholderTextColor={colors.muted} keyboardType="email-address" autoCapitalize="none" />
 
           <Text style={styles.label}>Quantity</Text>
           <TextInput style={styles.input} value={row.quantity} onChangeText={v => updateRow(i, 'quantity', v)} keyboardType="number-pad" />
@@ -614,7 +611,7 @@ function CompsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
         disabled={loading}
       >
         {loading
-          ? <ActivityIndicator color="#fff" />
+          ? <ActivityIndicator color={colors.white} />
           : <Text style={styles.issueBtnText}>Issue {rows.length} comp ticket{rows.length !== 1 ? 's' : ''}</Text>
         }
       </TouchableOpacity>
@@ -625,15 +622,18 @@ function CompsTab({ eventId, organiserId }: { eventId: string; organiserId: stri
 // ── Main Event Detail Screen ──
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { organiser } = useAuth();
+  const { organiser, session } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
   const [tab, setTab] = useState<Tab>('orders');
   const [eventName, setEventName] = useState('Event');
+  const accessToken = session?.access_token || '';
 
   useEffect(() => {
-    if (!organiser || !id) return;
-    fetch(`${BASE_URL}/api/organiser/events/${id}?organiser_id=${organiser.id}`)
+    if (!organiser || !id || !accessToken) return;
+    fetch(`${BASE_URL}/api/organiser/events/${id}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
       .then(r => r.json())
       .then(d => {
         if (d.event?.name) {
@@ -654,7 +654,7 @@ export default function EventDetailScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Scan button */}
       <TouchableOpacity
         style={styles.scanBanner}
@@ -681,10 +681,10 @@ export default function EventDetailScreen() {
 
       {/* Tab content */}
       <View style={{ flex: 1 }}>
-        {tab === 'orders'    && <OrdersTab    eventId={id} organiserId={organiser.id} />}
-        {tab === 'attendees' && <AttendeesTab eventId={id} organiserId={organiser.id} />}
-        {tab === 'stats'     && <StatsTab     eventId={id} organiserId={organiser.id} />}
-        {tab === 'comps'     && <CompsTab     eventId={id} organiserId={organiser.id} />}
+        {tab === 'orders'    && <OrdersTab    eventId={id} accessToken={accessToken} />}
+        {tab === 'attendees' && <AttendeesTab eventId={id} accessToken={accessToken} />}
+        {tab === 'stats'     && <StatsTab     eventId={id} accessToken={accessToken} />}
+        {tab === 'comps'     && <CompsTab     eventId={id} accessToken={accessToken} />}
       </View>
     </View>
   );
@@ -692,21 +692,21 @@ export default function EventDetailScreen() {
 
 const styles = StyleSheet.create({
   scanBanner: {
-    backgroundColor: '#0891b2',
+    backgroundColor: colors.green,
     paddingVertical: 13,
     alignItems: 'center',
   },
   scanBannerText: {
-    color: '#fff',
-    fontWeight: '700',
+    color: colors.white,
+    fontFamily: fonts.bold,
     fontSize: 15,
     letterSpacing: 0.2,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
   },
   tabBtn: {
     flex: 1,
@@ -715,15 +715,15 @@ const styles = StyleSheet.create({
   },
   tabBtnActive: {
     borderBottomWidth: 2,
-    borderBottomColor: GREEN,
+    borderBottomColor: colors.green,
   },
   tabBtnText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#6b7280',
+    fontFamily: fonts.semiBold,
+    color: colors.muted,
   },
   tabBtnTextActive: {
-    color: GREEN,
+    color: colors.green,
   },
   tabScroll: { flex: 1 },
   tabContent: { padding: 16, gap: 12 },
@@ -731,175 +731,175 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
-  statVal: { fontSize: 18, fontWeight: '800', color: '#111827' },
-  statLabel: { fontSize: 11, color: '#6b7280', marginTop: 3, textAlign: 'center' },
+  statVal: { fontSize: 18, fontFamily: fonts.extraBold, color: colors.black },
+  statLabel: { fontSize: 11, fontFamily: fonts.regular, color: colors.muted, marginTop: 3, textAlign: 'center' },
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
     gap: 8,
   },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  ticketRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  ticketName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  ticketPrice: { fontSize: 12, color: '#6b7280' },
-  ticketSold: { fontSize: 14, fontWeight: '700', color: GREEN },
-  ticketSoldOutBadge: { backgroundColor: '#fef2f2', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 },
-  ticketSoldOutText: { fontSize: 10, fontWeight: '700', color: '#b91c1c' },
+  sectionTitle: { fontSize: 14, fontFamily: fonts.bold, color: colors.black, marginBottom: 4 },
+  ticketRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.bg },
+  ticketName: { fontSize: 14, fontFamily: fonts.semiBold, color: colors.black },
+  ticketPrice: { fontSize: 12, fontFamily: fonts.regular, color: colors.muted },
+  ticketSold: { fontSize: 14, fontFamily: fonts.bold, color: colors.green },
+  ticketSoldOutBadge: { backgroundColor: colors.dangerBg, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 },
+  ticketSoldOutText: { fontSize: 10, fontFamily: fonts.bold, color: '#b91c1c' },
   orderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: colors.bg,
   },
-  orderName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  orderEmail: { fontSize: 12, color: '#6b7280' },
-  orderMeta: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
-  orderTotal: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 4 },
+  orderName: { fontSize: 14, fontFamily: fonts.semiBold, color: colors.black },
+  orderEmail: { fontSize: 12, fontFamily: fonts.regular, color: colors.muted },
+  orderMeta: { fontSize: 11, fontFamily: fonts.regular, color: colors.muted, marginTop: 2 },
+  orderTotal: { fontSize: 14, fontFamily: fonts.bold, color: colors.black, marginBottom: 4 },
   statusBadge: { borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
-  statusOk: { backgroundColor: '#d1fae5' },
-  statusOther: { backgroundColor: '#f3f4f6' },
-  statusText: { fontSize: 11, fontWeight: '600' },
-  statusOkText: { color: '#065f46' },
-  statusOtherText: { color: '#6b7280' },
-  emptyText: { color: '#9ca3af', fontSize: 14, textAlign: 'center', paddingVertical: 16 },
+  statusOk: { backgroundColor: colors.successBg },
+  statusOther: { backgroundColor: colors.bg },
+  statusText: { fontSize: 11, fontFamily: fonts.semiBold },
+  statusOkText: { color: colors.success },
+  statusOtherText: { color: colors.muted },
+  emptyText: { fontFamily: fonts.regular, color: colors.muted, fontSize: 14, textAlign: 'center', paddingVertical: 16 },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     margin: 12,
     marginBottom: 4,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
     paddingHorizontal: 12,
   },
   searchIconWrap: { width: 16, height: 16, marginRight: 8, justifyContent: 'center', alignItems: 'center' },
   searchCircle: {
     width: 11, height: 11, borderRadius: 6,
-    borderWidth: 2, borderColor: '#9ca3af',
+    borderWidth: 2, borderColor: colors.muted,
     position: 'absolute', top: 0, left: 0,
   },
   searchHandle: {
     width: 2, height: 5, borderRadius: 1,
-    backgroundColor: '#9ca3af',
+    backgroundColor: colors.muted,
     position: 'absolute', bottom: 0, right: 1,
     transform: [{ rotate: '45deg' }],
   },
-  searchInput: { flex: 1, paddingVertical: 11, fontSize: 14, color: '#111827' },
+  searchInput: { flex: 1, paddingVertical: 11, fontSize: 14, fontFamily: fonts.regular, color: colors.black },
   attendeeRow: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
-  attendeeName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  attendeeEmail: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  attendeeMeta: { fontSize: 12, color: '#6b7280', marginTop: 3 },
-  attendeeRef: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
-  checkinBadge: { backgroundColor: '#d1fae5', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
-  checkinBadgeText: { fontSize: 10, fontWeight: '700', color: '#065f46' },
-  checkinPartial: { backgroundColor: '#fef3c7' },
-  checkinPartialText: { color: '#92400e' },
-  tableHeader: { flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: '#e5e7eb', paddingBottom: 6, marginBottom: 2 },
-  tableHead: { fontSize: 11, fontWeight: '700', color: '#6b7280', textTransform: 'uppercase' },
+  attendeeName: { fontSize: 14, fontFamily: fonts.semiBold, color: colors.black },
+  attendeeEmail: { fontSize: 12, fontFamily: fonts.regular, color: colors.muted, marginTop: 2 },
+  attendeeMeta: { fontSize: 12, fontFamily: fonts.regular, color: colors.muted, marginTop: 3 },
+  attendeeRef: { fontSize: 11, fontFamily: fonts.semiBold, color: colors.muted },
+  checkinBadge: { backgroundColor: colors.successBg, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
+  checkinBadgeText: { fontSize: 10, fontFamily: fonts.bold, color: colors.success },
+  checkinPartial: { backgroundColor: colors.amberBg },
+  checkinPartialText: { color: colors.amber },
+  tableHeader: { flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: colors.border, paddingBottom: 6, marginBottom: 2 },
+  tableHead: { fontSize: 11, fontFamily: fonts.bold, color: colors.muted, textTransform: 'uppercase' },
   tableRow: { flexDirection: 'row', paddingVertical: 7 },
-  tableRowAlt: { backgroundColor: '#f9fafb' },
-  tableCell: { flex: 1, fontSize: 13, color: '#374151' },
-  compInfo: { fontSize: 13, color: '#6b7280', marginBottom: 4, lineHeight: 19 },
+  tableRowAlt: { backgroundColor: colors.bg },
+  tableCell: { flex: 1, fontSize: 13, fontFamily: fonts.regular, color: colors.black },
+  compInfo: { fontSize: 13, fontFamily: fonts.regular, color: colors.muted, marginBottom: 4, lineHeight: 19 },
   compCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
   compCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  compCardTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  removeBtn: { fontSize: 13, color: '#ef4444', fontWeight: '600' },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 12 },
+  compCardTitle: { fontSize: 14, fontFamily: fonts.bold, color: colors.black },
+  removeBtn: { fontSize: 13, fontFamily: fonts.semiBold, color: colors.danger },
+  label: { fontSize: 13, fontFamily: fonts.semiBold, color: colors.black, marginBottom: 6, marginTop: 12 },
   input: {
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827',
+    borderWidth: 1.5, borderColor: colors.border, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: fonts.regular, color: colors.black,
   },
   ticketPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   ticketOption: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
-    borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff',
+    borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface,
   },
-  ticketOptionSelected: { borderColor: GREEN, backgroundColor: '#e6f7f3' },
-  ticketOptionText: { fontSize: 13, fontWeight: '600', color: '#374151' },
-  ticketOptionSelectedText: { color: GREEN },
+  ticketOptionSelected: { borderColor: colors.green, backgroundColor: colors.greenDim },
+  ticketOptionText: { fontSize: 13, fontFamily: fonts.semiBold, color: colors.black },
+  ticketOptionSelectedText: { color: colors.green },
   addRowBtn: {
-    borderWidth: 1.5, borderColor: GREEN, borderRadius: 10, borderStyle: 'dashed',
+    borderWidth: 1.5, borderColor: colors.green, borderRadius: 10, borderStyle: 'dashed',
     paddingVertical: 12, alignItems: 'center',
   },
-  addRowText: { color: GREEN, fontWeight: '700', fontSize: 14 },
+  addRowText: { color: colors.green, fontFamily: fonts.bold, fontSize: 14 },
   issueBtn: {
-    backgroundColor: GREEN, borderRadius: 10, paddingVertical: 14,
+    backgroundColor: colors.green, borderRadius: 10, paddingVertical: 14,
     alignItems: 'center', marginTop: 4,
   },
   issueBtnDisabled: { opacity: 0.6 },
-  issueBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  rowChevron: { fontSize: 20, color: '#d1d5db', marginLeft: 4 },
+  issueBtnText: { color: colors.white, fontFamily: fonts.bold, fontSize: 15 },
+  rowChevron: { fontSize: 20, color: colors.border, marginLeft: 4 },
   // modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center', alignItems: 'center', padding: 20,
   },
   modalBox: {
-    backgroundColor: '#fff', borderRadius: 16, width: '100%',
+    backgroundColor: colors.surface, borderRadius: 16, width: '100%',
     maxWidth: 480, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 },
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.2, shadowRadius: 20, elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center',
-    padding: 20, borderBottomWidth: 1, borderBottomColor: '#e5e7eb',
+    padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  modalTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  modalSub: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  modalTitle: { fontSize: 16, fontFamily: fonts.bold, color: colors.black },
+  modalSub: { fontSize: 12, fontFamily: fonts.regular, color: colors.muted, marginTop: 2 },
   modalCloseBtn: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center',
   },
-  modalCloseText: { fontSize: 14, color: '#6b7280', fontWeight: '600' },
-  modalLabel: { fontSize: 11, fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 16 },
+  modalCloseText: { fontSize: 14, fontFamily: fonts.semiBold, color: colors.muted },
+  modalLabel: { fontSize: 11, fontFamily: fonts.bold, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 16 },
   modalInput: {
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827',
+    borderWidth: 1.5, borderColor: colors.border, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: fonts.regular, color: colors.black,
   },
-  modalValue: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  modalValue: { fontSize: 16, fontFamily: fonts.bold, marginBottom: 4 },
   modalFooter: {
     flexDirection: 'row', gap: 8, padding: 16,
-    borderTopWidth: 1, borderTopColor: '#e5e7eb', backgroundColor: '#f9fafb',
+    borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg,
   },
   btnResend: {
-    flex: 1, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 8,
-    paddingVertical: 10, alignItems: 'center', backgroundColor: '#fff',
+    flex: 1, borderWidth: 1.5, borderColor: colors.border, borderRadius: 8,
+    paddingVertical: 10, alignItems: 'center', backgroundColor: colors.surface,
   },
-  btnResendText: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  btnResendText: { fontSize: 13, fontFamily: fonts.semiBold, color: colors.black },
   btnSave: {
-    flex: 1, backgroundColor: GREEN, borderRadius: 8,
+    flex: 1, backgroundColor: colors.green, borderRadius: 8,
     paddingVertical: 10, alignItems: 'center',
   },
-  btnSaveText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  btnSaveText: { fontSize: 13, fontFamily: fonts.bold, color: colors.white },
   msgBanner: { borderRadius: 8, padding: 10, marginTop: 12 },
-  msgOk: { backgroundColor: '#d1fae5' },
-  msgErr: { backgroundColor: '#fee2e2' },
-  msgOkText: { fontSize: 13, fontWeight: '600', color: '#065f46' },
-  msgErrText: { fontSize: 13, fontWeight: '600', color: '#991b1b' },
+  msgOk: { backgroundColor: colors.successBg },
+  msgErr: { backgroundColor: colors.dangerBg },
+  msgOkText: { fontSize: 13, fontFamily: fonts.semiBold, color: colors.success },
+  msgErrText: { fontSize: 13, fontFamily: fonts.semiBold, color: '#991b1b' },
 });

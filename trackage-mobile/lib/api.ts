@@ -1,52 +1,55 @@
 // Base URL of the Next.js ticketing backend
 export const BASE_URL = 'https://tickets.trackagescheme.com';
 
-async function apiFetch(path: string, options?: RequestInit) {
-  const res = await fetch(`${BASE_URL}${path}`, options);
+async function apiFetch(path: string, options?: RequestInit, token?: string) {
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string>),
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
   return res;
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
 
-export async function getOrganiserEvents(organiserId: string) {
-  const res = await apiFetch(`/api/organiser/events?organiser_id=${organiserId}`);
+export async function getOrganiserEvents(token: string) {
+  const res = await apiFetch('/api/organiser/events', {}, token);
   const json = await res.json();
   return json.events as EventSummary[];
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────
 
-export async function getEventOrders(eventId: string, organiserId: string) {
-  const res = await apiFetch(`/api/organiser/events/${eventId}/orders?organiser_id=${organiserId}`);
+export async function getEventOrders(eventId: string, token: string) {
+  const res = await apiFetch(`/api/organiser/events/${eventId}/orders`, {}, token);
   return res.json();
 }
 
 // ── Attendees ─────────────────────────────────────────────────────────────────
 
-export async function getEventAttendees(eventId: string, organiserId: string) {
-  const res = await apiFetch(`/api/organiser/events/${eventId}/attendees?organiser_id=${organiserId}`);
+export async function getEventAttendees(eventId: string, token: string) {
+  const res = await apiFetch(`/api/organiser/events/${eventId}/attendees`, {}, token);
   return res.json();
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 
-export async function getEventStats(eventId: string, organiserId: string) {
-  const res = await apiFetch(`/api/organiser/events/${eventId}/stats?organiser_id=${organiserId}`);
+export async function getEventStats(eventId: string, token: string) {
+  const res = await apiFetch(`/api/organiser/events/${eventId}/stats`, {}, token);
   return res.json();
 }
 
 // ── Issue Comp ────────────────────────────────────────────────────────────────
 
 export async function issueComp(payload: {
-  organiser_id: string;
   event_id: string;
   attendees: { first_name: string; last_name: string; email: string; quantity: number; ticket_id?: string }[];
-}) {
+}, token: string) {
   const res = await apiFetch('/api/organiser/issue-comp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  });
+  }, token);
   return res.json();
 }
 
@@ -55,8 +58,7 @@ export async function issueComp(payload: {
 export async function checkInTicket(token: string, accessToken: string) {
   const res = await apiFetch(`/api/scan/${token}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  }, accessToken);
   return res.json() as Promise<ScanResult>;
 }
 
@@ -65,12 +67,9 @@ export async function checkInTicket(token: string, accessToken: string) {
 export async function getOrganiserMe(accessToken: string) {
   const res = await apiFetch('/api/organiser/me', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
-  });
+  }, accessToken);
   const json = await res.json();
   return json.organiser as Organiser | null;
 }

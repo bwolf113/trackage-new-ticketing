@@ -6,8 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../lib/AuthContext';
 import { getOrganiserEvents, EventSummary } from '../../../lib/api';
-
-const GREEN = '#0a9e7f';
+import { colors, fonts } from '../../../lib/theme';
 
 function fmtDate(dt: string | null) {
   if (!dt) return '—';
@@ -15,7 +14,7 @@ function fmtDate(dt: string | null) {
 }
 
 export default function EventsScreen() {
-  const { organiser, loading: authLoading } = useAuth();
+  const { organiser, session, loading: authLoading } = useAuth();
   const router = useRouter();
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,10 +22,10 @@ export default function EventsScreen() {
   const [search, setSearch] = useState('');
 
   async function load(showRefresh = false) {
-    if (!organiser) { setLoading(false); return; }
+    if (!organiser || !session) { setLoading(false); return; }
     if (showRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const data = await getOrganiserEvents(organiser.id);
+      const data = await getOrganiserEvents(session.access_token);
       setEvents(data || []);
     } finally {
       setLoading(false);
@@ -45,7 +44,7 @@ export default function EventsScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={GREEN} />
+        <ActivityIndicator size="large" color={colors.green} />
       </View>
     );
   }
@@ -58,7 +57,7 @@ export default function EventsScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder="Search events…"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted}
             value={search}
             onChangeText={setSearch}
           />
@@ -69,7 +68,7 @@ export default function EventsScreen() {
         data={filtered}
         keyExtractor={e => e.id}
         contentContainerStyle={filtered.length === 0 ? styles.emptyContainer : styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={GREEN} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.green} />}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>🎫</Text>
@@ -118,38 +117,38 @@ export default function EventsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { padding: 16, gap: 12 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     margin: 16,
     marginBottom: 0,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
     paddingHorizontal: 12,
   },
   searchIcon: { fontSize: 14, marginRight: 6 },
-  searchInput: { flex: 1, paddingVertical: 11, fontSize: 14, color: '#111827' },
+  searchInput: { flex: 1, paddingVertical: 11, fontSize: 14, fontFamily: fonts.regular, color: colors.black },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
   thumb: {
     width: 52,
     height: 52,
     borderRadius: 8,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.bg,
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
@@ -157,18 +156,18 @@ const styles = StyleSheet.create({
   thumbImg: { width: 52, height: 52, borderRadius: 8 },
   thumbEmoji: { fontSize: 22 },
   info: { flex: 1 },
-  name: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 3 },
-  meta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  name: { fontSize: 15, fontFamily: fonts.semiBold, color: colors.black, marginBottom: 3 },
+  meta: { fontSize: 12, fontFamily: fonts.regular, color: colors.muted, marginTop: 2 },
   badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  badgePub: { backgroundColor: '#d1fae5' },
-  badgeDraft: { backgroundColor: '#f3f4f6' },
-  badgeSoldOut: { backgroundColor: '#fef2f2' },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  badgePubText: { color: '#065f46' },
-  badgeDraftText: { color: '#6b7280' },
+  badgePub: { backgroundColor: colors.successBg },
+  badgeDraft: { backgroundColor: colors.bg },
+  badgeSoldOut: { backgroundColor: colors.dangerBg },
+  badgeText: { fontSize: 11, fontFamily: fonts.bold },
+  badgePubText: { color: colors.success },
+  badgeDraftText: { color: colors.muted },
   badgeSoldOutText: { color: '#b91c1c' },
   empty: { alignItems: 'center' },
   emptyIcon: { fontSize: 40, marginBottom: 12 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 6 },
-  emptySub: { fontSize: 14, color: '#6b7280', textAlign: 'center' },
+  emptyTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.black, marginBottom: 6 },
+  emptySub: { fontSize: 14, fontFamily: fonts.regular, color: colors.muted, textAlign: 'center' },
 });
