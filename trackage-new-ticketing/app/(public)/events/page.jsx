@@ -311,8 +311,10 @@ export default function EventsPage() {
     return evts
       .filter(e => {
         if (filter === 'upcoming') {
-          const d = new Date(e.start_time);
-          return d >= now;
+          if (!e.start_time) return true; // no date set — always show
+          // If event has an end_time, hide only after it ends
+          if (e.end_time) return new Date(e.end_time) >= now;
+          return new Date(e.start_time) >= now;
         }
         return true;
       })

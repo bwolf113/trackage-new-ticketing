@@ -29,10 +29,10 @@ function fmtDay(dt) {
 }
 function validatePhone(raw) {
   const n = raw.replace(/[\s\-().]/g, '');
-  // Malta local: exactly 8 digits starting with 2 (landline) or 7 (mobile)
-  if (/^[27]\d{7}$/.test(n)) return true;
-  // Malta international: +356 or 00356 + 8 digits starting with 2 or 7
-  if (/^(\+356|00356)[27]\d{7}$/.test(n)) return true;
+  // Malta local mobile: exactly 8 digits starting with 7
+  if (/^7\d{7}$/.test(n)) return true;
+  // Malta international mobile: +356 or 00356 + 8 digits starting with 7
+  if (/^(\+356|00356)7\d{7}$/.test(n)) return true;
   // Other country: must include explicit + country code, 8–15 digits total
   if (/^\+(?!356)[1-9]\d{7,14}$/.test(n)) return true;
   return false;
