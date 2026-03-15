@@ -489,11 +489,28 @@ export default function EventPage() {
     setCouponError('');
   }
 
+  // ── Per-field blur validation ────────────────────────────────────
+  function validateField(field, value) {
+    switch (field) {
+      case 'first_name': return value.trim() ? false : true;
+      case 'last_name':  return value.trim() ? false : true;
+      case 'email':      return (value.trim() && /\S+@\S+\.\S+/.test(value)) ? false : true;
+      case 'phone':
+        if (!value.trim()) return 'required';
+        return validatePhone(value) ? false : 'invalid';
+      default: return false;
+    }
+  }
+  function handleBlur(field) {
+    const err = validateField(field, customer[field]);
+    if (err !== false) setCustomerErrors(p => ({ ...p, [field]: err }));
+  }
+
   // ── Checkout ────────────────────────────────────────────────────
   async function handleCheckout() {
     if (totalTickets === 0) return;
 
-    // Validate customer details
+    // Validate all fields (catches any not yet blurred)
     const errors = {};
     if (!customer.first_name.trim()) errors.first_name = true;
     if (!customer.last_name.trim())  errors.last_name  = true;
@@ -1008,7 +1025,8 @@ export default function EventPage() {
                       placeholder="John"
                       value={customer.first_name}
                       className={customerErrors.first_name ? 'err' : ''}
-                      onChange={e => { setCustomer(p => ({...p, first_name: e.target.value})); setCustomerErrors(p => ({...p, first_name: false})); }}
+                      onChange={e => { const v = e.target.value; setCustomer(p => ({...p, first_name: v})); if (v.trim()) setCustomerErrors(p => ({...p, first_name: false})); }}
+                      onBlur={() => handleBlur('first_name')}
                     />
                   </div>
                   <div className="customer-field">
@@ -1018,7 +1036,8 @@ export default function EventPage() {
                       placeholder="Smith"
                       value={customer.last_name}
                       className={customerErrors.last_name ? 'err' : ''}
-                      onChange={e => { setCustomer(p => ({...p, last_name: e.target.value})); setCustomerErrors(p => ({...p, last_name: false})); }}
+                      onChange={e => { const v = e.target.value; setCustomer(p => ({...p, last_name: v})); if (v.trim()) setCustomerErrors(p => ({...p, last_name: false})); }}
+                      onBlur={() => handleBlur('last_name')}
                     />
                   </div>
                   <div className="customer-field customer-full">
@@ -1028,7 +1047,8 @@ export default function EventPage() {
                       placeholder="john@example.com"
                       value={customer.email}
                       className={customerErrors.email ? 'err' : ''}
-                      onChange={e => { setCustomer(p => ({...p, email: e.target.value})); setCustomerErrors(p => ({...p, email: false})); }}
+                      onChange={e => { const v = e.target.value; setCustomer(p => ({...p, email: v})); if (v.trim() && /\S+@\S+\.\S+/.test(v)) setCustomerErrors(p => ({...p, email: false})); }}
+                      onBlur={() => handleBlur('email')}
                     />
                   </div>
                   <div className="customer-field customer-full">
@@ -1038,7 +1058,8 @@ export default function EventPage() {
                       placeholder="+356 7900 0000"
                       value={customer.phone}
                       className={customerErrors.phone ? 'err' : ''}
-                      onChange={e => { setCustomer(p => ({...p, phone: e.target.value})); setCustomerErrors(p => ({...p, phone: false})); }}
+                      onChange={e => { const v = e.target.value; setCustomer(p => ({...p, phone: v})); if (validatePhone(v)) setCustomerErrors(p => ({...p, phone: false})); }}
+                      onBlur={() => handleBlur('phone')}
                     />
                     {customerErrors.phone === 'invalid' && (
                       <span className="field-hint-err">Enter a valid number including country code, e.g. +356 7900 0000</span>
