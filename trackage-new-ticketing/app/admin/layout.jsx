@@ -58,15 +58,18 @@ export default function AdminLayout({ children }) {
           --muted: #767C8C; --green: #48C16E; --green-dim: rgba(72,193,110,0.12);
           --black: #000000; --white: #FFFFFF;
         }
-        html, body { background: var(--bg); color: var(--black); font-family: 'Plus Jakarta Sans', sans-serif; }
+        html, body { background: var(--bg); color: var(--black); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         .al-sidebar {
-          width: ${sidebarW}; background: #000;
+          width: 220px; background: #000;
           border-right: 1px solid rgba(255,255,255,0.08);
           display: flex; flex-direction: column;
           position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
-          transition: width 0.2s ease, transform 0.25s ease; overflow: hidden;
+          overflow: hidden;
+          transform: translateX(-100%);
+          transition: transform 0.25s ease;
           font-family: 'Plus Jakarta Sans', sans-serif;
         }
+        .al-sidebar.open { transform: translateX(0); }
         .al-logo {
           padding: 0 8px; height: 56px; min-height: 56px;
           border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -102,21 +105,23 @@ export default function AdminLayout({ children }) {
           cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.15s; white-space: nowrap; overflow: hidden;
         }
         .al-logout:hover { background: rgba(239,68,68,0.15); color: #f87171; }
-        .al-main { margin-left: ${sidebarW}; flex: 1; min-height: 100vh; background: var(--bg); display: flex; flex-direction: column; transition: margin-left 0.2s ease; }
+        .al-main { margin-left: 0; flex: 1; min-height: 100vh; background: var(--bg); display: flex; flex-direction: column; }
         .al-topbar { background: var(--surface); border-bottom: 1.5px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
         .al-topbar-l { display: flex; align-items: center; gap: 12px; }
-        .al-menu-btn { display: none; background: none; border: 1.5px solid var(--border); color: var(--muted); padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 16px; line-height: 1; }
+        .al-menu-btn { display: block; background: none; border: 1.5px solid var(--border); color: var(--muted); padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 16px; line-height: 1; }
         .al-page-title { font-size: 15px; font-weight: 700; color: var(--black); font-family: 'Plus Jakarta Sans', sans-serif; }
         .al-topbar-r { display: flex; align-items: center; gap: 10px; }
         .al-avatar { width: 30px; height: 30px; background: var(--black); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700; }
         .al-username { font-size: 13px; color: var(--muted); font-weight: 500; font-family: 'Plus Jakarta Sans', sans-serif; }
-        .al-content { padding: 28px 32px; flex: 1; }
+        .al-content { flex: 1; }
         .al-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
+        @media (min-width: 769px) {
+          .al-sidebar { width: ${sidebarW}; transform: translateX(0); transition: width 0.2s ease; }
+          .al-main { margin-left: ${sidebarW}; transition: margin-left 0.2s ease; }
+          .al-menu-btn { display: none !important; }
+          .al-content { padding: 28px 32px; }
+        }
         @media (max-width: 768px) {
-          .al-sidebar { width: 220px !important; transform: translateX(-100%); }
-          .al-sidebar.open { transform: translateX(0); }
-          .al-main { margin-left: 0 !important; }
-          .al-menu-btn { display: block; }
           .al-overlay.show { display: block; }
           .al-content { padding: 20px 16px; }
           .al-topbar { padding: 0 16px; }
