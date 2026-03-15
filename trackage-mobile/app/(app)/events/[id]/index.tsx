@@ -6,7 +6,7 @@ import {
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { useAuth } from '../../../../lib/AuthContext';
 import {
-  getEventOrders, getEventAttendees, getEventStats, issueComp, BASE_URL,
+  getEventOrders, getEventAttendees, getEventStats, issueComp, checkInOrder, undoCheckInOrder, BASE_URL,
 } from '../../../../lib/api';
 import { colors, fonts } from '../../../../lib/theme';
 
@@ -292,6 +292,7 @@ function AttendeesTab({ eventId, accessToken }: { eventId: string; accessToken: 
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [editOrder, setEditOrder] = useState<any | null>(null);
+  const [checkingIn, setCheckingIn] = useState<Record<string, boolean>>({});
 
   async function load(refresh = false) {
     if (refresh) setRefreshing(true); else setLoading(true);
@@ -304,6 +305,44 @@ function AttendeesTab({ eventId, accessToken }: { eventId: string; accessToken: 
     }
   }
   useEffect(() => { load(); }, []);
+
+  async function handleCheckIn(orderId: string) {
+    setCheckingIn(c => ({ ...c, [orderId]: true }));
+    try {
+      const json = await checkInOrder(eventId, orderId, accessToken);
+      if (json.success) {
+        setData((d: any) => ({
+          ...d,
+          attendees: (d?.attendees || []).map((a: any) =>
+            a.order_id === orderId
+              ? { ...a, checked_in_at: json.checked_in_at, checkin_count: a.checkin_total }
+              : a
+          ),
+        }));
+      }
+    } finally {
+      setCheckingIn(c => ({ ...c, [orderId]: false }));
+    }
+  }
+
+  async function handleUndoCheckIn(orderId: string) {
+    setCheckingIn(c => ({ ...c, [orderId]: true }));
+    try {
+      const json = await undoCheckInOrder(eventId, orderId, accessToken);
+      if (json.success) {
+        setData((d: any) => ({
+          ...d,
+          attendees: (d?.attendees || []).map((a: any) =>
+            a.order_id === orderId
+              ? { ...a, checked_in_at: null, checkin_count: 0 }
+              : a
+          ),
+        }));
+      }
+    } finally {
+      setCheckingIn(c => ({ ...c, [orderId]: false }));
+    }
+  }
 
   if (loading) return <View style={styles.tabCenter}><ActivityIndicator color={colors.green} /></View>;
 
@@ -353,6 +392,7 @@ function AttendeesTab({ eventId, accessToken }: { eventId: string; accessToken: 
         renderItem={({ item: a }) => {
           const allIn = a.checkin_total > 0 && a.checkin_count === a.checkin_total;
           const partialIn = a.checkin_count > 0 && !allIn;
+          const busy = checkingIn[a.order_id];
           return (
             <TouchableOpacity
               style={styles.attendeeRow}
@@ -376,18 +416,54 @@ function AttendeesTab({ eventId, accessToken }: { eventId: string; accessToken: 
                     ))
                 }
               </View>
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+              <View style={{ alignItems: 'flex-end', gap: 5 }}>
                 <Text style={styles.attendeeRef}>#{a.order_id?.slice(-6).toUpperCase()}</Text>
                 {allIn ? (
-                  <View style={styles.checkinBadge}>
-                    <Text style={styles.checkinBadgeText}>✓ Checked in</Text>
-                  </View>
+                  <>
+                    <View style={styles.checkinBadge}>
+                      <Text style={styles.checkinBadgeText}>✓ Checked in</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.btnUndo}
+                      disabled={busy}
+                      onPress={e => { e.stopPropagation?.(); handleUndoCheckIn(a.order_id); }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.btnUndoText}>{busy ? '…' : 'Undo'}</Text>
+                    </TouchableOpacity>
+                  </>
                 ) : partialIn ? (
-                  <View style={[styles.checkinBadge, styles.checkinPartial]}>
-                    <Text style={[styles.checkinBadgeText, styles.checkinPartialText]}>{a.checkin_count}/{a.checkin_total} in</Text>
-                  </View>
-                ) : null}
-                <Text style={styles.rowChevron}>›</Text>
+                  <>
+                    <View style={[styles.checkinBadge, styles.checkinPartial]}>
+                      <Text style={[styles.checkinBadgeText, styles.checkinPartialText]}>{a.checkin_count}/{a.checkin_total} in</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.btnCheckin}
+                      disabled={busy}
+                      onPress={e => { e.stopPropagation?.(); handleCheckIn(a.order_id); }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.btnCheckinText}>{busy ? '…' : 'Check in rest'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.btnUndo}
+                      disabled={busy}
+                      onPress={e => { e.stopPropagation?.(); handleUndoCheckIn(a.order_id); }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.btnUndoText}>{busy ? '…' : 'Undo all'}</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.btnCheckin}
+                    disabled={busy}
+                    onPress={e => { e.stopPropagation?.(); handleCheckIn(a.order_id); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.btnCheckinText}>{busy ? '…' : 'Check in'}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </TouchableOpacity>
           );
@@ -814,6 +890,10 @@ const styles = StyleSheet.create({
   checkinBadgeText: { fontSize: 10, fontFamily: fonts.bold, color: colors.success },
   checkinPartial: { backgroundColor: colors.amberBg },
   checkinPartialText: { color: colors.amber },
+  btnCheckin: { borderWidth: 1.5, borderColor: colors.green, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.successBg },
+  btnCheckinText: { fontSize: 11, fontFamily: fonts.bold, color: colors.green },
+  btnUndo: { borderWidth: 1.5, borderColor: colors.border, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  btnUndoText: { fontSize: 11, fontFamily: fonts.semiBold, color: colors.muted },
   tableHeader: { flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: colors.border, paddingBottom: 6, marginBottom: 2 },
   tableHead: { fontSize: 11, fontFamily: fonts.bold, color: colors.muted, textTransform: 'uppercase' },
   tableRow: { flexDirection: 'row', paddingVertical: 7 },

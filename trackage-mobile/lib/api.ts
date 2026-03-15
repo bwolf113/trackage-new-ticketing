@@ -32,6 +32,24 @@ export async function getEventAttendees(eventId: string, token: string) {
   return res.json();
 }
 
+export async function checkInOrder(eventId: string, orderId: string, token: string) {
+  const res = await apiFetch(`/api/organiser/events/${eventId}/attendees`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ order_id: orderId }),
+  }, token);
+  return res.json();
+}
+
+export async function undoCheckInOrder(eventId: string, orderId: string, token: string) {
+  const res = await apiFetch(`/api/organiser/events/${eventId}/attendees`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ order_id: orderId, undo: true }),
+  }, token);
+  return res.json();
+}
+
 // ── Stats ─────────────────────────────────────────────────────────────────────
 
 export async function getEventStats(eventId: string, token: string) {
