@@ -42,7 +42,7 @@ export async function POST(req) {
     }
 
     // Fetch organiser for email template
-    const { data: organiser } = await supabase
+    const { data: organiserData } = await supabase
       .from('organisers')
       .select('id, name, vat_number')
       .eq('id', organiser_id)
@@ -133,7 +133,7 @@ export async function POST(req) {
         order,
         event,
         orderItems: [{ ticket_name: ticket.name, quantity: qty, unit_price: 0 }],
-        organiser,
+        organiser: organiserData,
         attendees,
       });
 

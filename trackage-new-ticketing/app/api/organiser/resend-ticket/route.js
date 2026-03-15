@@ -58,7 +58,7 @@ export async function POST(req) {
       .order('created_at', { ascending: true });
 
     // Fetch organiser for VAT info
-    const { data: organiser } = await supabase
+    const { data: organiserData } = await supabase
       .from('organisers')
       .select('id, name, vat_number')
       .eq('id', organiser_id)
@@ -71,7 +71,7 @@ export async function POST(req) {
         order,
         event,
         orderItems: orderItems || [],
-        organiser,
+        organiser:  organiserData,
         attendees:  attendees || [],
       }),
     });
