@@ -28,9 +28,14 @@ function fmtDay(dt) {
   return new Date(dt).getDate();
 }
 function validatePhone(raw) {
-  const stripped = raw.replace(/[\s\-().+]/g, '');
-  const withPlus = raw.trim().startsWith('+') ? '+' + stripped : stripped;
-  return /^\+?[0-9]{7,15}$/.test(withPlus);
+  const n = raw.replace(/[\s\-().]/g, '');
+  // Malta local: exactly 8 digits starting with 2 (landline) or 7 (mobile)
+  if (/^[27]\d{7}$/.test(n)) return true;
+  // Malta international: +356 or 00356 + 8 digits starting with 2 or 7
+  if (/^(\+356|00356)[27]\d{7}$/.test(n)) return true;
+  // Other country: must include explicit + country code, 8–15 digits total
+  if (/^\+(?!356)[1-9]\d{7,14}$/.test(n)) return true;
+  return false;
 }
 function ticketAvailable(ticket, eventEndTime) {
   if (ticket.status === 'sold_out') return false;
