@@ -260,10 +260,10 @@ create policy "organisers: own record"
   using  (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- events: public can read active events
-create policy "events: public read active"
+-- events: public can read published events
+create policy "events: public read published"
   on events for select
-  using (status = 'active');
+  using (status = 'published');
 
 -- events: organisers can manage their own events
 create policy "events: organiser manage own"
@@ -274,7 +274,7 @@ create policy "events: organiser manage own"
 -- tickets: public can read tickets for active events
 create policy "tickets: public read"
   on tickets for select
-  using (event_id in (select id from events where status = 'active'));
+  using (event_id in (select id from events where status = 'published'));
 
 -- tickets: organisers can manage tickets on their events
 create policy "tickets: organiser manage"
@@ -285,7 +285,7 @@ create policy "tickets: organiser manage"
 -- event_days: same as tickets
 create policy "event_days: public read"
   on event_days for select
-  using (event_id in (select id from events where status = 'active'));
+  using (event_id in (select id from events where status = 'published'));
 
 create policy "event_days: organiser manage"
   on event_days for all
