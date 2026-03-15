@@ -50,6 +50,9 @@ tr:hover td { background: var(--bg); }
 .btn-checkin { padding: 5px 11px; border: 1.5px solid var(--green); border-radius: 8px; background: var(--green-dim); color: var(--green); font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; transition: all 0.15s; }
 .btn-checkin:hover { background: rgba(72,193,110,0.2); }
 .btn-checkin:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-undo { padding: 4px 10px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; transition: all 0.15s; margin-top: 4px; }
+.btn-undo:hover { border-color: #ef4444; color: #ef4444; }
+.btn-undo:disabled { opacity: 0.4; cursor: not-allowed; }
 `;
 
 export default function OrgAttendeesPage() {
@@ -60,6 +63,7 @@ export default function OrgAttendeesPage() {
   const [search,  setSearch]  = useState('');
     const [resending,  setResending]  = useState({}); // order_id → 'sending' | 'sent' | 'error'
   const [checkingIn, setCheckingIn] = useState({}); // order_id → 'loading' | 'done'
+  const [undoing,    setUndoing]    = useState({}); // order_id → 'loading' | 'done'
 
   useEffect(() => {
     if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
@@ -102,6 +106,29 @@ export default function OrgAttendeesPage() {
       }
     } finally {
       setCheckingIn(c => ({ ...c, [orderId]: 'done' }));
+    }
+  }
+
+  async function undoCheckIn(orderId) {
+    setUndoing(u => ({ ...u, [orderId]: 'loading' }));
+    try {
+      const res  = await orgFetch(`/api/organiser/events/${eventId}/attendees`, {
+        method: 'PATCH',
+        body:   JSON.stringify({ order_id: orderId, undo: true }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setData(prev => ({
+          ...prev,
+          attendees: prev.attendees.map(a =>
+            a.order_id === orderId
+              ? { ...a, checked_in_at: null, checkin_count: 0 }
+              : a
+          ),
+        }));
+      }
+    } finally {
+      setUndoing(u => ({ ...u, [orderId]: 'done' }));
     }
   }
 
@@ -212,6 +239,13 @@ export default function OrgAttendeesPage() {
                           <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 500, marginTop: 2 }}>
                             {new Date(a.checked_in_at).toLocaleString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </div>
+                          <button
+                            className="btn-undo"
+                            disabled={undoing[a.order_id] === 'loading'}
+                            onClick={() => undoCheckIn(a.order_id)}
+                          >
+                            {undoing[a.order_id] === 'loading' ? '…' : 'Undo check-in'}
+                          </button>
                         </div>
                       ) : partialCheckedIn ? (
                         <div>

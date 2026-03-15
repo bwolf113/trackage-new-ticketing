@@ -102,7 +102,7 @@ export async function PATCH(req, { params }) {
   const { organiser, errorResponse } = await getOrganiserFromRequest(req);
   if (errorResponse) return errorResponse;
 
-  const { order_id } = await req.json();
+  const { order_id, undo } = await req.json();
   if (!order_id) return Response.json({ error: 'order_id required' }, { status: 400 });
 
   const supabase = adminSupabase();
@@ -119,6 +119,16 @@ export async function PATCH(req, { params }) {
     .from('orders').select('id, event_id').eq('id', order_id).single();
   if (!order || order.event_id !== eventId) {
     return Response.json({ error: 'Order not found' }, { status: 404 });
+  }
+
+  if (undo) {
+    const { error } = await supabase
+      .from('order_attendees')
+      .update({ checked_in_at: null })
+      .eq('order_id', order_id);
+    await supabase.from('orders').update({ checked_in_at: null }).eq('id', order_id);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ success: true, checked_in_at: null });
   }
 
   const now = new Date().toISOString();

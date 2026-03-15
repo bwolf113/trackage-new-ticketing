@@ -45,6 +45,9 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black); backgr
 .btn-checkin { padding: 5px 11px; border: 1.5px solid var(--green); border-radius: 8px; background: var(--green-dim); color: var(--green); font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; transition: opacity 0.15s; }
 .btn-checkin:hover { opacity: 0.8; }
 .btn-checkin:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-undo { padding: 4px 10px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; transition: all 0.15s; margin-top: 4px; }
+.btn-undo:hover { border-color: #ef4444; color: #ef4444; }
+.btn-undo:disabled { opacity: 0.4; cursor: not-allowed; }
 `;
 
 export default function AttendeesPage() {
@@ -54,6 +57,7 @@ export default function AttendeesPage() {
   const [loading,    setLoading]   = useState(true);
   const [search,     setSearch]    = useState('');
   const [checkingIn, setCheckingIn] = useState({});
+  const [undoing,    setUndoing]    = useState({});
 
   useEffect(() => { fetchData(); }, [eventId]);
 
@@ -85,6 +89,26 @@ export default function AttendeesPage() {
       }
     } finally {
       setCheckingIn(c => ({ ...c, [orderId]: 'done' }));
+    }
+  }
+
+  async function undoCheckIn(orderId) {
+    setUndoing(u => ({ ...u, [orderId]: 'loading' }));
+    try {
+      const res  = await adminFetch(`/api/admin/event-attendees/${eventId}`, {
+        method: 'PATCH',
+        body:   JSON.stringify({ order_id: orderId, undo: true }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setAttendees(prev => prev.map(a =>
+          a.order_id === orderId
+            ? { ...a, checked_in_at: null, checkin_count: 0 }
+            : a
+        ));
+      }
+    } finally {
+      setUndoing(u => ({ ...u, [orderId]: 'done' }));
     }
   }
 
@@ -198,6 +222,13 @@ export default function AttendeesPage() {
                           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
                             {new Date(a.checked_in_at).toLocaleString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </div>
+                          <button
+                            className="btn-undo"
+                            disabled={undoing[a.order_id] === 'loading'}
+                            onClick={() => undoCheckIn(a.order_id)}
+                          >
+                            {undoing[a.order_id] === 'loading' ? '…' : 'Undo check-in'}
+                          </button>
                         </div>
                       ) : partialCheckedIn ? (
                         <div>
