@@ -105,7 +105,7 @@ function EditOrderModal({
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%', alignItems: 'center' }}>
+        <KeyboardAvoidingView behavior="padding" style={{ width: '100%', alignItems: 'center' }}>
           <Pressable style={styles.modalBox} onPress={() => {}}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>

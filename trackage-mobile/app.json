@@ -19,7 +19,8 @@
         "NSCameraUsageDescription": "Camera is used to scan QR codes on tickets.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -29,6 +30,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "softwareKeyboardLayoutMode": "pan",
       "package": "com.trackage.organiser",
       "permissions": [
         "android.permission.CAMERA",
