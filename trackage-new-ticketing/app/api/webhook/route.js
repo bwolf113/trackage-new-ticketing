@@ -20,16 +20,20 @@ export async function POST(req) {
 
   let stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   let webhookSecret   = process.env.STRIPE_WEBHOOK_SECRET;
-  try {
-    const { data: setting } = await supabase
-      .from('settings').select('value').eq('key', 'stripe').single();
-    if (setting?.value) {
-      const cfg  = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
-      const mode = cfg.active_mode || 'test';
-      if (cfg[mode]?.secret_key)  stripeSecretKey = cfg[mode].secret_key;
-      if (cfg[mode]?.webhook_secret) webhookSecret = cfg[mode].webhook_secret;
-    }
-  } catch {}
+  if (!process.env.STRIPE_FORCE_TEST) {
+    try {
+      const { data: setting } = await supabase
+        .from('settings').select('value').eq('key', 'stripe').single();
+      if (setting?.value) {
+        const cfg  = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+        const mode = cfg.active_mode || 'test';
+        if (cfg[mode]?.secret_key)  stripeSecretKey = cfg[mode].secret_key;
+        if (cfg[mode]?.webhook_secret) webhookSecret = cfg[mode].webhook_secret;
+      }
+    } catch {}
+  } else {
+    console.log('STRIPE_FORCE_TEST: using .env.local test keys');
+  }
 
   if (!stripeSecretKey) {
     return Response.json({ error: 'Stripe not configured' }, { status: 500 });
@@ -182,6 +186,35 @@ export async function POST(req) {
             html:    await adminNewOrderEmail({ order, event: eventData, orderItems: items }),
           });
           console.log(`Admin notification to ${adminEmail}:`, adminResult);
+        }
+
+        // ── 3. Email campaign conversion tracking ───────────────
+        const utmId = session.metadata?.utm_id;
+        if (utmId && toEmail) {
+          try {
+            // Verify the campaign exists
+            const { data: camp } = await supabase
+              .from('email_campaigns').select('id').eq('id', utmId).single();
+            if (camp) {
+              await supabase.from('email_events').insert({
+                campaign_id: utmId,
+                email: toEmail,
+                event_type: 'converted',
+                metadata: { order_id: orderId, total: order?.total },
+              });
+              // Increment converted_count
+              const { data: campData } = await supabase
+                .from('email_campaigns').select('converted_count').eq('id', utmId).single();
+              if (campData) {
+                await supabase.from('email_campaigns')
+                  .update({ converted_count: (campData.converted_count || 0) + 1 })
+                  .eq('id', utmId);
+              }
+              console.log(`Email conversion tracked: campaign ${utmId}, order ${orderId}`);
+            }
+          } catch (convErr) {
+            console.error('Email conversion tracking error:', convErr.message);
+          }
         }
 
         break;

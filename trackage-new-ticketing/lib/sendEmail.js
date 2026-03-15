@@ -12,10 +12,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendEmail({ to, subject, html, attachments = [] }) {
+export async function sendEmail({ to, subject, html, attachments = [], headers = {} }) {
   const mailOptions = {
     from: `"${process.env.EMAIL_FROM_NAME || 'Trackage Scheme'}" <${process.env.EMAIL_FROM || 'team@trackagescheme.com'}>`,
-    to, subject, html, attachments,
+    to, subject, html, attachments, headers,
   };
   try {
     const info = await transporter.sendMail(mailOptions);

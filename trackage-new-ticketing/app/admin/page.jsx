@@ -1,15 +1,10 @@
 /* app/admin/page.jsx — Dashboard */
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { adminFetch } from '../../lib/adminFetch';
 
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
-}
-function getMonthRange(date = new Date()) {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1).toISOString();
-  const end   = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59).toISOString();
-  return { start, end };
 }
 
 export default function AdminDashboard() {
@@ -25,41 +20,23 @@ export default function AdminDashboard() {
   async function loadStats() {
     setLoading(true);
     try {
-      let start, end;
-      const now = new Date();
-      if (dateFilter === 'this_month')      ({ start, end } = getMonthRange(now));
-      else if (dateFilter === 'last_month') ({ start, end } = getMonthRange(new Date(now.getFullYear(), now.getMonth() - 1, 1)));
-      else {
-        start = customStart ? new Date(customStart + 'T00:00:00').toISOString() : getMonthRange(now).start;
-        end   = customEnd   ? new Date(customEnd   + 'T23:59:59').toISOString() : getMonthRange(now).end;
+      const params = new URLSearchParams({ filter: dateFilter });
+      if (dateFilter === 'custom') {
+        if (customStart) params.set('start', new Date(customStart + 'T00:00:00').toISOString());
+        if (customEnd)   params.set('end',   new Date(customEnd   + 'T23:59:59').toISOString());
       }
-      const { data: orders } = await supabase.from('orders').select('id, total, organiser_id, created_at').eq('status', 'completed').gte('created_at', start).lte('created_at', end);
-      const orderIds = (orders || []).map(o => o.id);
-      let ticketCount = 0;
-      if (orderIds.length) {
-        const { data: items } = await supabase.from('order_items').select('quantity').in('order_id', orderIds);
-        ticketCount = (items || []).reduce((s, i) => s + (i.quantity || 0), 0);
-      }
-      const totalRevenue = (orders || []).reduce((s, o) => s + (o.total || 0), 0);
-      const byOrg = {};
-      (orders || []).forEach(o => {
-        if (!o.organiser_id) return;
-        if (!byOrg[o.organiser_id]) byOrg[o.organiser_id] = { revenue: 0, orders: 0 };
-        byOrg[o.organiser_id].revenue += o.total || 0;
-        byOrg[o.organiser_id].orders  += 1;
+      const res  = await adminFetch(`/api/admin/stats?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load stats');
+
+      setOrgLeaders(data.leaderboard || []);
+      setStats({
+        totalRevenue:    data.totalRevenue,
+        totalTickets:    data.totalTickets,
+        totalStripeFees: data.totalStripeFees,
+        orderCount:      data.orderCount,
+        activeOrgCount:  data.activeOrgCount,
       });
-      const orgIds = Object.keys(byOrg);
-      let leaderboard = [];
-      if (orgIds.length) {
-        const { data: orgs } = await supabase.from('organisers').select('id, name').in('id', orgIds);
-        leaderboard = (orgs || []).map(o => ({ ...o, ...byOrg[o.id] })).sort((a, b) => b.revenue - a.revenue);
-      }
-      setOrgLeaders(leaderboard);
-      const { count: activeOrgCount } = await supabase
-        .from('organisers')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active');
-      setStats({ totalRevenue, totalTickets: ticketCount, totalStripeFees: totalRevenue * 0.03, orderCount: (orders || []).length, activeOrgCount: activeOrgCount || 0 });
     } catch (err) { console.error(err); }
     setLoading(false);
   }

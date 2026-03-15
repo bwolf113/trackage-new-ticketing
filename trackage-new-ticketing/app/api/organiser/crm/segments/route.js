@@ -1,5 +1,6 @@
 /* app/api/organiser/crm/segments/route.js
    GET — recipient counts per email segment for an organiser (auth via Bearer token)
+   Excludes unsubscribed emails from all counts.
 */
 import { createClient } from '@supabase/supabase-js';
 import { getOrganiserFromRequest } from '../../../../../lib/organiserAuth';
@@ -40,13 +41,24 @@ export async function GET(req) {
 
   const allOrders = orders || [];
 
-  // all unique emails
-  const allEmails = new Set(allOrders.map(o => o.customer_email).filter(Boolean));
+  // ── Fetch unsubscribed emails for this organiser ───────────────
+  const { data: unsubs } = await supabase
+    .from('email_unsubscribes')
+    .select('email')
+    .eq('organiser_id', organiser_id);
+
+  const unsubSet = new Set((unsubs || []).map(u => u.email));
+
+  // all unique emails (minus unsubscribed)
+  const allEmails = new Set();
+  for (const o of allOrders) {
+    if (o.customer_email && !unsubSet.has(o.customer_email)) allEmails.add(o.customer_email);
+  }
 
   // loyal: appeared in more than 3 distinct events
   const emailEvents = {};
   for (const o of allOrders) {
-    if (!o.customer_email) continue;
+    if (!o.customer_email || unsubSet.has(o.customer_email)) continue;
     if (!emailEvents[o.customer_email]) emailEvents[o.customer_email] = new Set();
     emailEvents[o.customer_email].add(o.event_id);
   }
@@ -56,7 +68,7 @@ export async function GET(req) {
   const seenLocal   = new Set();
   const seenForeign = new Set();
   for (const o of allOrders) {
-    if (!o.customer_email) continue;
+    if (!o.customer_email || unsubSet.has(o.customer_email)) continue;
     if (isMaltese(o.customer_phone) && !seenLocal.has(o.customer_email)) {
       seenLocal.add(o.customer_email);
     } else if (o.customer_phone && !isMaltese(o.customer_phone) && !seenForeign.has(o.customer_email)) {
@@ -64,10 +76,10 @@ export async function GET(req) {
     }
   }
 
-  // per-event unique email counts
+  // per-event unique email counts (minus unsubscribed)
   const eventEmailMap = {};
   for (const o of allOrders) {
-    if (!o.customer_email || !o.event_id) continue;
+    if (!o.customer_email || !o.event_id || unsubSet.has(o.customer_email)) continue;
     if (!eventEmailMap[o.event_id]) eventEmailMap[o.event_id] = new Set();
     eventEmailMap[o.event_id].add(o.customer_email);
   }

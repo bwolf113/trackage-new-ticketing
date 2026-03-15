@@ -731,7 +731,6 @@ export default function HomePage() {
         <div className="nav-links">
           <Link href="/" className="nav-link">Events</Link>
           <Link href="/about" className="nav-link">About</Link>
-          <Link href="https://trackagescheme.com" target="_blank" className="nav-link">Main site ↗</Link>
         </div>
 
         <div className="nav-right">
@@ -766,7 +765,6 @@ export default function HomePage() {
         }}>
           <Link href="/" className="nav-link" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 15 }} onClick={() => setMobileNavOpen(false)}>Events</Link>
           <Link href="/about" className="nav-link" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 15 }} onClick={() => setMobileNavOpen(false)}>About</Link>
-          <Link href="https://trackagescheme.com" target="_blank" className="nav-link" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 15 }} onClick={() => setMobileNavOpen(false)}>Main site ↗</Link>
           <Link href="/organiser/signup" className="nav-link" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 15 }} onClick={() => setMobileNavOpen(false)}>Sell Tickets</Link>
           <Link href="/organiser/login" onClick={() => setMobileNavOpen(false)} style={{ display: 'block', marginTop: 8, padding: '12px 0', background: 'var(--black)', color: 'white', borderRadius: 8, textAlign: 'center', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
         </div>
@@ -901,7 +899,17 @@ export default function HomePage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
               />
-              <button className="newsletter-btn" onClick={() => email && setSubDone(true)}>
+              <button className="newsletter-btn" onClick={async () => {
+                if (!email || !email.includes('@')) return;
+                try {
+                  await fetch('/api/notify-me', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                  });
+                  setSubDone(true);
+                } catch { setSubDone(true); }
+              }}>
                 Notify me
               </button>
             </div>

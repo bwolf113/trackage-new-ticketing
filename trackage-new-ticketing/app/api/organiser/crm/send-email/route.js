@@ -1,12 +1,13 @@
 /* app/api/organiser/crm/send-email/route.js
    POST — send a broadcast email to a segment of attendees
-   Body: { segment, event_id?, subject, message }
+   Body: { segment, event_id?, subject, message, template?, logo_url?, primary_color?, cta_text?, cta_url?, footer_text? }
    Segments: all | per_event | loyal | local | foreign
    Auth: Bearer token
 */
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '../../../../../lib/sendEmail';
 import { getOrganiserFromRequest } from '../../../../../lib/organiserAuth';
+import { renderTemplate, buildUnsubUrl } from '../../../../../lib/emailTemplates';
 
 function adminSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -18,7 +19,8 @@ function isMaltese(phone) {
   return p.startsWith('+356') || p.startsWith('00356') || /^[279]\d{7}$/.test(p);
 }
 
-function broadcastHtml({ organiserName, subject, message, eventName }) {
+/* Fallback plain broadcast HTML (backward compat for template=plain or missing) */
+function broadcastHtml({ organiserName, subject, message, eventName, unsubUrl }) {
   const year    = new Date().getFullYear();
   const escaped = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return `<!DOCTYPE html>
@@ -43,7 +45,7 @@ function broadcastHtml({ organiserName, subject, message, eventName }) {
   ${eventName ? `
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a9e7f">
     <tr><td style="padding:10px 32px">
-      <p style="margin:0;font-size:12px;font-weight:600;color:#fff;letter-spacing:0.02em">🎫 ${eventName}</p>
+      <p style="margin:0;font-size:12px;font-weight:600;color:#fff;letter-spacing:0.02em">${eventName}</p>
     </td></tr>
   </table>` : ''}
 
@@ -56,7 +58,8 @@ function broadcastHtml({ organiserName, subject, message, eventName }) {
 
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-top:1px solid #f0f0f0">
     <tr><td style="padding:14px 32px;text-align:center">
-      <p style="margin:0;font-size:11px;color:#bbb">© ${year} Trackage Scheme · <a href="https://shop.trackagescheme.com" style="color:#bbb">shop.trackagescheme.com</a></p>
+      <p style="margin:0 0 8px;font-size:11px;color:#bbb">&copy; ${year} Trackage Scheme &middot; <a href="https://shop.trackagescheme.com" style="color:#bbb">shop.trackagescheme.com</a></p>
+      <p style="margin:0;font-size:11px;color:#999"><a href="${unsubUrl || '#'}" style="color:#999;text-decoration:underline">Unsubscribe</a></p>
     </td></tr>
   </table>
 
@@ -73,7 +76,7 @@ export async function POST(req) {
     if (errorResponse) return errorResponse;
 
     const body = await req.json();
-    const { segment, event_id, subject, message } = body;
+    const { segment, event_id, subject, message, template, logo_url, primary_color, cta_text, cta_url, footer_text } = body;
     const organiser_id = authOrganiser.id;
 
     if (!segment)         return Response.json({ error: 'segment required' },      { status: 400 });
@@ -148,20 +151,97 @@ export async function POST(req) {
       }
     }
 
+    // ── Filter out unsubscribed emails ────────────────────────────
+    if (recipients.length > 0) {
+      const emails = recipients.map(r => r.email);
+      const { data: unsubs } = await supabase
+        .from('email_unsubscribes')
+        .select('email')
+        .eq('organiser_id', organiser_id)
+        .in('email', emails);
+
+      if (unsubs?.length) {
+        const unsubSet = new Set(unsubs.map(u => u.email));
+        recipients = recipients.filter(r => !unsubSet.has(r.email));
+      }
+    }
+
     if (!recipients.length) {
       return Response.json({ sent: 0, failed: 0, total: 0, message: 'No recipients found for this segment' });
     }
 
-    const eventName = segment === 'per_event' && event_id ? eventMap[event_id] : null;
-    const html      = broadcastHtml({ organiserName: organiser.name, subject, message, eventName });
+    // ── Create campaign record ────────────────────────────────────
+    const { data: campaign } = await supabase
+      .from('email_campaigns')
+      .insert({
+        organiser_id,
+        template: template || 'plain',
+        segment,
+        event_id: segment === 'per_event' ? event_id : null,
+        subject,
+      })
+      .select('id')
+      .single();
+
+    const campaignId = campaign?.id;
+    const eventName  = segment === 'per_event' && event_id ? eventMap[event_id] : null;
 
     let sent = 0, failed = 0;
     for (const { email } of recipients) {
-      const r = await sendEmail({ to: email, subject, html });
-      if (r.success) sent++; else failed++;
+      // Build per-recipient HTML
+      const unsubUrl = buildUnsubUrl(email, organiser_id);
+      let html;
+
+      if (template && template !== 'plain') {
+        html = renderTemplate({
+          templateKey: template,
+          logoUrl: logo_url,
+          primaryColor: primary_color,
+          organiserName: organiser.name,
+          subject,
+          message,
+          ctaText: cta_text,
+          ctaUrl: cta_url,
+          footerText: footer_text,
+          eventName,
+          campaignId,
+          recipientEmail: email,
+          organiserId: organiser_id,
+        });
+      } else {
+        html = broadcastHtml({ organiserName: organiser.name, subject, message, eventName, unsubUrl });
+      }
+
+      const r = await sendEmail({
+        to: email,
+        subject,
+        html,
+        headers: {
+          'List-Unsubscribe': `<${unsubUrl}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
+      });
+
+      if (r.success) {
+        sent++;
+        // Log sent event (fire-and-forget)
+        if (campaignId) {
+          supabase.from('email_events').insert({ campaign_id: campaignId, email, event_type: 'sent' });
+        }
+      } else {
+        failed++;
+      }
     }
 
-    return Response.json({ sent, failed, total: recipients.length });
+    // ── Update campaign totals ────────────────────────────────────
+    if (campaignId) {
+      await supabase
+        .from('email_campaigns')
+        .update({ sent_count: sent, failed_count: failed })
+        .eq('id', campaignId);
+    }
+
+    return Response.json({ sent, failed, total: recipients.length, campaign_id: campaignId });
   } catch (err) {
     console.error('CRM send-email error:', err);
     return Response.json({ error: err.message }, { status: 500 });

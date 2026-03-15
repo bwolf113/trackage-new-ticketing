@@ -70,7 +70,8 @@ html{scroll-behavior:smooth}
 body{font-family:var(--sans);background:var(--white);color:var(--text);-webkit-font-smoothing:antialiased}
 
 /* ── NAV ── */
-.nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:rgba(255,255,255,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);box-shadow:0 1px 20px rgba(0,0,0,0.06)}
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:#fff;border-bottom:1px solid transparent;transition:border-color 0.3s,box-shadow 0.3s}
+.nav.scrolled{border-color:var(--border);box-shadow:0 1px 20px rgba(0,0,0,0.06)}
 .nav-logo{text-decoration:none;display:flex;align-items:center}
 .nav-logo img{height:30px;width:auto;display:block;filter:invert(1)}
 .nav-back{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--mid);text-decoration:none;transition:color 0.15s}
@@ -267,6 +268,7 @@ export default function EventPage() {
   const { id } = useParams();
   const router  = useRouter();
 
+  const [scrolled,    setScrolled]    = useState(false);
   const [event,       setEvent]       = useState(null);
   const [eventDays,   setEventDays]   = useState([]); // ordered event_days rows
   const [activeDay,   setActiveDay]   = useState(null); // day id or 'festival' or null
@@ -295,6 +297,9 @@ export default function EventPage() {
   useEffect(() => {
     loadEvent();
     checkUser();
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
   }, [id]);
 
   async function checkUser() {
@@ -539,6 +544,9 @@ export default function EventPage() {
         unit_price:  l.ticket.price || 0,
       }));
 
+      // Capture utm_id from URL for email campaign conversion tracking
+      const urlUtmId = new URLSearchParams(window.location.search).get('utm_id');
+
       const payload = {
         event_id:       event.id,
         event_name:     event.name,
@@ -557,6 +565,7 @@ export default function EventPage() {
         marketing_consent: consentMarketing,
         success_url:    `${window.location.origin}/orders/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url:     window.location.href,
+        ...(urlUtmId ? { utm_id: urlUtmId } : {}),
       };
 
       const res = await fetch('/api/checkout', {
@@ -634,7 +643,7 @@ export default function EventPage() {
       <style>{CSS}</style>
 
       {/* ── NAV ── */}
-      <nav className="nav">
+      <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
         <Link href="/" className="nav-logo">
           <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
         </Link>
@@ -1079,7 +1088,7 @@ export default function EventPage() {
                     className={consentError ? 'err' : ''}
                   />
                   <span className={`consent-text${consentError ? ' err-text' : ''}`}>
-                    <strong>I agree to my details being stored</strong> so that my tickets can be issued and my order can be managed. This is required to complete your purchase.
+                    <strong>I agree to my details being stored</strong> so that my tickets can be issued and my order can be managed, as per the <a href="https://tickets.trackagescheme.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#48C16E', textDecoration: 'underline' }}>terms and conditions</a>. This is required to complete your purchase.
                   </span>
                 </label>
                 <label className="consent-row" onClick={() => setConsentMarketing(v => !v)}>

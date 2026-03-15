@@ -306,5 +306,61 @@ insert into settings (key, value) values
 on conflict (key) do nothing;
 
 -- =============================================================
+-- EMAIL UNSUBSCRIBES (per-organiser marketing opt-out)
+-- =============================================================
+create table if not exists email_unsubscribes (
+  id              uuid primary key default gen_random_uuid(),
+  email           text not null,
+  organiser_id    uuid references organisers(id) on delete cascade,
+  unsubscribed_at timestamptz not null default now(),
+  unique(email, organiser_id)
+);
+
+create index if not exists email_unsubscribes_email_idx       on email_unsubscribes(email);
+create index if not exists email_unsubscribes_organiser_idx   on email_unsubscribes(organiser_id);
+
+alter table email_unsubscribes enable row level security;
+
+-- =============================================================
+-- EMAIL CAMPAIGNS (tracks each CRM broadcast send)
+-- =============================================================
+create table if not exists email_campaigns (
+  id              uuid primary key default gen_random_uuid(),
+  organiser_id    uuid references organisers(id) on delete cascade,
+  template        text,
+  segment         text,
+  event_id        uuid references events(id) on delete set null,
+  subject         text,
+  sent_count      integer not null default 0,
+  failed_count    integer not null default 0,
+  opened_count    integer not null default 0,
+  clicked_count   integer not null default 0,
+  converted_count integer not null default 0,
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists email_campaigns_organiser_idx on email_campaigns(organiser_id);
+
+alter table email_campaigns enable row level security;
+
+-- =============================================================
+-- EMAIL EVENTS (individual tracking: sent, opened, clicked, converted)
+-- =============================================================
+create table if not exists email_events (
+  id            uuid primary key default gen_random_uuid(),
+  campaign_id   uuid references email_campaigns(id) on delete cascade,
+  email         text not null,
+  event_type    text not null check (event_type in ('sent','opened','clicked','converted')),
+  metadata      jsonb default '{}'::jsonb,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists email_events_campaign_idx on email_events(campaign_id);
+create index if not exists email_events_email_idx    on email_events(email);
+create index if not exists email_events_type_idx     on email_events(event_type);
+
+alter table email_events enable row level security;
+
+-- =============================================================
 -- DONE
 -- =============================================================

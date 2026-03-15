@@ -104,26 +104,20 @@ export default function OrganiserLayout({ children }) {
           overflow: hidden;
           transform: translateX(-100%);
           transition: transform 0.25s ease;
+          font-family: 'Plus Jakarta Sans', sans-serif;
         }
         .ol-sidebar.open { transform: translateX(0); }
 
         /* ── Main — mobile-first: full width, no margin ─────────────── */
-        .ol-main { margin-left: 0; flex: 1; min-height: 100vh; background: var(--bg); }
+        .ol-main { margin-left: 0; flex: 1; min-height: 100vh; background: var(--bg); display: flex; flex-direction: column; }
 
         /* ── Desktop: sidebar visible, content pushed right ─────────── */
         @media (min-width: 769px) {
-          .ol-sidebar {
-            width: ${sidebarW};
-            transform: translateX(0);
-            transition: width 0.2s ease;
-          }
-          .ol-main {
-            margin-left: ${sidebarW};
-            transition: margin-left 0.2s ease;
-          }
+          .ol-sidebar { width: ${sidebarW}; transform: translateX(0); transition: width 0.2s ease; }
+          .ol-main { margin-left: ${sidebarW}; transition: margin-left 0.2s ease; }
           .ol-menu-btn { display: none !important; }
           .ol-content { padding: 28px 32px; }
-          .ol-collapse { display: flex; }
+          .ol-collapse { display: flex !important; }
         }
 
         /* ── Mobile extras ───────────────────────────────────────────── */
@@ -145,7 +139,7 @@ export default function OrganiserLayout({ children }) {
         .ol-logo-name { font-size: 13px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.02em; }
         .ol-logo-sub  { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.1em; }
         .ol-collapse {
-          flex-shrink: 0; background: none; border: 1px solid rgba(255,255,255,0.15);
+          flex-shrink: 0; min-width: 24px; background: none; border: 1px solid rgba(255,255,255,0.15);
           color: rgba(255,255,255,0.45); border-radius: 5px; width: 24px; height: 24px;
           cursor: pointer; display: none; align-items: center; justify-content: center;
           font-size: 10px; transition: all 0.15s;

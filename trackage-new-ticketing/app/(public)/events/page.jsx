@@ -64,20 +64,23 @@ body { font-family: var(--sans); background: var(--white); color: var(--text); -
 
 /* ── NAVBAR ── */
 .ev-nav {
-  position: sticky; top: 0; z-index: 100;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 40px; height: 64px;
-  background: var(--black);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: #fff;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
+.ev-nav.scrolled { border-color: var(--border); box-shadow: 0 1px 20px rgba(0,0,0,0.06); }
 .ev-nav-logo {
   display: flex; align-items: center; gap: 10px;
   text-decoration: none;
 }
-.ev-nav-logo img { height: 22px; }
+.ev-nav-logo img { height: 22px; filter: invert(1); }
 
 /* ── PAGE HEADER ── */
 .ev-page-header {
+  margin-top: 64px;
   background: var(--black);
   padding: 48px 40px 44px;
   color: white;
@@ -260,13 +263,17 @@ const FILTERS = [
 ];
 
 export default function EventsPage() {
-  const [events,  setEvents]  = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter,  setFilter]  = useState('upcoming');
-  const [search,  setSearch]  = useState('');
+  const [events,   setEvents]   = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [filter,   setFilter]   = useState('upcoming');
+  const [search,   setSearch]   = useState('');
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     loadEvents();
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   async function loadEvents() {
@@ -423,7 +430,7 @@ export default function EventsPage() {
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
       {/* NAVBAR */}
-      <nav className="ev-nav">
+      <nav className={`ev-nav ${scrolled ? 'scrolled' : ''}`}>
         <Link href="/" className="ev-nav-logo">
           <img
             src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png"

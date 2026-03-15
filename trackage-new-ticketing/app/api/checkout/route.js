@@ -13,28 +13,33 @@ export async function POST(req) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // ── Get Stripe secret key from Supabase settings (same as admin page uses) ──
+    // ── Get Stripe secret key ──────────────────────────────────────
+    // If STRIPE_FORCE_TEST is set, always use env var keys (test mode on localhost)
     let stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-    try {
-      const { data: setting } = await supabase
-        .from('settings')
-        .select('value')
-        .eq('key', 'stripe')
-        .single();
+    if (!process.env.STRIPE_FORCE_TEST) {
+      try {
+        const { data: setting } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'stripe')
+          .single();
 
-      if (setting?.value) {
-        const stripeConfig = typeof setting.value === 'string'
-          ? JSON.parse(setting.value)
-          : setting.value;
-        const mode = stripeConfig.active_mode || 'test';
-        const modeKeys = stripeConfig[mode];
-        if (modeKeys?.secret_key) {
-          stripeSecretKey = modeKeys.secret_key;
+        if (setting?.value) {
+          const stripeConfig = typeof setting.value === 'string'
+            ? JSON.parse(setting.value)
+            : setting.value;
+          const mode = stripeConfig.active_mode || 'test';
+          const modeKeys = stripeConfig[mode];
+          if (modeKeys?.secret_key) {
+            stripeSecretKey = modeKeys.secret_key;
+          }
         }
+      } catch (e) {
+        // Fall back to .env.local key
+        console.log('Using .env.local Stripe key (Supabase settings not found)');
       }
-    } catch (e) {
-      // Fall back to .env.local key
-      console.log('Using .env.local Stripe key (Supabase settings not found)');
+    } else {
+      console.log('STRIPE_FORCE_TEST: using .env.local test keys');
     }
 
     if (!stripeSecretKey) {
@@ -55,6 +60,7 @@ export async function POST(req) {
       customer_email, customer_name, customer_phone,
       marketing_consent,
       success_url, cancel_url,
+      utm_id,
     } = body;
 
     if (!line_items?.length) {
@@ -253,6 +259,7 @@ export async function POST(req) {
         event_id:          event_id || '',
         coupon_code:       coupon_code || '',
         marketing_consent: marketing_consent ? '1' : '0',
+        ...(utm_id ? { utm_id } : {}),
       },
       payment_intent_data: {
         metadata: { order_id: orderId },

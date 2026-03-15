@@ -1,6 +1,6 @@
-/* app/organiser/crm/page.jsx — CRM: Reports + Email Guests */
+/* app/organiser/crm/page.jsx — CRM: Reports + Email Guests + Campaign History */
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { orgFetch } from '../../../lib/organiserFetch';
 
@@ -74,6 +74,24 @@ const SEGMENTS = [
   { key: 'foreign',   icon: '✈️',  label: 'Foreign Visitors', desc: 'Customers with a non-Maltese phone number' },
 ];
 
+const TEMPLATES = [
+  { key: 'promotion',     icon: '🎪', label: 'Event Promotion',   desc: 'Promote an upcoming event with a strong call-to-action' },
+  { key: 'thank_you',     icon: '🙏', label: 'Thank You',         desc: 'Post-event thank you message to attendees' },
+  { key: 'last_chance',   icon: '⏰', label: 'Last Chance',        desc: 'Urgency-driven message for events about to sell out' },
+  { key: 'announcement',  icon: '📢', label: 'New Event',          desc: 'Announce a brand new event to your audience' },
+  { key: 're_engagement', icon: '👋', label: 'We Miss You',        desc: 'Win back attendees who haven\'t been to a recent event' },
+  { key: 'plain',         icon: '📝', label: 'Plain Text',         desc: 'Simple text email without template styling' },
+];
+
+const TEMPLATE_DEFAULTS = {
+  promotion:     { subject: 'Check out this amazing event!',     ctaText: 'Get Your Tickets', message: 'We have an exciting event coming up and we\'d love to see you there! Join us for a night of great entertainment, food, and friends.' },
+  thank_you:     { subject: 'Thanks for attending!',             ctaText: 'View Photos',      message: 'We had an absolute blast having you at our event. Your presence made it truly special. We\'d love to hear what you thought!' },
+  last_chance:   { subject: 'Last chance — tickets selling out!', ctaText: 'Book Now',          message: 'Only a few tickets left! Don\'t miss out on this incredible experience. Grab your tickets today before they\'re gone.' },
+  announcement:  { subject: 'New event announcement!',           ctaText: 'Explore the Event', message: 'We\'re thrilled to announce an exciting new event. Be among the first to grab your tickets at our special early-bird price.' },
+  re_engagement: { subject: 'We miss you!',                      ctaText: 'See What\'s New',   message: 'It\'s been a while since you\'ve been to one of our events. We\'ve got some amazing things happening this season and we\'d love to see you back.' },
+  plain:         { subject: '',                                   ctaText: '',                  message: '' },
+};
+
 const CSS = `
 .crm-tabs { display: flex; gap: 4px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 100px; padding: 4px; margin-bottom: 28px; width: fit-content; }
 .crm-tab { padding: 7px 20px; border-radius: 100px; border: none; background: transparent; font-size: 13px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--muted); cursor: pointer; transition: all 0.15s; }
@@ -131,6 +149,9 @@ const CSS = `
 .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-cancel { padding: 11px 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--muted); transition: all 0.15s; }
 .btn-cancel:hover { border-color: var(--black); color: var(--black); }
+.btn-preview { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black); transition: all 0.15s; }
+.btn-preview:hover { border-color: var(--black); }
+.btn-preview:disabled { opacity: 0.5; cursor: not-allowed; }
 .confirm-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .confirm-warn { font-size: 13px; color: #b45309; font-weight: 700; }
 .result-banner { border-radius: 12px; padding: 14px 18px; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
@@ -138,8 +159,29 @@ const CSS = `
 .result-banner.error   { background: rgba(239,68,68,0.1); border: 1.5px solid #ef4444; color: #ef4444; }
 .skel { border-radius: 8px; background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-@media(max-width:640px) { .tiles { grid-template-columns: 1fr 1fr; } .seg-grid { grid-template-columns: 1fr; } .date-range { flex-wrap: wrap; } }
-@media(max-width:480px) { .tiles { grid-template-columns: 1fr; } }
+.tpl-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.tpl-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 12px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.15s; text-align: center; }
+.tpl-card:hover { border-color: var(--black); }
+.tpl-card.selected { border-color: var(--black); background: var(--bg); }
+.tpl-icon { font-size: 28px; line-height: 1; }
+.tpl-label { font-size: 12px; font-weight: 700; color: var(--black); }
+.tpl-desc { font-size: 10px; color: var(--muted); font-weight: 500; line-height: 1.3; }
+.color-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.color-picker { width: 40px; height: 36px; border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; padding: 2px; background: var(--surface); }
+.color-hex { font-size: 13px; font-weight: 600; color: var(--muted); font-family: monospace; }
+.preview-frame { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; background: #f5f5f3; min-height: 400px; }
+.campaign-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.campaign-table th { text-align: left; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 10px; border-bottom: 1.5px solid var(--border); background: var(--bg); }
+.campaign-table td { padding: 10px 10px; border-top: 1px solid var(--border); color: var(--black); font-weight: 500; }
+.campaign-table tr:last-child td { border-bottom: none; }
+.stat-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 100px; margin-right: 4px; }
+.stat-sent    { background: #e8f4fd; color: #2563eb; }
+.stat-opened  { background: #f0fdf4; color: #16a34a; }
+.stat-clicked { background: #fef3c7; color: #b45309; }
+.stat-conv    { background: #ede9fe; color: #7c3aed; }
+@media(max-width:768px) { .tpl-grid { grid-template-columns: 1fr 1fr; } }
+@media(max-width:640px) { .tiles { grid-template-columns: 1fr 1fr; } .seg-grid { grid-template-columns: 1fr; } .tpl-grid { grid-template-columns: 1fr 1fr; } .date-range { flex-wrap: wrap; } }
+@media(max-width:480px) { .tiles { grid-template-columns: 1fr; } .tpl-grid { grid-template-columns: 1fr; } }
 `;
 
 export default function CRMPage() {
@@ -154,15 +196,28 @@ export default function CRMPage() {
   const [rLoading,   setRLoading]  = useState(true);
 
   // Email
-  const [segment,    setSegment]   = useState('all');
-  const [selEvent,   setSelEvent]  = useState('');
-  const [subject,    setSubject]   = useState('');
-  const [message,    setMessage]   = useState('');
-  const [segData,    setSegData]   = useState(null);
-  const [segLoading, setSegLoad]   = useState(false);
-  const [sending,    setSending]   = useState(false);
-  const [sendResult, setResult]    = useState(null);
-  const [confirm,    setConfirm]   = useState(false);
+  const [segment,      setSegment]     = useState('all');
+  const [selEvent,     setSelEvent]    = useState('');
+  const [template,     setTemplate]    = useState('promotion');
+  const [subject,      setSubject]     = useState(TEMPLATE_DEFAULTS.promotion.subject);
+  const [message,      setMessage]     = useState(TEMPLATE_DEFAULTS.promotion.message);
+  const [ctaText,      setCtaText]     = useState(TEMPLATE_DEFAULTS.promotion.ctaText);
+  const [ctaUrl,       setCtaUrl]      = useState('');
+  const [logoUrl,      setLogoUrl]     = useState('');
+  const [primaryColor, setColor]       = useState('#0a9e7f');
+  const [footerText,   setFooterText]  = useState('');
+  const [segData,      setSegData]     = useState(null);
+  const [segLoading,   setSegLoad]     = useState(false);
+  const [sending,      setSending]     = useState(false);
+  const [sendResult,   setResult]      = useState(null);
+  const [confirm,      setConfirm]     = useState(false);
+  const [previewHtml,  setPreviewHtml] = useState('');
+  const [previewing,   setPreviewing]  = useState(false);
+  const previewRef = useRef(null);
+
+  // Campaigns
+  const [campaigns,    setCampaigns]   = useState(null);
+  const [campLoading,  setCampLoad]    = useState(false);
 
   const loadReports = useCallback(async (p, cf, ct) => {
     if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
@@ -187,6 +242,15 @@ export default function CRMPage() {
     setSegLoad(false);
   }, []);
 
+  const loadCampaigns = useCallback(async () => {
+    if (!localStorage.getItem('organiser_id')) return;
+    setCampLoad(true);
+    const res  = await orgFetch('/api/organiser/crm/campaigns').catch(() => null);
+    const json = res ? await res.json() : {};
+    setCampaigns(json.campaigns || []);
+    setCampLoad(false);
+  }, []);
+
   useEffect(() => {
     const orgId = localStorage.getItem('organiser_id');
     if (!orgId) { router.push('/organiser/login'); return; }
@@ -195,6 +259,7 @@ export default function CRMPage() {
 
   useEffect(() => {
     if (tab === 'email' && !segData) loadSegments();
+    if (tab === 'campaigns' && !campaigns) loadCampaigns();
   }, [tab]);
 
   function handlePeriod(p) {
@@ -206,22 +271,70 @@ export default function CRMPage() {
     if (customFrom && customTo) loadReports('custom', customFrom, customTo);
   }
 
+  function handleTemplateChange(key) {
+    setTemplate(key);
+    const defaults = TEMPLATE_DEFAULTS[key] || {};
+    setSubject(defaults.subject || '');
+    setMessage(defaults.message || '');
+    setCtaText(defaults.ctaText || '');
+    setResult(null);
+    setConfirm(false);
+    setPreviewHtml('');
+  }
+
+  async function handlePreview() {
+    setPreviewing(true);
+    try {
+      const eventName = segment === 'per_event' && selEvent
+        ? segData?.events?.find(e => e.id === selEvent)?.name
+        : null;
+
+      const res = await orgFetch('/api/organiser/crm/preview-email', {
+        method: 'POST',
+        body: JSON.stringify({
+          template: template !== 'plain' ? template : 'promotion',
+          logo_url: logoUrl,
+          primary_color: primaryColor,
+          subject,
+          message,
+          cta_text: ctaText,
+          cta_url: ctaUrl,
+          footer_text: footerText,
+          event_name: eventName,
+        }),
+      });
+      const data = await res.json();
+      setPreviewHtml(data.html || '');
+    } catch {
+      setPreviewHtml('<p>Preview failed to load.</p>');
+    }
+    setPreviewing(false);
+  }
+
   async function handleSend() {
     if (!confirm) { setConfirm(true); return; }
     setSending(true);
     setResult(null);
     setConfirm(false);
     try {
-      const res  = await orgFetch('/api/organiser/crm/send-email', {
+      const res = await orgFetch('/api/organiser/crm/send-email', {
         method:  'POST',
         body:    JSON.stringify({
           segment,
           event_id: segment === 'per_event' ? selEvent : undefined,
           subject,
           message,
+          template,
+          logo_url: logoUrl || undefined,
+          primary_color: primaryColor !== '#0a9e7f' ? primaryColor : undefined,
+          cta_text: ctaText || undefined,
+          cta_url:  ctaUrl || undefined,
+          footer_text: footerText || undefined,
         }),
       });
       setResult(await res.json());
+      // Refresh campaigns if on that tab
+      if (campaigns) loadCampaigns();
     } catch (err) {
       setResult({ error: err.message });
     }
@@ -252,6 +365,9 @@ export default function CRMPage() {
         </button>
         <button className={`crm-tab ${tab === 'email' ? 'active' : ''}`} onClick={() => setTab('email')}>
           Email Guests
+        </button>
+        <button className={`crm-tab ${tab === 'campaigns' ? 'active' : ''}`} onClick={() => setTab('campaigns')}>
+          Campaigns
         </button>
       </div>
 
@@ -347,15 +463,15 @@ export default function CRMPage() {
             <div className={`result-banner ${sendResult.error ? 'error' : 'success'}`}>
               {sendResult.error
                 ? `Error: ${sendResult.error}`
-                : `✓ Sent to ${sendResult.sent} of ${sendResult.total} recipients${sendResult.failed ? ` (${sendResult.failed} failed)` : ''}.`
+                : `Sent to ${sendResult.sent} of ${sendResult.total} recipients${sendResult.failed ? ` (${sendResult.failed} failed)` : ''}.`
               }
             </div>
           )}
 
-          {/* Segment selection */}
+          {/* Step 1: Segment selection */}
           <div className="section-card">
-            <div className="section-title">Select Audience</div>
-            <div className="section-sub">Choose which segment of your attendees to email. Recipient counts are shown on each card.</div>
+            <div className="section-title">1. Select Audience</div>
+            <div className="section-sub">Choose which segment of your attendees to email.</div>
 
             <div className="seg-grid">
               {SEGMENTS.map(s => {
@@ -374,7 +490,7 @@ export default function CRMPage() {
                       <div className="seg-desc">{s.desc}</div>
                     </div>
                     <span className="seg-count">
-                      {segLoading ? '…' : c !== undefined ? c : '—'}
+                      {segLoading ? '...' : c !== undefined ? c : '--'}
                     </span>
                   </div>
                 );
@@ -394,7 +510,7 @@ export default function CRMPage() {
                     value={selEvent}
                     onChange={e => { setSelEvent(e.target.value); setResult(null); setConfirm(false); }}
                   >
-                    <option value="" disabled>— Choose an event —</option>
+                    <option value="" disabled>-- Choose an event --</option>
                     {segData.events.map(ev => (
                       <option key={ev.id} value={ev.id}>{ev.name} ({ev.count} attendee{ev.count !== 1 ? 's' : ''})</option>
                     ))}
@@ -404,14 +520,63 @@ export default function CRMPage() {
             )}
           </div>
 
-          {/* Compose */}
+          {/* Step 2: Choose Template */}
           <div className="section-card">
-            <div className="section-title">Compose Email</div>
-            <div className="section-sub">Write your message. Every recipient in the selected segment will receive the same email.</div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: 'var(--green-dim)', border: '1.5px solid var(--green)', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: 'var(--green)', lineHeight: 1.5, fontWeight: 500 }}>
-              <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>ℹ️</span>
-              <span><strong>Marketing consent is enforced automatically.</strong> Only attendees who opted in to promotional communications at checkout will receive this email. Those who did not consent are excluded from all segments.</span>
+            <div className="section-title">2. Choose Template</div>
+            <div className="section-sub">Pick a template style for your email.</div>
+
+            <div className="tpl-grid">
+              {TEMPLATES.map(t => (
+                <div
+                  key={t.key}
+                  className={`tpl-card ${template === t.key ? 'selected' : ''}`}
+                  onClick={() => handleTemplateChange(t.key)}
+                >
+                  <span className="tpl-icon">{t.icon}</span>
+                  <div className="tpl-label">{t.label}</div>
+                  <div className="tpl-desc">{t.desc}</div>
+                </div>
+              ))}
             </div>
+          </div>
+
+          {/* Step 3: Customize */}
+          <div className="section-card">
+            <div className="section-title">3. Customize &amp; Compose</div>
+            <div className="section-sub">Personalize your email. All fields below are included in the template.</div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: 'var(--green-dim)', border: '1.5px solid var(--green)', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: 'var(--green)', lineHeight: 1.5, fontWeight: 500 }}>
+              <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>i</span>
+              <span><strong>Marketing consent is enforced automatically.</strong> Only attendees who opted in to promotional communications at checkout will receive this email. Unsubscribed recipients are also excluded.</span>
+            </div>
+
+            {template !== 'plain' && (
+              <>
+                {/* Logo URL */}
+                <label className="field-label">Logo URL (optional)</label>
+                <input
+                  type="url"
+                  className="compose-input"
+                  placeholder="https://example.com/your-logo.png"
+                  value={logoUrl}
+                  onChange={e => { setLogoUrl(e.target.value); setPreviewHtml(''); }}
+                  disabled={sending}
+                />
+
+                {/* Primary Color */}
+                <label className="field-label">Accent Color</label>
+                <div className="color-row">
+                  <input
+                    type="color"
+                    className="color-picker"
+                    value={primaryColor}
+                    onChange={e => { setColor(e.target.value); setPreviewHtml(''); }}
+                    disabled={sending}
+                  />
+                  <span className="color-hex">{primaryColor}</span>
+                </div>
+              </>
+            )}
 
             <label className="field-label">Subject Line</label>
             <input
@@ -419,7 +584,7 @@ export default function CRMPage() {
               className="compose-input"
               placeholder="e.g. Exciting news from Trackage Scheme!"
               value={subject}
-              onChange={e => { setSubject(e.target.value); setResult(null); setConfirm(false); }}
+              onChange={e => { setSubject(e.target.value); setResult(null); setConfirm(false); setPreviewHtml(''); }}
               disabled={sending}
             />
 
@@ -428,14 +593,81 @@ export default function CRMPage() {
               className="compose-textarea"
               placeholder="Write your message here..."
               value={message}
-              onChange={e => { setMessage(e.target.value); setResult(null); setConfirm(false); }}
+              onChange={e => { setMessage(e.target.value); setResult(null); setConfirm(false); setPreviewHtml(''); }}
               disabled={sending}
             />
+
+            {template !== 'plain' && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div>
+                    <label className="field-label">Button Text (optional)</label>
+                    <input
+                      type="text"
+                      className="compose-input"
+                      placeholder="e.g. Get Tickets"
+                      value={ctaText}
+                      onChange={e => { setCtaText(e.target.value); setPreviewHtml(''); }}
+                      disabled={sending}
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label">Button URL</label>
+                    <input
+                      type="url"
+                      className="compose-input"
+                      placeholder="https://shop.trackagescheme.com/events/..."
+                      value={ctaUrl}
+                      onChange={e => { setCtaUrl(e.target.value); setPreviewHtml(''); }}
+                      disabled={sending}
+                    />
+                  </div>
+                </div>
+
+                <label className="field-label">Footer Text (optional)</label>
+                <input
+                  type="text"
+                  className="compose-input"
+                  placeholder="e.g. See you there!"
+                  value={footerText}
+                  onChange={e => { setFooterText(e.target.value); setPreviewHtml(''); }}
+                  disabled={sending}
+                />
+              </>
+            )}
+
+            {/* Preview */}
+            {template !== 'plain' && (
+              <div style={{ marginBottom: 16 }}>
+                <button className="btn-preview" onClick={handlePreview} disabled={previewing || !subject.trim()}>
+                  {previewing ? 'Loading preview...' : 'Preview Email'}
+                </button>
+              </div>
+            )}
+
+            {previewHtml && (
+              <div style={{ marginBottom: 20 }}>
+                <label className="field-label" style={{ marginBottom: 10 }}>Email Preview</label>
+                <iframe
+                  ref={previewRef}
+                  srcDoc={previewHtml}
+                  className="preview-frame"
+                  title="Email Preview"
+                  sandbox="allow-same-origin"
+                  onLoad={() => {
+                    if (previewRef.current) {
+                      const doc = previewRef.current.contentDocument;
+                      if (doc?.body) previewRef.current.style.height = (doc.body.scrollHeight + 40) + 'px';
+                    }
+                  }}
+                />
+              </div>
+            )}
 
             <div className="email-footer">
               <div className="recipient-hint">
                 {count === null
-                  ? 'Loading recipients…'
+                  ? 'Loading recipients...'
                   : count === 0
                   ? 'No recipients in this segment'
                   : <><span className="recipient-count">{count}</span> recipient{count !== 1 ? 's' : ''} will receive this email</>
@@ -450,10 +682,72 @@ export default function CRMPage() {
                 </div>
               ) : (
                 <button className="btn-send" onClick={handleSend} disabled={!canSend}>
-                  {sending ? 'Sending…' : `Send to ${count ?? 0} Recipient${count !== 1 ? 's' : ''}`}
+                  {sending ? 'Sending...' : `Send to ${count ?? 0} Recipient${count !== 1 ? 's' : ''}`}
                 </button>
               )}
             </div>
+          </div>
+        </>
+      )}
+
+      {/* ─── CAMPAIGNS TAB ─── */}
+      {tab === 'campaigns' && (
+        <>
+          <div className="section-card">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <div className="section-title">Campaign History</div>
+                <div className="section-sub" style={{ marginBottom: 0 }}>Track opens, clicks, and conversions from your email campaigns.</div>
+              </div>
+              <button className="btn-preview" onClick={loadCampaigns} disabled={campLoading}>
+                {campLoading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+
+            {campLoading && !campaigns ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[1,2,3].map(i => <div key={i} className="skel" style={{ height: 48 }} />)}
+              </div>
+            ) : !campaigns?.length ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted)', fontSize: 14, fontWeight: 500 }}>
+                No campaigns sent yet. Go to "Email Guests" to send your first campaign.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="campaign-table">
+                  <thead>
+                    <tr>
+                      <th>Campaign</th>
+                      <th>Segment</th>
+                      <th>Date</th>
+                      <th>Sent</th>
+                      <th>Opened</th>
+                      <th>Clicked</th>
+                      <th>Converted</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {campaigns.map(c => (
+                      <tr key={c.id}>
+                        <td>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{c.subject}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                            {TEMPLATES.find(t => t.key === c.template)?.label || c.template}
+                            {c.event_name ? ` · ${c.event_name}` : ''}
+                          </div>
+                        </td>
+                        <td style={{ textTransform: 'capitalize' }}>{c.segment?.replace('_', ' ')}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{new Date(c.created_at).toLocaleDateString('en-MT', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                        <td><span className="stat-pill stat-sent">{c.sent_count}</span></td>
+                        <td><span className="stat-pill stat-opened">{c.opened_count} ({c.open_rate}%)</span></td>
+                        <td><span className="stat-pill stat-clicked">{c.clicked_count} ({c.click_rate}%)</span></td>
+                        <td><span className="stat-pill stat-conv">{c.converted_count} ({c.conv_rate}%)</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </>
       )}
