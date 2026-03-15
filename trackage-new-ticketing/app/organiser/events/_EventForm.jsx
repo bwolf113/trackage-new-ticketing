@@ -234,11 +234,12 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
 
   // Google Places autocomplete for venue — callback ref so it re-attaches when venue is cleared
   const pacAttached = useRef(false);
+  const [pacFailed, setPacFailed] = useState(false);
   const venueContainerRef = useCallback((node) => {
     if (node === null) { pacAttached.current = false; return; }
     if (pacAttached.current) return;
     const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
-    if (!key) return;
+    if (!key) { setPacFailed(true); return; }
     async function init() {
       if (!window.google) {
         await new Promise((resolve, reject) => {
@@ -266,7 +267,7 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
         setEv('venue_maps_url', place.googleMapsURI || '');
       });
     }
-    init().catch(console.error);
+    init().catch(() => setPacFailed(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function setEv(field, value) { setEvent(e => ({ ...e, [field]: value })); }
@@ -410,7 +411,7 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
               </div>
               <div className="form-group">
                 <label>Venue Name</label>
-                {process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ? (
+                {process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY && !pacFailed ? (
                   event.venue_name ? (
                     <div className="venue-chip">
                       <span className="venue-chip-name">📍 {event.venue_name}</span>

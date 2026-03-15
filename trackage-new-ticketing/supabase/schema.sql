@@ -51,7 +51,7 @@ create table if not exists events (
   vat_permit       text,
   booking_fee_pct  numeric(5,4) not null default 0,  -- e.g. 0.05 for 5%
   status           text not null default 'draft'
-                     check (status in ('draft','active','cancelled','ended')),
+                     check (status in ('draft','published','sold_out','cancelled','ended')),
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
