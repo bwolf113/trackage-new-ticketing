@@ -27,7 +27,7 @@ export default function OrganiserLayout({ children }) {
   useEffect(() => {
     if (isAuthPage) return;
     const stored = localStorage.getItem('sidebar_org_collapsed');
-    if (stored === 'true') setCollapsed(true);
+    if (stored === 'true' && window.innerWidth >= 769) setCollapsed(true);
 
     checkAuth();
   }, [pathname]);
@@ -67,6 +67,7 @@ export default function OrganiserLayout({ children }) {
   }
 
   function toggleCollapse() {
+    if (window.innerWidth < 769) { setMobileOpen(false); return; }
     const next = !collapsed;
     setCollapsed(next);
     localStorage.setItem('sidebar_org_collapsed', String(next));
@@ -122,6 +123,7 @@ export default function OrganiserLayout({ children }) {
           }
           .ol-menu-btn { display: none !important; }
           .ol-content { padding: 28px 32px; }
+          .ol-collapse { display: flex; }
         }
 
         /* ── Mobile extras ───────────────────────────────────────────── */
@@ -130,7 +132,6 @@ export default function OrganiserLayout({ children }) {
           .ol-overlay.show { display: block; }
           .ol-content { padding: 20px 16px; width: 100%; box-sizing: border-box; }
           .ol-topbar { padding: 0 16px; }
-          .ol-collapse { display: none; }
         }
 
         .ol-logo {
@@ -146,7 +147,7 @@ export default function OrganiserLayout({ children }) {
         .ol-collapse {
           flex-shrink: 0; background: none; border: 1px solid rgba(255,255,255,0.15);
           color: rgba(255,255,255,0.45); border-radius: 5px; width: 24px; height: 24px;
-          cursor: pointer; display: flex; align-items: center; justify-content: center;
+          cursor: pointer; display: none; align-items: center; justify-content: center;
           font-size: 10px; transition: all 0.15s;
         }
         .ol-collapse:hover { background: rgba(255,255,255,0.08); color: #fff; }

@@ -67,13 +67,11 @@ body { font-family: var(--sans); background: var(--white); color: var(--text); -
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 40px; height: 64px;
-  background: transparent;
+  background: #fff;
   border-bottom: 1px solid transparent;
-  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
-.nav.scrolled { background: rgba(255,255,255,0.96); backdrop-filter: blur(12px); border-color: var(--border); box-shadow: 0 1px 20px rgba(0,0,0,0.06); }
-.nav:not(.scrolled) .nav-link { color: rgba(255,255,255,0.85); }
-.nav:not(.scrolled) .nav-link:hover { color: #fff; }
+.nav.scrolled { border-color: var(--border); box-shadow: 0 1px 20px rgba(0,0,0,0.06); }
 .nav-logo {
   font-family: var(--sans); font-size: 17px; font-weight: 700;
   color: var(--black); text-decoration: none; letter-spacing: -0.02em;
@@ -106,6 +104,7 @@ body { font-family: var(--sans); background: var(--white); color: var(--text); -
 
 /* ── HERO ── */
 .hero {
+  margin-top: 64px;
   position: relative; overflow: hidden;
   min-height: 88vh; display: flex; align-items: flex-end;
   background: var(--black);
@@ -143,7 +142,7 @@ body { font-family: var(--sans); background: var(--white); color: var(--text); -
 }
 .hero-content {
   position: relative; z-index: 2;
-  padding: 120px 40px 56px;
+  padding: 60px 40px 56px;
   width: 100%; max-width: 900px;
   animation: fadeUp 0.8s ease both;
 }
@@ -469,7 +468,7 @@ body { font-family: var(--sans); background: var(--white); color: var(--text); -
   .nav { padding: 0 20px; }
   .nav-links { display: none; }
   .nav-hamburger { display: block; }
-  .hero-content { padding: 100px 20px 44px; }
+  .hero-content { padding: 40px 20px 44px; }
   .hero-price-tag { display: none; }
   .section { padding: 48px 20px; }
   .stats-bar { padding: 32px 20px; }
@@ -483,7 +482,7 @@ body { font-family: var(--sans); background: var(--white); color: var(--text); -
   .filter-row { gap: 6px; }
   .search-bar { min-width: 100%; max-width: 100%; order: -1; }
   .filter-row { flex-wrap: wrap; }
-  .hero-content { padding: 96px 16px 40px; }
+  .hero-content { padding: 32px 16px 40px; }
   .section { padding: 40px 16px; }
   .stats-bar { padding: 28px 16px; }
   .newsletter { padding: 40px 16px; }
@@ -726,7 +725,7 @@ export default function HomePage() {
       {/* ── NAVBAR ── */}
       <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
         <Link href="/" className="nav-logo">
-          <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '32px', width: 'auto', display: 'block', filter: scrolled ? 'brightness(0)' : 'none' }} />
+          <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '32px', width: 'auto', display: 'block', filter: 'invert(1)' }} />
         </Link>
 
         <div className="nav-links">
@@ -736,10 +735,10 @@ export default function HomePage() {
         </div>
 
         <div className="nav-right">
-          <Link href="/organiser/login" className="nav-login-btn" style={scrolled ? { background: 'transparent', color: 'var(--black)', border: '1.5px solid var(--border)' } : { background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1.5px solid rgba(255,255,255,0.35)' }}>
+          <Link href="/organiser/login" className="nav-login-btn" style={{ background: 'transparent', color: 'var(--black)', border: '1.5px solid var(--border)' }}>
             Sign in
           </Link>
-          <Link href="/organiser/signup" className="nav-login-btn" style={scrolled ? {} : { background: '#fff', color: 'var(--black)' }}>
+          <Link href="/organiser/signup" className="nav-login-btn">
             Sell Tickets
           </Link>
         </div>
@@ -747,11 +746,11 @@ export default function HomePage() {
         <button className="nav-hamburger" aria-label="Menu" onClick={() => setMobileNavOpen(v => !v)}>
           {mobileNavOpen ? (
             <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-              <path d="M5 5l12 12M17 5L5 17" stroke={scrolled ? '#111' : '#fff'} strokeWidth="1.8" strokeLinecap="round"/>
+              <path d="M5 5l12 12M17 5L5 17" stroke="#111" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
           ) : (
             <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-              <path d="M3 6h16M3 11h16M3 16h16" stroke={scrolled ? '#111' : '#fff'} strokeWidth="1.8" strokeLinecap="round"/>
+              <path d="M3 6h16M3 11h16M3 16h16" stroke="#111" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
           )}
         </button>

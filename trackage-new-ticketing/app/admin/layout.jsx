@@ -23,7 +23,7 @@ export default function AdminLayout({ children }) {
 
   useEffect(() => {
     const stored = localStorage.getItem('sidebar_collapsed');
-    if (stored === 'true') setCollapsed(true);
+    if (stored === 'true' && window.innerWidth >= 769) setCollapsed(true);
   }, []);
 
   useEffect(() => {
@@ -33,6 +33,7 @@ export default function AdminLayout({ children }) {
   }, [pathname]);
 
   function toggleCollapse() {
+    if (window.innerWidth < 769) { setMobileOpen(false); return; }
     const next = !collapsed;
     setCollapsed(next);
     localStorage.setItem('sidebar_collapsed', String(next));
@@ -81,7 +82,7 @@ export default function AdminLayout({ children }) {
         .al-collapse {
           flex-shrink: 0; background: none; border: 1px solid rgba(255,255,255,0.15);
           color: rgba(255,255,255,0.45); border-radius: 5px; width: 24px; height: 24px;
-          cursor: pointer; display: flex; align-items: center; justify-content: center;
+          cursor: pointer; display: none; align-items: center; justify-content: center;
           font-size: 10px; transition: all 0.15s;
         }
         .al-collapse:hover { background: rgba(255,255,255,0.08); color: #fff; }
@@ -120,12 +121,12 @@ export default function AdminLayout({ children }) {
           .al-main { margin-left: ${sidebarW}; transition: margin-left 0.2s ease; }
           .al-menu-btn { display: none !important; }
           .al-content { padding: 28px 32px; }
+          .al-collapse { display: flex; }
         }
         @media (max-width: 768px) {
           .al-overlay.show { display: block; }
           .al-content { padding: 20px 16px; }
           .al-topbar { padding: 0 16px; }
-          .al-collapse { display: none; }
         }
       `}</style>
 
