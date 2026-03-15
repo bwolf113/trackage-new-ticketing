@@ -5,8 +5,7 @@ import {
   ActivityIndicator, Alert, ScrollView, Image,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
-
-const GREEN = '#0a9e7f';
+import { colors, fonts } from '../../lib/theme';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -32,7 +31,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#000' }}
+      style={{ flex: 1, backgroundColor: colors.black }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -52,7 +51,7 @@ export default function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="you@example.com"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -64,7 +63,7 @@ export default function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="••••••••"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -78,7 +77,7 @@ export default function LoginScreen() {
             activeOpacity={0.85}
           >
             {loading
-              ? <ActivityIndicator color="#fff" />
+              ? <ActivityIndicator color={colors.white} />
               : <Text style={styles.btnText}>Sign in</Text>
             }
           </TouchableOpacity>
@@ -107,17 +106,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   dashboard: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -125,23 +124,24 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
+    fontFamily: fonts.semiBold,
+    color: colors.black,
     marginBottom: 6,
     marginTop: 14,
   },
   input: {
     borderWidth: 1.5,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#fff',
+    fontFamily: fonts.regular,
+    color: colors.black,
+    backgroundColor: colors.surface,
   },
   btn: {
-    backgroundColor: GREEN,
+    backgroundColor: colors.green,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -151,14 +151,15 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   btnText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   hint: {
     textAlign: 'center',
-    color: '#9ca3af',
+    color: colors.muted,
     fontSize: 12,
+    fontFamily: fonts.regular,
     marginTop: 24,
   },
 });

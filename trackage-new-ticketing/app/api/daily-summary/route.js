@@ -55,7 +55,7 @@ export async function POST(req) {
   }
 
   let sent = 0;
-  const dateLabel = yesterday.toLocaleDateString('en-MT', { weekday: 'long', day: 'numeric', month: 'long' });
+  const dateLabel = yesterday.toLocaleDateString('en-MT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Malta' });
 
   for (const [, org] of Object.entries(byOrg)) {
     const orderRows = org.orders.map(o => `

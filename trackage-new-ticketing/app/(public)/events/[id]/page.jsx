@@ -9,23 +9,24 @@ import { supabase } from '../../../../lib/supabase';
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 }
+const MT = { timeZone: 'Europe/Malta' };
 function fmtFull(dt) {
   if (!dt) return '';
   return new Date(dt).toLocaleDateString('en-MT', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', ...MT,
   });
 }
 function fmtTime(dt) {
   if (!dt) return '';
-  return new Date(dt).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit' });
+  return new Date(dt).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit', ...MT });
 }
 function fmtMonth(dt) {
   if (!dt) return '';
-  return new Date(dt).toLocaleDateString('en-MT', { month: 'short' }).toUpperCase();
+  return new Date(dt).toLocaleDateString('en-MT', { month: 'short', ...MT }).toUpperCase();
 }
 function fmtDay(dt) {
   if (!dt) return '';
-  return new Date(dt).getDate();
+  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', ...MT });
 }
 function validatePhone(raw) {
   const n = raw.replace(/[\s\-().]/g, '');

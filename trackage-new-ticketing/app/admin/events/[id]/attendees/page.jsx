@@ -220,7 +220,7 @@ export default function AttendeesPage() {
                         <div>
                           <div className="checkin-done">✓ Checked in</div>
                           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                            {new Date(a.checked_in_at).toLocaleString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            {new Date(a.checked_in_at).toLocaleString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Malta' })}
                           </div>
                           <button
                             className="btn-undo"

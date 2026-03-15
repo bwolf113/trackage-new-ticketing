@@ -44,17 +44,18 @@ async function getTicketData(token) {
   return order;
 }
 
+const MT = { timeZone: 'Europe/Malta' };
 function fmtDate(dt) {
   if (!dt) return '';
-  return new Date(dt).toLocaleDateString('en-MT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(dt).toLocaleDateString('en-MT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', ...MT });
 }
 function fmtTime(dt) {
   if (!dt) return '';
-  return new Date(dt).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit' });
+  return new Date(dt).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit', ...MT });
 }
 function fmtDateTime(dt) {
   if (!dt) return '';
-  return new Date(dt).toLocaleString('en-MT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return new Date(dt).toLocaleString('en-MT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', ...MT });
 }
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);

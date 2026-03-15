@@ -2,6 +2,18 @@ import { Slot, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import * as SplashScreen from 'expo-splash-screen';
+import { colors } from '../lib/theme';
+
+SplashScreen.preventAutoHideAsync();
 
 function RootGuard() {
   const { session, loading } = useAuth();
@@ -20,8 +32,8 @@ function RootGuard() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#0a9e7f" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface }}>
+        <ActivityIndicator size="large" color={colors.green} />
       </View>
     );
   }
@@ -30,6 +42,20 @@ function RootGuard() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
+
   return (
     <AuthProvider>
       <RootGuard />

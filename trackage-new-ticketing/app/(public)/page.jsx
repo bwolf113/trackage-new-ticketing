@@ -8,22 +8,22 @@ import { supabase } from '../../lib/supabase';
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 }
+const MT = { timeZone: 'Europe/Malta' };
 function fmtDate(dt) {
   if (!dt) return '';
-  const d = new Date(dt);
-  return d.toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(dt).toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', ...MT });
 }
 function fmtMonth(dt) {
   if (!dt) return '';
-  return new Date(dt).toLocaleDateString('en-MT', { month: 'short' }).toUpperCase();
+  return new Date(dt).toLocaleDateString('en-MT', { month: 'short', ...MT }).toUpperCase();
 }
 function fmtDay(dt) {
   if (!dt) return '';
-  return new Date(dt).getDate();
+  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', ...MT });
 }
 function fmtTime(dt) {
   if (!dt) return '';
-  return new Date(dt).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit' });
+  return new Date(dt).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit', ...MT });
 }
 function lowestPrice(tickets) {
   if (!tickets?.length) return null;

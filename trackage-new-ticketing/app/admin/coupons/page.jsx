@@ -7,9 +7,10 @@ import { supabase } from '../../../lib/supabase';
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 }
+const MT = { timeZone: 'Europe/Malta' };
 function fmtDate(dt) {
   if (!dt) return '—';
-  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric', ...MT });
 }
 function isExpired(dt) {
   if (!dt) return false;

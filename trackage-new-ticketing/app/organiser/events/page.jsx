@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { orgFetch } from '../../../lib/organiserFetch';
 
+const MT = { timeZone: 'Europe/Malta' };
 function fmtDate(dt) {
   if (!dt) return '—';
-  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric', ...MT });
 }
 
 const CSS = `

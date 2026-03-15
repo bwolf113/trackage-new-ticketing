@@ -1196,7 +1196,7 @@ function EventPreview({ event, onClose }) {
     if (!dt) return null;
     return new Date(dt).toLocaleDateString('en-MT', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Malta',
     });
   }
 
@@ -1419,7 +1419,7 @@ export default function EventsPage() {
 
   function formatDate(dt) {
     if (!dt) return '—';
-    return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Malta' });
   }
 
   return (

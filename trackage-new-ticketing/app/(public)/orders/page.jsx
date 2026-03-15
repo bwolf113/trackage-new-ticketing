@@ -8,10 +8,11 @@ import { supabase } from '../../../lib/supabase';
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 }
+const MT = { timeZone: 'Europe/Malta' };
 function fmtDate(dt) {
   if (!dt) return '';
   return new Date(dt).toLocaleDateString('en-MT', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', ...MT,
   });
 }
 

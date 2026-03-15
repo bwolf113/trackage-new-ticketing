@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useAuth } from '../../lib/AuthContext';
+import { colors, fonts } from '../../lib/theme';
 
 export default function AppLayout() {
   const { signOut } = useAuth();
@@ -8,9 +9,9 @@ export default function AppLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: '#000' },
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: '700' },
+        headerStyle: { backgroundColor: colors.black },
+        headerTintColor: colors.white,
+        headerTitleStyle: { fontFamily: fonts.bold },
         headerBackTitle: 'Back',
         headerRight: () => (
           <TouchableOpacity onPress={signOut} style={styles.signOutBtn}>
@@ -28,5 +29,5 @@ export default function AppLayout() {
 
 const styles = StyleSheet.create({
   signOutBtn: { marginRight: 4, padding: 4 },
-  signOutText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  signOutText: { color: colors.white, fontSize: 14, fontFamily: fonts.semiBold },
 });

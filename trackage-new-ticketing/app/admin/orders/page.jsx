@@ -13,17 +13,18 @@ function fmtComp(n) {
   if (!n || n === 0) return '€0 (Free/Comp)';
   return fmt(n);
 }
+const MT = { timeZone: 'Europe/Malta' };
 function fmtDate(dt) {
   if (!dt) return '—';
   return new Date(dt).toLocaleDateString('en-MT', {
     day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    hour: '2-digit', minute: '2-digit', ...MT,
   });
 }
 function fmtDateShort(dt) {
   if (!dt) return '—';
   return new Date(dt).toLocaleDateString('en-MT', {
-    day: 'numeric', month: 'short', year: 'numeric',
+    day: 'numeric', month: 'short', year: 'numeric', ...MT,
   });
 }
 

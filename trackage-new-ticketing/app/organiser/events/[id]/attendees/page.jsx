@@ -12,9 +12,10 @@ function fmtComp(n) {
   if (!n || n === 0) return '€0 (Free/Comp)';
   return fmt(n);
 }
+const MT = { timeZone: 'Europe/Malta' };
 function fmtDate(dt) {
   if (!dt) return '—';
-  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric', ...MT });
 }
 
 const CSS = `
@@ -237,7 +238,7 @@ export default function OrgAttendeesPage() {
                         <div>
                           <div className="checkin-done">✓ Checked in</div>
                           <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 500, marginTop: 2 }}>
-                            {new Date(a.checked_in_at).toLocaleString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            {new Date(a.checked_in_at).toLocaleString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', ...MT })}
                           </div>
                           <button
                             className="btn-undo"

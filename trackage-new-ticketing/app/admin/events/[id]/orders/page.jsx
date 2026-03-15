@@ -12,17 +12,18 @@ function fmtComp(n) {
   if (!n || n === 0) return '€0 (Free/Comp)';
   return fmt(n);
 }
+const MT = { timeZone: 'Europe/Malta' };
 function fmtDate(dt) {
   if (!dt) return '—';
-  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', ...MT });
 }
 function fmtDateShort(dt) {
   if (!dt) return '—';
-  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric', ...MT });
 }
 function fmtEventDate(dt) {
   if (!dt) return '—';
-  return new Date(dt).toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(dt).toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', ...MT });
 }
 
 const CSS = `

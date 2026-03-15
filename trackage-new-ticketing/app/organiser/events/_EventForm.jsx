@@ -5,7 +5,46 @@ import Link from 'next/link';
 import { orgFetch } from '../../../lib/organiserFetch';
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
-function toLocalDT(s) { return s ? s.slice(0, 16) : ''; }
+
+const MALTA_TZ = 'Europe/Malta';
+
+// Convert UTC ISO string → Malta local datetime string for datetime-local inputs
+function toLocalDT(utcStr) {
+  if (!utcStr) return '';
+  const d = new Date(utcStr);
+  if (isNaN(d)) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MALTA_TZ,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(d);
+  const get = t => parts.find(p => p.type === t)?.value ?? '00';
+  const h = get('hour') === '24' ? '00' : get('hour');
+  return `${get('year')}-${get('month')}-${get('day')}T${h}:${get('minute')}`;
+}
+
+// Convert Malta local datetime string → UTC ISO string for storage
+function fromLocalDT(localStr) {
+  if (!localStr) return null;
+  const [yr, mo, da, hr, mi] = localStr.replace('T', '-').split(/[:\-]/).map(Number);
+  // Start with a UTC guess (treat input as UTC), then iteratively correct to find
+  // the UTC instant that corresponds to this Malta local time (handles DST correctly)
+  let utcMs = Date.UTC(yr, mo - 1, da, hr, mi);
+  for (let i = 0; i < 3; i++) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: MALTA_TZ,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(new Date(utcMs));
+    const get = t => parseInt(parts.find(p => p.type === t)?.value ?? '0');
+    const maltaMs = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'));
+    const wantedMs = Date.UTC(yr, mo - 1, da, hr, mi);
+    const diff = wantedMs - maltaMs;
+    if (Math.abs(diff) < 60000) break;
+    utcMs += diff;
+  }
+  return new Date(utcMs).toISOString();
+}
 
 const BLANK_TICKET = () => ({
   _id:        uid(),
@@ -338,7 +377,18 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
       return;
     }
     setVatError('');
-    onSave({ event, tickets, days: isMultiDay ? days : [] });
+    // Convert Malta local datetimes → UTC ISO before storing
+    const eventToSave = {
+      ...event,
+      start_time: fromLocalDT(event.start_time),
+      end_time:   fromLocalDT(event.end_time),
+    };
+    const ticketsToSave = tickets.map(t => ({
+      ...t,
+      sale_start: fromLocalDT(t.sale_start),
+      sale_end:   fromLocalDT(t.sale_end),
+    }));
+    onSave({ event: eventToSave, tickets: ticketsToSave, days: isMultiDay ? days : [] });
   }
 
   return (

@@ -5,10 +5,11 @@ import { supabase } from '../../../lib/supabase';
 import { adminFetch } from '../../../lib/adminFetch';
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
+const MT = { timeZone: 'Europe/Malta' };
 function fmtDate(dt) {
   if (!dt) return '—';
   return new Date(dt).toLocaleDateString('en-MT', {
-    day: 'numeric', month: 'short', year: 'numeric',
+    day: 'numeric', month: 'short', year: 'numeric', ...MT,
   });
 }
 function initials(name = '') {
