@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { orgFetch } from '../../../../../lib/organiserFetch';
 
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
@@ -17,29 +18,29 @@ function fmtDay(iso) {
   return `${d}/${m}`;
 }
 
-const COLORS = ['#0a9e7f', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#10b981', '#f97316'];
+const COLORS = ['#48C16E', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#10b981', '#f97316'];
 
 const CSS = `
-.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-mid); text-decoration: none; margin-bottom: 20px; }
-.back-link:hover { color: var(--text); }
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 500; text-decoration: none; margin-bottom: 20px; }
+.back-link:hover { color: var(--black); }
 .page-header { margin-bottom: 28px; }
-.page-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.page-sub { font-size: 13px; color: var(--text-mid); }
+.page-title { font-size: 24px; font-weight: 800; color: var(--black); margin-bottom: 4px; letter-spacing: -0.02em; }
+.page-sub { font-size: 14px; color: var(--muted); font-weight: 500; }
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 32px; }
-.tile { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; }
-.tile-label { font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
-.tile-value { font-size: 30px; font-weight: 700; line-height: 1; color: var(--text); }
-.tile-value.green { color: #0a9e7f; }
+.tile { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 20px 22px; }
+.tile-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+.tile-value { font-size: 30px; font-weight: 700; line-height: 1; color: var(--black); }
+.tile-value.green { color: var(--green); }
 .tile-value.blue  { color: #3b82f6; }
 .tile-value.purple{ color: #8b5cf6; }
-.chart-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
-.chart-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+.chart-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; }
+.chart-title { font-size: 15px; font-weight: 700; color: var(--black); letter-spacing: -0.01em; margin-bottom: 16px; }
 .chart-wrap { width: 100%; overflow-x: auto; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
-.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-mid); }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); font-weight: 500; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.empty-chart { text-align: center; padding: 48px 20px; color: #9ca3af; font-size: 14px; }
-.skel { border-radius: 6px; background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+.empty-chart { text-align: center; padding: 56px 20px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.skel { border-radius: 8px; background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 @media(max-width:640px) { .tiles { grid-template-columns: 1fr 1fr; } .tile-value { font-size: 24px; } }
 `;
@@ -87,7 +88,7 @@ function AreaChart({ data, valueKey, color, formatY }) {
       </defs>
       {/* grid */}
       {yTicks.map((t, i) => (
-        <line key={i} x1={PAD.left} x2={W - PAD.right} y1={t.y} y2={t.y} stroke="#f3f4f6" strokeWidth="1" />
+        <line key={i} x1={PAD.left} x2={W - PAD.right} y1={t.y} y2={t.y} stroke="#EBEDF0" strokeWidth="1" />
       ))}
       {/* area */}
       <path d={areaD} fill={`url(#${gradId})`} />
@@ -99,13 +100,13 @@ function AreaChart({ data, valueKey, color, formatY }) {
       ))}
       {/* y labels */}
       {yTicks.map((t, i) => (
-        <text key={i} x={PAD.left - 8} y={t.y + 4} textAnchor="end" fontSize="9" fill="#9ca3af" fontFamily="Inter,sans-serif">
+        <text key={i} x={PAD.left - 8} y={t.y + 4} textAnchor="end" fontSize="9" fill="#767C8C" fontFamily="Plus Jakarta Sans,sans-serif">
           {formatY(t.v)}
         </text>
       ))}
       {/* x labels */}
       {xLabelIdxs.map(i => (
-        <text key={i} x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="9" fill="#9ca3af" fontFamily="Inter,sans-serif">
+        <text key={i} x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="9" fill="#767C8C" fontFamily="Plus Jakarta Sans,sans-serif">
           {fmtDay(data[i].date)}
         </text>
       ))}
@@ -141,7 +142,7 @@ function MultiLineChart({ data, typeNames }) {
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block', minWidth: 280 }}>
       {/* grid */}
       {yTicks.map((t, i) => (
-        <line key={i} x1={PAD.left} x2={W - PAD.right} y1={t.y} y2={t.y} stroke="#f3f4f6" strokeWidth="1" />
+        <line key={i} x1={PAD.left} x2={W - PAD.right} y1={t.y} y2={t.y} stroke="#EBEDF0" strokeWidth="1" />
       ))}
       {/* lines */}
       {typeNames.map((name, ci) => {
@@ -158,13 +159,13 @@ function MultiLineChart({ data, typeNames }) {
       })}
       {/* y labels */}
       {yTicks.map((t, i) => (
-        <text key={i} x={PAD.left - 6} y={t.y + 4} textAnchor="end" fontSize="9" fill="#9ca3af" fontFamily="Inter,sans-serif">
+        <text key={i} x={PAD.left - 6} y={t.y + 4} textAnchor="end" fontSize="9" fill="#767C8C" fontFamily="Plus Jakarta Sans,sans-serif">
           {t.v}
         </text>
       ))}
       {/* x labels */}
       {xLabelIdxs.map(i => (
-        <text key={i} x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="9" fill="#9ca3af" fontFamily="Inter,sans-serif">
+        <text key={i} x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="9" fill="#767C8C" fontFamily="Plus Jakarta Sans,sans-serif">
           {fmtDay(data[i].date)}
         </text>
       ))}
@@ -180,10 +181,9 @@ export default function EventStatsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const organiser_id = localStorage.getItem('organiser_id');
-    if (!organiser_id) { router.push('/organiser/login'); return; }
+    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
 
-    fetch(`/api/organiser/events/${eventId}/stats?organiser_id=${organiser_id}`)
+    orgFetch(`/api/organiser/events/${eventId}/stats`)
       .then(r => r.json())
       .then(json => { setData(json); setLoading(false); })
       .catch(() => setLoading(false));
@@ -243,7 +243,7 @@ export default function EventStatsPage() {
             : <AreaChart
                 data={dailySales}
                 valueKey="tickets"
-                color="#0a9e7f"
+                color="#48C16E"
                 formatY={v => Math.round(v)}
               />
           }

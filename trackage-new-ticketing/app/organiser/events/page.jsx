@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { orgFetch } from '../../../lib/organiserFetch';
 
 function fmtDate(dt) {
   if (!dt) return '—';
@@ -11,32 +12,32 @@ function fmtDate(dt) {
 
 const CSS = `
 .ev-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
-.ev-title { font-size: 20px; font-weight: 700; color: var(--text); }
-.btn-create { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; text-decoration: none; transition: background 0.15s; }
-.btn-create:hover { background: var(--accent-dark); }
+.ev-title { font-size: 24px; font-weight: 800; color: var(--black); letter-spacing: -0.02em; }
+.btn-create { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; background: var(--black); color: var(--white); border: none; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
+.btn-create:hover { opacity: 0.8; }
 .search-bar { position: relative; margin-bottom: 20px; }
-.search-bar input { width: 100%; padding: 10px 14px 10px 36px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; background: var(--white); color: var(--text); }
-.search-bar input:focus { border-color: var(--accent); }
-.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-light); font-size: 14px; pointer-events: none; }
+.search-bar input { width: 100%; padding: 10px 14px 10px 36px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif; outline: none; background: var(--surface); color: var(--black); font-weight: 500; }
+.search-bar input:focus { border-color: var(--black); }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
 .events-grid { display: flex; flex-direction: column; gap: 12px; }
-.ev-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; display: flex; align-items: center; gap: 16px; transition: border-color 0.15s; cursor: pointer; text-decoration: none; }
-.ev-card:hover { border-color: var(--accent); }
-.ev-thumb { width: 56px; height: 56px; border-radius: 8px; background: #f3f4f6; object-fit: cover; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.ev-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 18px 20px; display: flex; align-items: center; gap: 16px; transition: border-color 0.15s; cursor: pointer; text-decoration: none; }
+.ev-card:hover { border-color: var(--black); }
+.ev-thumb { width: 56px; height: 56px; border-radius: 8px; background: var(--bg); object-fit: cover; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
 .ev-info { flex: 1; min-width: 0; }
-.ev-name { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ev-meta { font-size: 12px; color: var(--text-mid); display: flex; gap: 12px; flex-wrap: wrap; }
+.ev-name { font-size: 15px; font-weight: 700; color: var(--black); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-meta { font-size: 12px; color: var(--muted); font-weight: 500; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .ev-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.btn-sm { padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; border: 1.5px solid var(--border); background: var(--white); color: var(--text-mid); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; }
-.btn-sm:hover { border-color: var(--accent); color: var(--accent); }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-.badge-pub { background: #d1fae5; color: #065f46; }
-.badge-draft { background: #f3f4f6; color: #6b7280; }
-.badge-sold_out { background: #fef2f2; color: #b91c1c; }
-.empty-state { text-align: center; padding: 60px 24px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; }
+.btn-sm { padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; }
+.btn-sm:hover { border-color: var(--black); color: var(--black); }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; }
+.badge-pub { background: var(--green-dim); color: var(--green); }
+.badge-draft { background: rgba(0,0,0,0.06); color: var(--muted); }
+.badge-sold_out { background: rgba(239,68,68,0.1); color: #ef4444; }
+.empty-state { text-align: center; padding: 56px 24px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; color: var(--muted); font-size: 14px; font-weight: 500; }
 .empty-icon { font-size: 40px; margin-bottom: 12px; }
-.empty-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-.empty-sub { font-size: 14px; color: var(--text-mid); margin-bottom: 24px; }
-.skel { height: 80px; border-radius: 12px; background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+.empty-title { font-size: 17px; font-weight: 800; margin-bottom: 8px; color: var(--black); letter-spacing: -0.02em; }
+.empty-sub { font-size: 14px; color: var(--muted); font-weight: 500; margin-bottom: 24px; }
+.skel { height: 80px; border-radius: 16px; background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 @media(max-width:600px) {
   .ev-card { flex-wrap: wrap; }
@@ -54,21 +55,18 @@ export default function OrganiserEventsPage() {
   async function toggleSoldOut(ev, e) {
     e.preventDefault();
     e.stopPropagation();
-    const organiser_id = localStorage.getItem('organiser_id');
     const newStatus = ev.status === 'sold_out' ? 'published' : 'sold_out';
     setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, status: newStatus } : x));
-    await fetch(`/api/organiser/events/${ev.id}`, {
+    await orgFetch(`/api/organiser/events/${ev.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organiser_id, status: newStatus }),
+      body: JSON.stringify({ status: newStatus }),
     });
   }
 
   useEffect(() => {
-    const organiser_id = localStorage.getItem('organiser_id');
-    if (!organiser_id) { router.push('/organiser/login'); return; }
+    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
 
-    fetch(`/api/organiser/events?organiser_id=${organiser_id}`)
+    orgFetch('/api/organiser/events')
       .then(r => r.json())
       .then(json => { setEvents(json.events || []); setLoading(false); })
       .catch(() => setLoading(false));

@@ -160,7 +160,7 @@ function SuccessPageInner() {
 
       <nav className="nav">
         <Link href="/" className="nav-logo">
-          <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '28px', width: 'auto', display: 'block', filter: 'invert(1)' }} />
+          <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '28px', width: 'auto', display: 'block', filter: 'invert(1)' }} />
         </Link>
       </nav>
 

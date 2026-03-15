@@ -3,6 +3,7 @@
    PATCH — manually check in all attendees for an order (body: { order_id })
 */
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '../../../../../lib/adminAuth';
 
 function adminSupabase() {
   return createClient(
@@ -12,6 +13,8 @@ function adminSupabase() {
 }
 
 export async function GET(req, { params }) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   const { id: eventId } = await params;
   const supabase = adminSupabase();
 
@@ -82,6 +85,8 @@ export async function GET(req, { params }) {
 }
 
 export async function PATCH(req, { params }) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   const { id: eventId } = await params;
   const { order_id } = await req.json();
   if (!order_id) return Response.json({ error: 'order_id required' }, { status: 400 });

@@ -11,9 +11,10 @@ function fmt(n) {
 }
 
 export async function POST(req) {
-  // Simple auth check
-  const auth = req.headers.get('authorization');
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Auth check — always required
+  const secret = process.env.CRON_SECRET;
+  const auth   = req.headers.get('authorization');
+  if (!secret || auth !== `Bearer ${secret}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

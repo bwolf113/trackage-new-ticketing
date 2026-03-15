@@ -38,17 +38,20 @@ export async function POST(req) {
   const stripe = new Stripe(stripeSecretKey);
 
   // ── Verify signature ───────────────────────────────────────────
+  if (!webhookSecret) {
+    console.error('STRIPE_WEBHOOK_SECRET not configured');
+    return Response.json({ error: 'Webhook secret not configured' }, { status: 500 });
+  }
+  if (!signature) {
+    console.error('Missing stripe-signature header');
+    return Response.json({ error: 'Missing signature' }, { status: 400 });
+  }
   let event;
-  if (webhookSecret && signature) {
-    try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } catch (err) {
-      console.error('Webhook signature failed:', err.message);
-      return Response.json({ error: err.message }, { status: 400 });
-    }
-  } else {
-    try { event = JSON.parse(body); }
-    catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  try {
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+  } catch (err) {
+    console.error('Webhook signature failed:', err.message);
+    return Response.json({ error: err.message }, { status: 400 });
   }
 
   console.log(`Webhook: ${event.type}`);
@@ -60,6 +63,14 @@ export async function POST(req) {
         const session = event.data.object;
         const orderId = session.metadata?.order_id;
         if (!orderId) { console.warn('No order_id in metadata'); break; }
+
+        // Idempotency: skip if already processed
+        const { data: existingOrder } = await supabase
+          .from('orders').select('id, status').eq('id', orderId).single();
+        if (existingOrder?.status === 'completed') {
+          console.log(`Order ${orderId} already completed — skipping`);
+          break;
+        }
 
         // Generate unique QR token for this order
         const qrToken = crypto.randomUUID();
@@ -163,7 +174,7 @@ export async function POST(req) {
         }
 
         // ── 2. Admin notification ─────────────────────────────────
-        const adminEmail = process.env.ADMIN_EMAIL || process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'team@trackagescheme.com';
+        const adminEmail = process.env.ADMIN_EMAIL || 'team@trackagescheme.com';
         if (order) {
           const adminResult = await sendEmail({
             to:      adminEmail,
@@ -201,8 +212,8 @@ export async function POST(req) {
         console.log(`Unhandled: ${event.type}`);
     }
   } catch (err) {
-    console.error('Webhook error:', err);
-    return Response.json({ error: err.message }, { status: 500 });
+    // Log but return 200 — returning 5xx causes Stripe to retry, which can double-process
+    console.error('Webhook processing error:', err);
   }
 
   return Response.json({ received: true });

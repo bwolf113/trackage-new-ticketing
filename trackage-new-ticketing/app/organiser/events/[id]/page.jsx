@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import EventForm from '../_EventForm';
+import { orgFetch } from '../../../../lib/organiserFetch';
 
 export default function EditEventPage() {
   const { id }   = useParams();
@@ -13,10 +14,9 @@ export default function EditEventPage() {
   const [error,   setError]   = useState('');
 
   useEffect(() => {
-    const organiser_id = localStorage.getItem('organiser_id');
-    if (!organiser_id) { router.push('/organiser/login'); return; }
+    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
 
-    fetch(`/api/organiser/events/${id}?organiser_id=${organiser_id}`)
+    orgFetch(`/api/organiser/events/${id}`)
       .then(r => r.json())
       .then(json => {
         if (json.error) { setError(json.error); setLoading(false); return; }
@@ -27,14 +27,12 @@ export default function EditEventPage() {
   }, [id]);
 
   async function handleSave({ event, tickets, days }) {
-    const organiser_id = localStorage.getItem('organiser_id');
     setSaving(true);
     setError('');
     try {
-      const res  = await fetch(`/api/organiser/events/${id}`, {
+      const res  = await orgFetch(`/api/organiser/events/${id}`, {
         method:  'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ organiser_id, event, tickets, days }),
+        body:    JSON.stringify({ event, tickets, days }),
       });
       const json = await res.json();
       if (!res.ok) { setError(json.error || 'Failed to save'); setSaving(false); return; }
@@ -46,7 +44,7 @@ export default function EditEventPage() {
   }
 
   if (loading) return (
-    <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-mid)', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 500 }}>
       Loading event…
     </div>
   );

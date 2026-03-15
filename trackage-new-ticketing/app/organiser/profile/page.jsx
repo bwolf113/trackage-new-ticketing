@@ -2,29 +2,30 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { orgFetch } from '../../../lib/organiserFetch';
 
 const CSS = `
 .profile-page { max-width: 640px; }
-.page-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.page-sub { font-size: 13px; color: var(--text-mid); margin-bottom: 28px; }
-.section-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
-.section-head { padding: 18px 24px; border-bottom: 1px solid var(--border); }
-.section-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-.section-sub { font-size: 12px; color: var(--text-mid); }
+.page-title { font-size: 24px; font-weight: 800; color: var(--black); margin-bottom: 4px; letter-spacing: -0.02em; }
+.page-sub { font-size: 14px; color: var(--muted); font-weight: 500; margin-bottom: 28px; }
+.section-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
+.section-head { padding: 18px 24px; border-bottom: 1.5px solid var(--border); }
+.section-title { font-size: 15px; font-weight: 700; color: var(--black); letter-spacing: -0.01em; margin-bottom: 2px; }
+.section-sub { font-size: 12px; color: var(--muted); font-weight: 500; }
 .section-body { padding: 20px 24px; }
 .field { margin-bottom: 18px; }
 .field:last-child { margin-bottom: 0; }
-.field-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 7px; }
-.field-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--text); background: var(--white); outline: none; transition: border-color 0.15s; }
-.field-input:focus { border-color: var(--accent); }
-.field-input:disabled { background: var(--bg); color: var(--text-mid); cursor: not-allowed; }
-.field-hint { font-size: 11px; color: var(--text-light); margin-top: 5px; }
-.btn-save { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; }
-.btn-save:hover { background: var(--accent-dark); }
-.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
-.msg-ok  { background: #dcfce7; color: #16a34a; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
-.msg-err { background: #fee2e2; color: #dc2626; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
-.skel { height: 14px; border-radius: 4px; background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+.field-label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 7px; }
+.field-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; color: var(--black); background: var(--surface); outline: none; transition: border-color 0.15s; }
+.field-input:focus { border-color: var(--black); }
+.field-input:disabled { background: var(--bg); color: var(--muted); cursor: not-allowed; }
+.field-hint { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 5px; }
+.btn-save { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--black); color: var(--white); border: none; border-radius: 8px; font-size: 14px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: opacity 0.15s; }
+.btn-save:hover { opacity: 0.8; }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.msg-ok  { background: var(--green-dim); color: var(--green); border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 700; margin-bottom: 16px; }
+.msg-err { background: rgba(239,68,68,0.1); color: #ef4444; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 700; margin-bottom: 16px; }
+.skel { height: 14px; border-radius: 8px; background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 `;
 
@@ -34,14 +35,10 @@ export default function OrganiserProfilePage() {
   const [saving,   setSaving]   = useState(false);
   const [msg,      setMsg]      = useState(null);
   const [profile,  setProfile]  = useState({ name: '', email: '', vat_number: '', bank_iban: '' });
-  const [organiser_id, setOrganiserId] = useState('');
-
   useEffect(() => {
-    const oid = localStorage.getItem('organiser_id');
-    if (!oid) { router.push('/organiser/login'); return; }
-    setOrganiserId(oid);
+    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
 
-    fetch(`/api/organiser/profile?organiser_id=${oid}`)
+    orgFetch('/api/organiser/profile')
       .then(r => r.json())
       .then(json => {
         if (json.organiser) {
@@ -71,11 +68,9 @@ export default function OrganiserProfilePage() {
       return;
     }
     setSaving(true);
-    const res  = await fetch('/api/organiser/profile', {
+    const res  = await orgFetch('/api/organiser/profile', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        organiser_id,
         vat_number: profile.vat_number,
         bank_iban:  profile.bank_iban,
       }),

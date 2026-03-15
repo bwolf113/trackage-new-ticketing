@@ -1,8 +1,9 @@
 /* app/api/organiser/profile/route.js
-   GET  ?organiser_id=xxx  — fetch profile
-   POST { organiser_id, vat_number, bank_iban } — update profile
+   GET  — fetch profile (auth via Bearer token)
+   POST { vat_number, bank_iban } — update profile (auth via Bearer token)
 */
 import { createClient } from '@supabase/supabase-js';
+import { getOrganiserFromRequest } from '../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(
@@ -13,15 +14,14 @@ function adminSupabase() {
 
 export async function GET(req) {
   try {
-    const { searchParams } = new URL(req.url);
-    const organiser_id = searchParams.get('organiser_id');
-    if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+    const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+    if (errorResponse) return errorResponse;
 
     const supabase = adminSupabase();
     const { data, error } = await supabase
       .from('organisers')
       .select('id, name, email, vat_number, bank_iban')
-      .eq('id', organiser_id)
+      .eq('id', organiser.id)
       .single();
 
     if (error) return Response.json({ error: error.message }, { status: 500 });
@@ -33,8 +33,10 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const { organiser_id, vat_number, bank_iban } = await req.json();
-    if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+    const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+    if (errorResponse) return errorResponse;
+
+    const { vat_number, bank_iban } = await req.json();
 
     const supabase = adminSupabase();
     const updates = { updated_at: new Date().toISOString() };
@@ -44,7 +46,7 @@ export async function POST(req) {
     const { error } = await supabase
       .from('organisers')
       .update(updates)
-      .eq('id', organiser_id);
+      .eq('id', organiser.id);
 
     if (error) return Response.json({ error: error.message }, { status: 500 });
     return Response.json({ success: true });

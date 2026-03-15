@@ -2,6 +2,7 @@
    POST { order_id, customer_name, customer_email }
 */
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '../../../../lib/adminAuth';
 
 function adminSupabase() {
   return createClient(
@@ -13,6 +14,8 @@ function adminSupabase() {
 const ALLOWED_STATUSES = ['completed', 'pending_payment', 'cancelled', 'refunded', 'failed'];
 
 export async function POST(req) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   try {
     const { order_id, customer_name, customer_email, status } = await req.json();
     if (!order_id) return Response.json({ error: 'order_id required' }, { status: 400 });

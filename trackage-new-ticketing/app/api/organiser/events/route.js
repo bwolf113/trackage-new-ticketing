@@ -1,8 +1,9 @@
 /* app/api/organiser/events/route.js
-   GET  — list events for organiser (query: organiser_id)
-   POST — create event + tickets (body: { organiser_id, event, tickets })
+   GET  — list events for organiser (auth via Bearer token)
+   POST — create event + tickets (auth via Bearer token)
 */
 import { createClient } from '@supabase/supabase-js';
+import { getOrganiserFromRequest } from '../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(
@@ -17,9 +18,9 @@ function slug(str) {
 
 export async function GET(req) {
   try {
-    const { searchParams } = new URL(req.url);
-    const organiser_id = searchParams.get('organiser_id');
-    if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+    const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+    if (errorResponse) return errorResponse;
+    const organiser_id = organiser.id;
 
     const supabase = adminSupabase();
 
@@ -58,10 +59,13 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { organiser_id, event: eventData, tickets, days } = body;
+    const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+    if (errorResponse) return errorResponse;
 
-    if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+    const body = await req.json();
+    const { event: eventData, tickets, days } = body;
+    const organiser_id = organiser.id;
+
     if (!eventData?.name) return Response.json({ error: 'Event name required' }, { status: 400 });
 
     const supabase = adminSupabase();

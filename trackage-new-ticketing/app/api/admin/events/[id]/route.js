@@ -2,6 +2,7 @@
    PUT — update event + days + tickets (service-role, bypasses RLS)
 */
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '../../../../../lib/adminAuth';
 
 function adminSupabase() {
   return createClient(
@@ -11,6 +12,8 @@ function adminSupabase() {
 }
 
 export async function PUT(req, { params }) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   const { id: eventId } = await params;
   try {
     const body = await req.json();
@@ -109,6 +112,8 @@ export async function PUT(req, { params }) {
 }
 
 export async function PATCH(req, { params }) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   const { id: eventId } = await params;
   try {
     const body = await req.json();
@@ -130,6 +135,8 @@ export async function PATCH(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   const { id: eventId } = await params;
   try {
     const supabase = adminSupabase();

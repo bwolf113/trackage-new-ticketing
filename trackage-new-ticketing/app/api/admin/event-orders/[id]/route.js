@@ -1,5 +1,6 @@
 /* app/api/admin/event-orders/[id]/route.js */
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '../../../../../lib/adminAuth';
 
 function adminSupabase() {
   return createClient(
@@ -9,6 +10,8 @@ function adminSupabase() {
 }
 
 export async function GET(req, { params }) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   const { id: eventId } = await params;
   const supabase = adminSupabase();
 

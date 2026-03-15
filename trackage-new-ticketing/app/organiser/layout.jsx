@@ -6,13 +6,14 @@ import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 
 const NAV_ITEMS = [
-  { href: '/organiser',         label: 'Dashboard', icon: '⊞', exact: true },
-  { href: '/organiser/events',  label: 'My Events', icon: '🎫' },
-  { href: '/organiser/crm',     label: 'CRM',       icon: '📊' },
-  { href: '/organiser/profile', label: 'Profile',   icon: '👤' },
+  { href: '/organiser',          label: 'Dashboard', icon: '⊞', exact: true },
+  { href: '/organiser/events',   label: 'My Events', icon: '🎫' },
+  { href: '/organiser/coupons',  label: 'Coupons',   icon: '🏷️' },
+  { href: '/organiser/crm',      label: 'CRM',       icon: '📊' },
+  { href: '/organiser/profile',  label: 'Profile',   icon: '👤' },
 ];
 
-const AUTH_PATHS = ['/organiser/login', '/organiser/signup', '/organiser/auth/callback'];
+const AUTH_PATHS = ['/organiser/login', '/organiser/signup', '/organiser/auth/callback', '/organiser/forgot-password', '/organiser/reset-password'];
 
 export default function OrganiserLayout({ children }) {
   const [collapsed,    setCollapsed]    = useState(false);
@@ -79,14 +80,19 @@ export default function OrganiserLayout({ children }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
-          --accent: #0a9e7f; --accent-dark: #087d65; --accent-bg: #f0fdf9;
-          --text: #111827; --text-mid: #6b7280; --text-light: #9ca3af;
-          --border: #e5e7eb; --bg: #f9fafb; --white: #ffffff; --danger: #ef4444;
+          --bg: #F5F6FA;
+          --surface: #FFFFFF;
+          --border: #EBEDF0;
+          --muted: #767C8C;
+          --green: #48C16E;
+          --green-dim: rgba(72,193,110,0.12);
+          --black: #000000;
+          --white: #FFFFFF;
         }
-        html, body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+        html, body { background: var(--bg); color: var(--black); font-family: 'Plus Jakarta Sans', sans-serif; }
         .ol-sidebar {
           width: ${sidebarW}; background: #000;
           border-right: 1px solid rgba(255,255,255,0.08);
@@ -116,27 +122,28 @@ export default function OrganiserLayout({ children }) {
           display: flex; align-items: center; gap: 10px;
           padding: 9px 10px; border-radius: 8px; text-decoration: none;
           color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 500;
+          font-family: 'Plus Jakarta Sans', sans-serif;
           transition: all 0.15s; white-space: nowrap; overflow: hidden;
         }
         .ol-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
-        .ol-item.active { background: rgba(10,158,127,0.2); color: #0a9e7f; font-weight: 600; }
+        .ol-item.active { background: rgba(72,193,110,0.18); color: #48C16E; font-weight: 600; }
         .ol-icon { font-size: 15px; min-width: 20px; width: 20px; text-align: center; }
         .ol-foot { padding: 10px 6px; border-top: 1px solid rgba(255,255,255,0.08); }
         .ol-logout {
           width: 100%; display: flex; align-items: center; gap: 10px;
           padding: 9px 10px; border-radius: 8px; background: none; border: none;
           color: rgba(255,255,255,0.65); font-size: 13px; font-weight: 500;
-          cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; white-space: nowrap; overflow: hidden;
+          cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.15s; white-space: nowrap; overflow: hidden;
         }
         .ol-logout:hover { background: rgba(239,68,68,0.15); color: #f87171; }
         .ol-main { margin-left: ${sidebarW}; flex: 1; min-height: 100vh; background: var(--bg); transition: margin-left 0.2s ease; }
-        .ol-topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+        .ol-topbar { background: var(--surface); border-bottom: 1.5px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
         .ol-topbar-l { display: flex; align-items: center; gap: 12px; }
-        .ol-menu-btn { display: none; background: none; border: 1px solid var(--border); color: var(--text-mid); padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 16px; }
-        .ol-page-title { font-size: 15px; font-weight: 600; color: var(--text); }
+        .ol-menu-btn { display: none; background: none; border: 1.5px solid var(--border); color: var(--muted); padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .ol-page-title { font-size: 15px; font-weight: 700; color: var(--black); letter-spacing: -0.01em; }
         .ol-topbar-r { display: flex; align-items: center; gap: 10px; }
-        .ol-avatar { width: 30px; height: 30px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700; }
-        .ol-username { font-size: 13px; color: var(--text-mid); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ol-avatar { width: 30px; height: 30px; background: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700; }
+        .ol-username { font-size: 13px; color: var(--muted); font-weight: 500; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ol-content { padding: 28px 32px; flex: 1; }
         .ol-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
         @media (max-width: 768px) {
@@ -156,7 +163,7 @@ export default function OrganiserLayout({ children }) {
       <aside className={`ol-sidebar ${mobileOpen ? 'open' : ''}`}>
         <div className="ol-logo">
           {!collapsed && (
-            <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" className="ol-logo-img" />
+            <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" className="ol-logo-img" />
           )}
           <button className="ol-collapse" onClick={toggleCollapse} title={collapsed ? 'Expand' : 'Collapse'}>
             {collapsed ? '▶' : '◀'}

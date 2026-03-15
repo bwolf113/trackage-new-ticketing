@@ -1,6 +1,7 @@
 /* app/api/admin/resend-ticket/route.js */
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail, ticketConfirmationEmail } from '../../../../lib/sendEmail';
+import { checkAdminAuth } from '../../../../lib/adminAuth';
 
 function adminSupabase() {
   return createClient(
@@ -10,6 +11,8 @@ function adminSupabase() {
 }
 
 export async function POST(req) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   try {
     const { order_id } = await req.json();
     if (!order_id) return Response.json({ error: 'order_id required' }, { status: 400 });

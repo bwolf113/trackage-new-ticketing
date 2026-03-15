@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { orgFetch } from '../../../../../lib/organiserFetch';
 
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
@@ -17,69 +18,69 @@ function fmtDate(dt) {
 }
 
 const STATUS_STYLES = {
-  completed:       { bg: '#d1fae5', color: '#065f46' },
-  pending_payment: { bg: '#fef9c3', color: '#713f12' },
-  cancelled:       { bg: '#fee2e2', color: '#991b1b' },
-  refunded:        { bg: '#ede9fe', color: '#4c1d95' },
-  failed:          { bg: '#f3f4f6', color: '#374151' },
+  completed:       { bg: 'var(--green-dim)', color: 'var(--green)' },
+  pending_payment: { bg: 'rgba(0,0,0,0.06)', color: 'var(--muted)' },
+  cancelled:       { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
+  refunded:        { bg: 'rgba(139,92,246,0.1)', color: '#7c3aed' },
+  failed:          { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
 };
 
 const CSS = `
-.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-mid); text-decoration: none; margin-bottom: 20px; }
-.back-link:hover { color: var(--text); }
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 500; text-decoration: none; margin-bottom: 20px; }
+.back-link:hover { color: var(--black); }
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.page-sub { font-size: 13px; color: var(--text-mid); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.page-title { font-size: 24px; font-weight: 800; color: var(--black); margin-bottom: 4px; letter-spacing: -0.02em; }
+.page-sub { font-size: 14px; color: var(--muted); font-weight: 500; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-.stat-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
-.stat-label { font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
-.stat-val { font-size: 22px; font-weight: 700; color: var(--text); }
-.stat-accent { color: var(--accent); }
+.stat-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 16px 18px; }
+.stat-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+.stat-val { font-size: 22px; font-weight: 700; color: var(--black); }
+.stat-accent { color: var(--green); font-weight: 700; }
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .search-wrap { position: relative; flex: 1; min-width: 200px; }
-.search-wrap input { width: 100%; padding: 9px 13px 9px 34px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; }
-.search-wrap input:focus { border-color: var(--accent); }
-.search-ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-light); font-size: 13px; }
-.count-label { font-size: 13px; color: var(--text-mid); white-space: nowrap; }
-.btn-export { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1.5px solid var(--border); background: #fff; color: var(--text-mid); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; }
-.btn-export:hover { border-color: var(--accent); color: var(--accent); }
-.table-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.search-wrap input { width: 100%; padding: 9px 13px 9px 34px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; outline: none; background: var(--surface); }
+.search-wrap input:focus { border-color: var(--black); }
+.search-ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
+.count-label { font-size: 13px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+.btn-export { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; transition: all 0.15s; }
+.btn-export:hover { border-color: var(--black); color: var(--black); }
+.table-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; }
 table { width: 100%; border-collapse: collapse; }
-thead th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-mid); background: #f9fafb; border-bottom: 1px solid var(--border); }
-td { padding: 12px 16px; border-top: 1px solid #f3f4f6; font-size: 14px; color: var(--text); vertical-align: middle; }
-tbody tr:hover td { background: #fafafa; }
+thead th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); background: var(--bg); border-bottom: 1.5px solid var(--border); }
+td { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 14px; color: var(--black); vertical-align: middle; font-weight: 500; }
+tbody tr:hover td { background: var(--bg); }
 tbody tr { cursor: pointer; }
-.mono { font-family: monospace; font-size: 12px; color: var(--text-mid); }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-.empty-state { text-align: center; padding: 48px 20px; color: var(--text-mid); font-size: 14px; }
-.ticket-summary { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; }
-.ticket-summary-title { font-size: 13px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; }
+.mono { font-family: monospace; font-size: 12px; color: var(--muted); }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; }
+.empty-state { text-align: center; padding: 56px 20px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.ticket-summary { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 18px 20px; margin-bottom: 20px; }
+.ticket-summary-title { font-size: 15px; font-weight: 700; color: var(--black); letter-spacing: -0.01em; margin-bottom: 14px; }
 .ticket-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
 .ticket-row:last-child { border-bottom: none; }
-.skel { height: 14px; border-radius: 4px; background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+.skel { height: 14px; border-radius: 8px; background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 /* modal */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; }
-.modal { background: #fff; border-radius: 16px; width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slide-up 0.2s ease; }
+.modal { background: var(--surface); border-radius: 20px; border: 1.5px solid var(--border); width: 100%; max-width: 520px; animation: slide-up 0.2s ease; }
 @keyframes slide-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); }
-.modal-title { font-size: 16px; font-weight: 700; }
-.modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-mid); padding: 4px 8px; border-radius: 6px; line-height: 1; }
-.modal-close:hover { background: #f3f4f6; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1.5px solid var(--border); }
+.modal-title { font-size: 16px; font-weight: 700; color: var(--black); }
+.modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); padding: 4px 8px; border-radius: 6px; line-height: 1; }
+.modal-close:hover { background: var(--bg); color: var(--black); }
 .modal-body { padding: 20px 24px; }
-.modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--border); background: #f9fafb; border-radius: 0 0 16px 16px; }
-.field-label { font-size: 11px; font-weight: 600; color: var(--text-light); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
-.field-value { font-size: 14px; color: var(--text); font-weight: 500; margin-bottom: 14px; }
-.field-input { width: 100%; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 14px; font-family: 'Inter',sans-serif; outline: none; margin-bottom: 12px; }
-.field-input:focus { border-color: var(--accent); }
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: 'Inter',sans-serif; transition: all 0.15s; }
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent-dark); }
-.btn-ghost { background: transparent; color: var(--text-mid); border: 1.5px solid var(--border); }
-.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1.5px solid var(--border); background: var(--bg); border-radius: 0 0 20px 20px; }
+.field-label { font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+.field-value { font-size: 14px; color: var(--black); font-weight: 500; margin-bottom: 14px; }
+.field-input { width: 100%; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif; outline: none; margin-bottom: 12px; background: var(--surface); }
+.field-input:focus { border-color: var(--black); }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.15s; }
+.btn-primary { background: var(--black); color: var(--white); border: none; }
+.btn-primary:hover { opacity: 0.8; }
+.btn-ghost { background: var(--surface); color: var(--muted); border: 1.5px solid var(--border); }
+.btn-ghost:hover { border-color: var(--black); color: var(--black); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.msg-ok  { background: #dcfce7; color: #16a34a; border-radius: 7px; padding: 9px 12px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
-.msg-err { background: #fee2e2; color: #dc2626; border-radius: 7px; padding: 9px 12px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
+.msg-ok  { background: var(--green-dim); color: var(--green); border-radius: 8px; padding: 9px 12px; font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+.msg-err { background: rgba(239,68,68,0.1); color: #ef4444; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-weight: 700; margin-bottom: 14px; }
 @media(max-width:700px) {
   .stats-row { grid-template-columns: 1fr 1fr; }
   .stat-val { font-size: 18px; }
@@ -89,7 +90,7 @@ tbody tr { cursor: pointer; }
 @media(max-width:640px) {
   .table-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table { min-width: 520px; }
-  .page-title { font-size: 17px; }
+  .page-title { font-size: 20px; }
   .stat-card { padding: 12px 14px; }
   .stat-label { font-size: 10px; }
   .stat-val { font-size: 16px; }
@@ -98,7 +99,7 @@ tbody tr { cursor: pointer; }
 }
 `;
 
-function OrderModal({ order, organiser_id, onClose, onUpdated }) {
+function OrderModal({ order, onClose, onUpdated }) {
   const [editMode,  setEditMode]  = useState(false);
   const [editName,  setEditName]  = useState(order.customer_name  || '');
   const [editEmail, setEditEmail] = useState(order.customer_email || '');
@@ -113,10 +114,9 @@ function OrderModal({ order, organiser_id, onClose, onUpdated }) {
 
   async function handleSave() {
     setSaving(true);
-    const res  = await fetch('/api/organiser/update-order', {
+    const res  = await orgFetch('/api/organiser/update-order', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_id: order.id, organiser_id, customer_name: editName, customer_email: editEmail }),
+      body: JSON.stringify({ order_id: order.id, customer_name: editName, customer_email: editEmail }),
     });
     const data = await res.json();
     if (data.success) {
@@ -131,10 +131,9 @@ function OrderModal({ order, organiser_id, onClose, onUpdated }) {
 
   async function handleResend() {
     setResending(true);
-    const res  = await fetch('/api/organiser/resend-ticket', {
+    const res  = await orgFetch('/api/organiser/resend-ticket', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_id: order.id, organiser_id }),
+      body: JSON.stringify({ order_id: order.id }),
     });
     const data = await res.json();
     if (data.success) flash(`Ticket resent to ${data.to}.`);
@@ -150,7 +149,7 @@ function OrderModal({ order, organiser_id, onClose, onUpdated }) {
         <div className="modal-header">
           <div>
             <div className="modal-title">Order #{order.id?.slice(0,8).toUpperCase()}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 2 }}>{fmtDate(order.created_at)}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500, marginTop: 2 }}>{fmtDate(order.created_at)}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span className="badge" style={{ background: style.bg, color: style.color }}>{order.status?.replace('_',' ')}</span>
@@ -191,7 +190,7 @@ function OrderModal({ order, organiser_id, onClose, onUpdated }) {
           <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 16px' }} />
 
           <div className="field-label">Total paid</div>
-          <div className="field-value" style={{ color: 'var(--accent)', fontWeight: 700 }}>{fmtComp(order.total)}</div>
+          <div className="field-value" style={{ color: 'var(--green)', fontWeight: 700 }}>{fmtComp(order.total)}</div>
         </div>
 
         <div className="modal-footer">
@@ -214,14 +213,10 @@ export default function OrgEventOrdersPage() {
   const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [organiser_id,  setOrganiserId]   = useState('');
-
   useEffect(() => {
-    const oid = localStorage.getItem('organiser_id');
-    if (!oid) { router.push('/organiser/login'); return; }
-    setOrganiserId(oid);
+    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
 
-    fetch(`/api/organiser/events/${eventId}/orders?organiser_id=${oid}`)
+    orgFetch(`/api/organiser/events/${eventId}/orders`)
       .then(r => r.json())
       .then(json => { setData(json); setLoading(false); })
       .catch(() => setLoading(false));
@@ -274,7 +269,6 @@ export default function OrgEventOrdersPage() {
       {selectedOrder && (
         <OrderModal
           order={selectedOrder}
-          organiser_id={organiser_id}
           onClose={() => setSelectedOrder(null)}
           onUpdated={handleOrderUpdated}
         />
@@ -288,7 +282,7 @@ export default function OrgEventOrdersPage() {
           {data?.event?.start_time && fmtDate(data.event.start_time)}
           {data?.event?.venue_name && ` · ${data.event.venue_name}`}
           {' · '}
-          <Link href={`/organiser/events/${eventId}/attendees`} style={{ color: 'var(--accent)', textDecoration: 'none' }}>
+          <Link href={`/organiser/events/${eventId}/attendees`} style={{ color: 'var(--black)', fontWeight: 700, textDecoration: 'none' }}>
             View Attendees →
           </Link>
         </div>
@@ -320,8 +314,8 @@ export default function OrgEventOrdersPage() {
           <div className="ticket-summary-title">Ticket Breakdown</div>
           {ticketSummary.map((t, i) => (
             <div key={i} className="ticket-row">
-              <span style={{ fontWeight: 500 }}>{t.name}</span>
-              <span style={{ color: 'var(--text-mid)', fontSize: 13 }}>
+              <span style={{ fontWeight: 600 }}>{t.name}</span>
+              <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>
                 {t.sold} / {t.inventory} sold · {fmt(t.price)} each
               </span>
             </div>
@@ -370,16 +364,16 @@ export default function OrgEventOrdersPage() {
                   <tr key={o.id} onClick={() => setSelectedOrder(o)}>
                     <td className="mono">#{o.id?.slice(0,8).toUpperCase()}</td>
                     <td>
-                      <div style={{ fontWeight: 500 }}>{o.customer_name || '—'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-mid)' }}>{o.customer_email}</div>
+                      <div style={{ fontWeight: 600 }}>{o.customer_name || '—'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>{o.customer_email}</div>
                     </td>
                     <td>
                       <span className="badge" style={{ background: style.bg, color: style.color }}>
                         {o.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--text-mid)', fontSize: 13 }}>{fmtDate(o.created_at)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtComp(o.total)}</td>
+                    <td style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>{fmtDate(o.created_at)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--green)' }}>{fmtComp(o.total)}</td>
                   </tr>
                 );
               })}

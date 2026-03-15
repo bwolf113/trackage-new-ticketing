@@ -3,6 +3,7 @@
    Uses separate queries instead of nested joins to avoid FK-relationship issues.
 */
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '../../../../../lib/adminAuth';
 
 function adminSupabase() {
   return createClient(
@@ -12,6 +13,8 @@ function adminSupabase() {
 }
 
 export async function GET(req, { params }) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   const { id } = await params;
   const supabase = adminSupabase();
 

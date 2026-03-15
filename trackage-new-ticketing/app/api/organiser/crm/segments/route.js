@@ -1,8 +1,8 @@
 /* app/api/organiser/crm/segments/route.js
-   GET — recipient counts per email segment for an organiser
-   Query: organiser_id
+   GET — recipient counts per email segment for an organiser (auth via Bearer token)
 */
 import { createClient } from '@supabase/supabase-js';
+import { getOrganiserFromRequest } from '../../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -15,15 +15,11 @@ function isMaltese(phone) {
 }
 
 export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const organiser_id = searchParams.get('organiser_id');
-  if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+  const { organiser: authOrganiser, errorResponse } = await getOrganiserFromRequest(req);
+  if (errorResponse) return errorResponse;
+  const organiser_id = authOrganiser.id;
 
   const supabase = adminSupabase();
-
-  const { data: organiser } = await supabase
-    .from('organisers').select('id').eq('id', organiser_id).single();
-  if (!organiser) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: events } = await supabase
     .from('events').select('id, name').eq('organiser_id', organiser_id)

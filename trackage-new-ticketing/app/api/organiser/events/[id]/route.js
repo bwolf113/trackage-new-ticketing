@@ -1,9 +1,10 @@
 /* app/api/organiser/events/[id]/route.js
-   GET    — fetch event + tickets (query: organiser_id)
-   PUT    — update event + tickets (body: { organiser_id, event, tickets })
-   DELETE — delete event (body/query: organiser_id)
+   GET    — fetch event + tickets (auth via Bearer token)
+   PUT    — update event + tickets (auth via Bearer token)
+   PATCH  — update event/ticket status (auth via Bearer token)
 */
 import { createClient } from '@supabase/supabase-js';
+import { getOrganiserFromRequest } from '../../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(
@@ -20,8 +21,8 @@ async function verifyOwnership(supabase, eventId, organiserId) {
 
 export async function GET(req, { params }) {
   const { id } = await params;
-  const { searchParams } = new URL(req.url);
-  const organiser_id = searchParams.get('organiser_id');
+  const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+  if (errorResponse) return errorResponse;
 
   const supabase = adminSupabase();
 
@@ -36,7 +37,7 @@ export async function GET(req, { params }) {
     .single();
 
   if (error || !event) return Response.json({ error: 'Event not found' }, { status: 404 });
-  if (organiser_id && event.organiser_id !== organiser_id) {
+  if (event.organiser_id !== organiser.id) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -58,9 +59,12 @@ export async function GET(req, { params }) {
 export async function PUT(req, { params }) {
   const { id } = await params;
   try {
+    const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+    if (errorResponse) return errorResponse;
+
     const body = await req.json();
-    const { organiser_id, event: eventData, tickets, days } = body;
-    if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+    const { event: eventData, tickets, days } = body;
+    const organiser_id = organiser.id;
 
     const supabase = adminSupabase();
     if (!(await verifyOwnership(supabase, id, organiser_id))) {
@@ -176,12 +180,14 @@ export async function PUT(req, { params }) {
 export async function PATCH(req, { params }) {
   const { id } = await params;
   try {
+    const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+    if (errorResponse) return errorResponse;
+
     const body = await req.json();
-    const { organiser_id, status, ticket_id, ticket_status } = body;
-    if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+    const { status, ticket_id, ticket_status } = body;
 
     const supabase = adminSupabase();
-    if (!(await verifyOwnership(supabase, id, organiser_id))) {
+    if (!(await verifyOwnership(supabase, id, organiser.id))) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 

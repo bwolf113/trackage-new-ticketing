@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { orgFetch } from '../../lib/organiserFetch';
 
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
@@ -17,32 +18,32 @@ function fmtDateShort(dt) {
 }
 
 const CSS = `
-.dash { max-width: 900px; }
-.dash-welcome { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.dash-sub { font-size: 14px; color: var(--text-mid); margin-bottom: 28px; }
+.dash { max-width: 900px; margin: -24px; padding: 32px; }
+.dash-welcome { font-size: 24px; font-weight: 800; color: var(--black); margin-bottom: 4px; letter-spacing: -0.02em; }
+.dash-sub { font-size: 14px; color: var(--muted); font-weight: 500; margin-bottom: 28px; }
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
-.stat-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-.stat-label { font-size: 12px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
-.stat-value { font-size: 26px; font-weight: 700; color: var(--text); }
-.stat-accent { color: var(--accent); }
-.section-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
-.section-link { font-size: 12px; font-weight: 500; color: var(--accent); text-decoration: none; }
-.section-link:hover { text-decoration: underline; }
+.stat-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 20px; }
+.stat-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+.stat-value { font-size: 26px; font-weight: 700; color: var(--black); }
+.stat-accent { color: var(--green); font-weight: 700; }
+.section-title { font-size: 15px; font-weight: 700; color: var(--black); letter-spacing: -0.01em; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+.section-link { font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: none; }
+.section-link:hover { color: var(--black); text-decoration: underline; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; }
 .row-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .row-item:last-child { border-bottom: none; }
-.row-name { font-weight: 500; color: var(--text); }
-.row-sub { font-size: 12px; color: var(--text-mid); margin-top: 2px; }
+.row-name { font-weight: 600; color: var(--black); }
+.row-sub { font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 2px; }
 .row-right { text-align: right; flex-shrink: 0; }
-.row-amount { font-weight: 600; color: var(--text); }
-.empty-state { text-align: center; padding: 32px 20px; color: var(--text-mid); font-size: 13px; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-.badge-pub { background: #d1fae5; color: #065f46; }
-.badge-draft { background: #f3f4f6; color: #6b7280; }
-.btn-create { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; text-decoration: none; transition: background 0.15s; }
-.btn-create:hover { background: var(--accent-dark); }
-.skel { height: 14px; border-radius: 4px; background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+.row-amount { font-weight: 700; color: var(--green); }
+.empty-state { text-align: center; padding: 56px 20px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; }
+.badge-pub { background: var(--green-dim); color: var(--green); }
+.badge-draft { background: rgba(0,0,0,0.06); color: var(--muted); }
+.btn-create { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; background: var(--black); color: var(--white); border: none; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
+.btn-create:hover { opacity: 0.8; }
+.skel { height: 14px; border-radius: 8px; background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 @media(max-width:700px) { .stats-grid { grid-template-columns: 1fr 1fr; } .two-col { grid-template-columns: 1fr; } }
 @media(max-width:460px) { .stats-grid { grid-template-columns: 1fr; } }
@@ -61,7 +62,7 @@ export default function OrganiserDashboard() {
 
     if (!organiser_id) { router.push('/organiser/login'); return; }
 
-    fetch(`/api/organiser/dashboard?organiser_id=${organiser_id}`)
+    orgFetch('/api/organiser/dashboard')
       .then(r => r.json())
       .then(json => { setData(json); setLoading(false); })
       .catch(() => setLoading(false));
@@ -111,7 +112,7 @@ export default function OrganiserDashboard() {
               ) : upcoming.length === 0 ? (
                 <div className="empty-state">
                   No upcoming published events.{' '}
-                  <Link href="/organiser/events/new" style={{ color: 'var(--accent)' }}>Create one →</Link>
+                  <Link href="/organiser/events/new" style={{ color: 'var(--black)', fontWeight: 700 }}>Create one →</Link>
                 </div>
               ) : upcoming.map(e => (
                 <Link key={e.id} href={`/organiser/events/${e.id}`} style={{ textDecoration: 'none', display: 'block' }}>
@@ -154,10 +155,10 @@ export default function OrganiserDashboard() {
         </div>
 
         {stats.total_events === 0 && !loading && (
-          <div style={{ textAlign: 'center', marginTop: 40, padding: '40px 24px', background: 'var(--white)', borderRadius: 12, border: '1px solid var(--border)' }}>
+          <div style={{ textAlign: 'center', marginTop: 40, padding: '40px 24px', background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🎫</div>
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Create your first event</div>
-            <div style={{ fontSize: 14, color: 'var(--text-mid)', marginBottom: 20 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, letterSpacing: '-0.02em' }}>Create your first event</div>
+            <div style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 500, marginBottom: 20 }}>
               Set up your event, add ticket types, and start selling.
             </div>
             <Link href="/organiser/events/new" className="btn-create">+ Create Event</Link>

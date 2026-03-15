@@ -42,122 +42,118 @@ function fmtPct(n) {
 
 /* ─── styles ──────────────────────────────────────────────────────── */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --accent:#0a9e7f;--accent-dark:#087d65;--accent-bg:#f0fdf9;
-  --text:#111827;--text-mid:#6b7280;--text-light:#9ca3af;
-  --border:#e5e7eb;--bg:#f9fafb;--white:#ffffff;
-  --danger:#ef4444;--danger-bg:#fef2f2;
-  --success:#16a34a;--success-bg:#dcfce7;
-  --warn:#d97706;--warn-bg:#fffbeb;
+  --bg:#F5F6FA;--surface:#FFFFFF;--border:#EBEDF0;
+  --muted:#767C8C;--green:#48C16E;--green-dim:rgba(72,193,110,0.12);
+  --black:#000000;--white:#FFFFFF;
+  --danger:#ef4444;--danger-bg:rgba(239,68,68,0.1);
   --blue:#3b82f6;--blue-bg:#eff6ff;
   --purple:#7c3aed;--purple-bg:#ede9fe;
-  --radius:10px;
 }
-body{font-family:'Inter',sans-serif;color:var(--text);background:var(--bg)}
+body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--black);background:var(--bg)}
 
 /* page header */
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
-.page-title{font-size:22px;font-weight:700}
-.page-sub{font-size:13px;color:var(--text-mid);margin-top:2px}
+.page-title{font-size:24px;font-weight:800;letter-spacing:-0.02em}
+.page-sub{font-size:14px;color:var(--muted);margin-top:2px;font-weight:500}
 
 /* period blocks */
-.period-block{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px}
-.period-block-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-mid);margin-bottom:10px}
+.period-block{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:16px 20px;margin-bottom:20px}
+.period-block-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:10px}
 .filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.filter-btn{background:var(--white);border:1.5px solid var(--border);color:#374151;padding:7px 13px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s;white-space:nowrap}
-.filter-btn:hover{border-color:var(--accent);color:var(--accent)}
-.filter-btn.active{background:var(--accent);border-color:var(--accent);color:var(--white)}
-.date-input{border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--white);outline:none}
-.date-input:focus{border-color:var(--accent)}
+.filter-btn{background:var(--surface);border:1.5px solid var(--border);color:var(--muted);padding:7px 13px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all 0.15s;white-space:nowrap}
+.filter-btn:hover{border-color:var(--black);color:var(--black)}
+.filter-btn.active{background:var(--black);border-color:var(--black);color:var(--white);font-weight:700}
+.date-input{border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;color:var(--black);background:var(--surface);outline:none}
+.date-input:focus{border-color:var(--black)}
 
 /* compare toggle */
 .compare-toggle{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
-.toggle-label{font-size:13px;font-weight:600;color:var(--text-mid)}
+.toggle-label{font-size:13px;font-weight:600;color:var(--muted)}
 .toggle-switch{position:relative;width:40px;height:22px;flex-shrink:0}
 .toggle-switch input{opacity:0;width:0;height:0}
 .toggle-slider{position:absolute;inset:0;background:#d1d5db;border-radius:22px;cursor:pointer;transition:background 0.2s}
 .toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:white;border-radius:50%;transition:transform 0.2s}
-.toggle-switch input:checked + .toggle-slider{background:var(--accent)}
+.toggle-switch input:checked + .toggle-slider{background:var(--black)}
 .toggle-switch input:checked + .toggle-slider:before{transform:translateX(18px)}
-.compare-badge{background:var(--accent-bg);border:1px solid #6ee7b7;color:#065f46;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600}
+.compare-badge{background:var(--green-dim);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700}
 
 /* two period layout */
 .periods-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-.period-card{background:var(--white);border:2px solid var(--border);border-radius:var(--radius);padding:14px 18px}
-.period-card.primary{border-color:var(--accent)}
+.period-card{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:14px 18px}
+.period-card.primary{border-color:var(--black)}
 .period-card.secondary{border-color:#94a3b8}
-.period-card-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px}
-.period-card.primary .period-card-label{color:var(--accent)}
+.period-card-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px}
+.period-card.primary .period-card-label{color:var(--black)}
 .period-card.secondary .period-card-label{color:#64748b}
 
 /* kpi grid */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:28px}
-.kpi-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.kpi-card{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:18px 20px}
 .kpi-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:12px}
-.kpi-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-mid);margin-bottom:6px}
+.kpi-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px}
 .kpi-value{font-size:26px;font-weight:700;line-height:1;margin-bottom:4px}
-.kpi-sub{font-size:12px;color:var(--text-light)}
+.kpi-sub{font-size:12px;color:var(--muted);font-weight:500}
 .kpi-compare{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
-.kpi-prev{font-size:12px;color:var(--text-light)}
-.kpi-change{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px}
-.kpi-change.up{background:var(--success-bg);color:var(--success)}
+.kpi-prev{font-size:12px;color:var(--muted)}
+.kpi-change{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:100px}
+.kpi-change.up{background:var(--green-dim);color:var(--green)}
 .kpi-change.down{background:var(--danger-bg);color:var(--danger)}
-.kpi-change.flat{background:var(--bg);color:var(--text-mid);border:1px solid var(--border)}
+.kpi-change.flat{background:rgba(0,0,0,0.06);color:var(--muted)}
 
 /* section */
 .section{margin-bottom:28px}
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.section-title{font-size:16px;font-weight:700}
-.section-sub{font-size:13px;color:var(--text-mid)}
+.section-title{font-size:15px;font-weight:700;letter-spacing:-0.01em;color:var(--black)}
+.section-sub{font-size:13px;color:var(--muted);font-weight:500}
 
 /* card */
-.card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;overflow:hidden}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
 
 /* table */
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
-thead th{background:var(--bg);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-mid);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
-tbody tr{border-bottom:1px solid var(--border);transition:background 0.1s}
-tbody tr:last-child{border-bottom:none}
+thead th{background:var(--bg);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);padding:11px 16px;text-align:left;border-bottom:1.5px solid var(--border);white-space:nowrap}
+tbody tr{transition:background 0.1s}
 tbody tr:hover{background:var(--bg)}
-tbody td{padding:13px 16px;font-size:14px;color:var(--text)}
+tbody td{padding:13px 16px;font-size:14px;color:var(--black);border-top:1px solid var(--border);font-weight:500}
 .rank{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;font-size:12px;font-weight:700}
-.r1{background:#fef9c3;color:#854d0e}.r2{background:#f1f5f9;color:#475569}.r3{background:#fef3c7;color:#92400e}.rn{background:var(--bg);color:var(--text-light);border:1px solid var(--border)}
+.r1{background:#fef9c3;color:#854d0e}.r2{background:#f1f5f9;color:#475569}.r3{background:#fef3c7;color:#92400e}.rn{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
 
 /* highlights */
-.highlight-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
-.hl-tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:10px}
-.tag-top{background:var(--success-bg);color:var(--success)}.tag-bot{background:var(--danger-bg);color:var(--danger)}
-.hl-name{font-size:17px;font-weight:700;margin-bottom:4px}.hl-stat{font-size:13px;color:var(--text-mid)}
+.highlight-card{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:18px 20px}
+.hl-tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;margin-bottom:10px}
+.tag-top{background:var(--green-dim);color:var(--green)}.tag-bot{background:var(--danger-bg);color:var(--danger)}
+.hl-name{font-size:17px;font-weight:700;margin-bottom:4px;color:var(--black)}.hl-stat{font-size:13px;color:var(--muted);font-weight:500}
 
 /* bar chart */
 .bar-chart{padding:20px}
 .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .bar-row:last-child{margin-bottom:0}
-.bar-label{font-size:12px;font-weight:500;color:var(--text-mid);width:80px;flex-shrink:0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-label{font-size:12px;font-weight:500;color:var(--muted);width:80px;flex-shrink:0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bar-track{flex:1;height:20px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--border)}
 .bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease;display:flex;align-items:center;padding-left:8px}
 .bar-val{font-size:11px;font-weight:700;color:var(--white);white-space:nowrap}
 
 /* event status */
-.evt-status{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
-.evt-upcoming{background:var(--blue-bg);color:var(--blue)}.evt-past{background:var(--bg);color:var(--text-mid);border:1px solid var(--border)}.evt-ongoing{background:var(--success-bg);color:var(--success)}
+.evt-status{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px}
+.evt-upcoming{background:var(--blue-bg);color:var(--blue)}.evt-past{background:rgba(0,0,0,0.06);color:var(--muted)}.evt-ongoing{background:var(--green-dim);color:var(--green)}
 
 /* breakdown */
 .breakdown-row{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);font-size:14px}
 .breakdown-row:last-child{border-bottom:none}
-.breakdown-label{color:var(--text-mid);font-weight:500}.breakdown-value{font-weight:700;color:var(--text)}
+.breakdown-label{color:var(--muted);font-weight:500}.breakdown-value{font-weight:700;color:var(--black)}
 
 /* empty / skeleton */
-.empty{text-align:center;padding:48px 20px;color:var(--text-mid)}.empty-icon{font-size:36px;margin-bottom:10px}
-.skel{background:linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px}
+.empty{text-align:center;padding:56px 20px;color:var(--muted);font-size:14px;font-weight:500}.empty-icon{font-size:36px;margin-bottom:10px}
+.skel{background:linear-gradient(90deg,var(--border) 25%,var(--bg) 50%,var(--border) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
-.btn-outline{display:inline-flex;align-items:center;gap:6px;background:var(--white);border:1.5px solid var(--border);color:var(--text-mid);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s}
-.btn-outline:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.btn-outline{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all 0.15s}
+.btn-outline:hover{border-color:var(--black);color:var(--black)}
 
 /* sample banner */
 .sample-banner{display:flex;align-items:center;justify-content:space-between;background:#fef9c3;border:1.5px solid #fde047;border-radius:10px;padding:11px 16px;margin-bottom:20px;flex-wrap:wrap;gap:10px}
@@ -328,7 +324,7 @@ export default function ReportsPage() {
         <div className="kpi-label">{label}</div>
         {loading
           ? <div className="skel" style={{ height: 28, width: 100, marginBottom: 4 }} />
-          : <div className="kpi-value" style={{ color: iconColor }}>{value}</div>
+          : <div className="kpi-value" style={{ color: 'var(--black)' }}>{value}</div>
         }
         {!loading && <div className="kpi-sub">{sub}</div>}
         {!loading && comparing && prevValue != null && (
@@ -378,7 +374,7 @@ export default function ReportsPage() {
           {period === 'custom' && (
             <>
               <input type="date" className="date-input" value={primCS} onChange={e => setPrimCS(e.target.value)} />
-              <span style={{ color: 'var(--text-light)' }}>→</span>
+              <span style={{ color: 'var(--muted)' }}>→</span>
               <input type="date" className="date-input" value={primCE} onChange={e => setPrimCE(e.target.value)} />
             </>
           )}
@@ -412,7 +408,7 @@ export default function ReportsPage() {
             {compPeriod === 'custom' && (
               <>
                 <input type="date" className="date-input" value={compCS} onChange={e => setCompCS(e.target.value)} />
-                <span style={{ color: 'var(--text-light)' }}>→</span>
+                <span style={{ color: 'var(--muted)' }}>→</span>
                 <input type="date" className="date-input" value={compCE} onChange={e => setCompCE(e.target.value)} />
               </>
             )}
@@ -436,7 +432,7 @@ export default function ReportsPage() {
 
       {/* ── KPI cards ── */}
       <div className="kpi-grid">
-        <KpiCard label="Gross Revenue" icon="€" iconBg="var(--accent-bg)" iconColor="var(--accent)"
+        <KpiCard label="Gross Revenue" icon="€" iconBg="var(--green-dim)" iconColor="var(--green)"
           value={loading ? '—' : fmt(kpis?.totalRevenue)}
           prevValue={prevKpis ? fmt(prevKpis.totalRevenue) : null}
           curRaw={kpis?.totalRevenue} prevRaw={prevKpis?.totalRevenue}
@@ -446,7 +442,7 @@ export default function ReportsPage() {
           prevValue={prevKpis ? prevKpis.ticketCount.toLocaleString() : null}
           curRaw={kpis?.ticketCount} prevRaw={prevKpis?.ticketCount}
           sub="across all events" />
-        <KpiCard label="Booking Fees Earned" icon="💰" iconBg="var(--success-bg)" iconColor="var(--success)"
+        <KpiCard label="Booking Fees Earned" icon="💰" iconBg="var(--green-dim)" iconColor="var(--green)"
           value={loading ? '—' : fmt(kpis?.totalBookingFees)}
           prevValue={prevKpis ? fmt(prevKpis.totalBookingFees) : null}
           curRaw={kpis?.totalBookingFees} prevRaw={prevKpis?.totalBookingFees}
@@ -456,7 +452,7 @@ export default function ReportsPage() {
           prevValue={prevKpis ? fmt(prevKpis.totalStripeFees) : null}
           curRaw={kpis?.totalStripeFees} prevRaw={prevKpis?.totalStripeFees}
           sub="~3% of gross revenue" />
-        <KpiCard label="Total Orders" icon="📋" iconBg="var(--warn-bg)" iconColor="var(--warn)"
+        <KpiCard label="Total Orders" icon="📋" iconBg="rgba(0,0,0,0.06)" iconColor="var(--muted)"
           value={loading ? '—' : (kpis?.orderCount || 0).toLocaleString()}
           prevValue={prevKpis ? prevKpis.orderCount.toLocaleString() : null}
           curRaw={kpis?.orderCount} prevRaw={prevKpis?.orderCount}
@@ -470,11 +466,11 @@ export default function ReportsPage() {
             <div className="section-header"><div className="section-title">Revenue Breakdown</div></div>
             <div className="card">
               <div className="breakdown-row"><span className="breakdown-label">Gross Revenue</span><span className="breakdown-value">{fmt(revBreak?.grossRevenue)}</span></div>
-              <div className="breakdown-row"><span className="breakdown-label">Booking Fees (earned)</span><span className="breakdown-value" style={{color:'var(--success)'}}>+{fmt(revBreak?.bookingFees)}</span></div>
+              <div className="breakdown-row"><span className="breakdown-label">Booking Fees (earned)</span><span className="breakdown-value" style={{color:'var(--green)'}}>+{fmt(revBreak?.bookingFees)}</span></div>
               <div className="breakdown-row"><span className="breakdown-label">Stripe Fees (est. 3%)</span><span className="breakdown-value" style={{color:'var(--danger)'}}>−{fmt(revBreak?.stripeFees)}</span></div>
               <div className="breakdown-row" style={{borderTop:'2px solid var(--border)',background:'var(--bg)'}}>
-                <span className="breakdown-label" style={{fontWeight:700,color:'var(--text)'}}>Net Revenue</span>
-                <span className="breakdown-value" style={{fontSize:16,color:'var(--accent)'}}>{fmt(revBreak?.netRevenue)}</span>
+                <span className="breakdown-label" style={{fontWeight:700,color:'var(--black)'}}>Net Revenue</span>
+                <span className="breakdown-value" style={{fontSize:16,color:'var(--green)'}}>{fmt(revBreak?.netRevenue)}</span>
               </div>
             </div>
           </div>
@@ -535,14 +531,14 @@ export default function ReportsPage() {
                       <tr key={org.id}>
                         <td><span className={`rank ${i===0?'r1':i===1?'r2':i===2?'r3':'rn'}`}>{i+1}</span></td>
                         <td style={{fontWeight:600}}>{org.name}</td>
-                        <td style={{color:'var(--text-mid)'}}>{org.orders}</td>
-                        <td style={{fontWeight:700,color:'var(--accent)'}}>{fmt(org.revenue)}</td>
+                        <td style={{color:'var(--muted)'}}>{org.orders}</td>
+                        <td style={{fontWeight:700,color:'var(--green)'}}>{fmt(org.revenue)}</td>
                         <td>
                           <div style={{display:'flex',alignItems:'center',gap:8}}>
                             <div style={{width:60,height:6,background:'var(--bg)',borderRadius:4,border:'1px solid var(--border)',overflow:'hidden'}}>
-                              <div style={{width:`${share}%`,height:'100%',background:'var(--accent)',borderRadius:4}}/>
+                              <div style={{width:`${share}%`,height:'100%',background:'var(--green)',borderRadius:4}}/>
                             </div>
-                            <span style={{fontSize:12,color:'var(--text-mid)'}}>{share}%</span>
+                            <span style={{fontSize:12,color:'var(--muted)'}}>{share}%</span>
                           </div>
                         </td>
                       </tr>
@@ -571,10 +567,10 @@ export default function ReportsPage() {
                   {eventPerf.map(e => (
                     <tr key={e.id}>
                       <td style={{fontWeight:600}}>{e.name}</td>
-                      <td style={{color:'var(--text-mid)',fontSize:13}}>{fmtDate(e.start_time)}</td>
+                      <td style={{color:'var(--muted)',fontSize:13}}>{fmtDate(e.start_time)}</td>
                       <td>{eventStatus(e)}</td>
-                      <td style={{color:'var(--text-mid)'}}>{e.tickets||0}</td>
-                      <td style={{fontWeight:700,color:'var(--accent)'}}>{fmt(e.revenue)}</td>
+                      <td style={{color:'var(--muted)'}}>{e.tickets||0}</td>
+                      <td style={{fontWeight:700,color:'var(--green)'}}>{fmt(e.revenue)}</td>
                     </tr>
                   ))}
                 </tbody>

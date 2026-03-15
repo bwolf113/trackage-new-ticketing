@@ -61,6 +61,72 @@ export async function POST(req) {
       return Response.json({ error: 'No tickets selected' }, { status: 400 });
     }
 
+    // ── Re-fetch ticket prices server-side ────────────────────────
+    const ticketIds = line_items.map(i => i.ticket_id).filter(Boolean);
+    if (ticketIds.length !== line_items.length) {
+      return Response.json({ error: 'Invalid ticket selection' }, { status: 400 });
+    }
+    const { data: dbTickets } = await supabase
+      .from('tickets')
+      .select('id, name, price, booking_fee_pct, status, inventory, sold')
+      .in('id', ticketIds);
+    const ticketMap = Object.fromEntries((dbTickets || []).map(t => [t.id, t]));
+
+    const validatedItems = [];
+    for (const item of line_items) {
+      const dbTicket = ticketMap[item.ticket_id];
+      if (!dbTicket) return Response.json({ error: 'Ticket not found' }, { status: 400 });
+      if (dbTicket.status && dbTicket.status !== 'active') {
+        return Response.json({ error: `"${dbTicket.name}" is no longer available` }, { status: 400 });
+      }
+      // Check per-ticket inventory
+      if (dbTicket.inventory != null) {
+        const remaining = dbTicket.inventory - (dbTicket.sold || 0);
+        if ((item.quantity || 1) > remaining) {
+          return Response.json({ error: `Only ${remaining} of "${dbTicket.name}" remaining` }, { status: 400 });
+        }
+      }
+      validatedItems.push({
+        ...item,
+        ticket_name: dbTicket.name,
+        unit_price:  dbTicket.price,
+        booking_fee_pct: dbTicket.booking_fee_pct || 0,
+      });
+    }
+
+    const serverSubtotal = validatedItems.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+    const serverBookingFee = +validatedItems.reduce((sum, i) =>
+      sum + i.unit_price * i.quantity * (i.booking_fee_pct / 100), 0).toFixed(2);
+
+    // ── Re-validate coupon server-side ────────────────────────────
+    let serverDiscount = 0;
+    let verifiedCouponId = null;
+    let verifiedCouponCode = null;
+    if (coupon_id || coupon_code) {
+      const couponQuery = supabase
+        .from('coupons')
+        .select('id, code, discount_type, discount_value, expires_at, usage_limit, usage_count, event_ids');
+      const { data: dbCoupon } = coupon_id
+        ? await couponQuery.eq('id', coupon_id).single()
+        : await couponQuery.eq('code', (coupon_code || '').trim().toUpperCase()).single();
+      if (dbCoupon) {
+        const now = new Date();
+        const valid =
+          (!dbCoupon.expires_at || new Date(dbCoupon.expires_at) > now) &&
+          (!dbCoupon.usage_limit || (dbCoupon.usage_count || 0) < dbCoupon.usage_limit) &&
+          (!dbCoupon.event_ids?.length || (event_id && dbCoupon.event_ids.includes(event_id)));
+        if (valid) {
+          serverDiscount = dbCoupon.discount_type === 'percent'
+            ? +(serverSubtotal * dbCoupon.discount_value / 100).toFixed(2)
+            : Math.min(dbCoupon.discount_value, serverSubtotal);
+          verifiedCouponId   = dbCoupon.id;
+          verifiedCouponCode = dbCoupon.code;
+        }
+      }
+    }
+
+    const serverTotal = Math.max(0, serverSubtotal + serverBookingFee - serverDiscount);
+
     // ── Daily capacity validation (multi-day events) ─────────────
     if (event_id) {
       const { data: eventDays } = await supabase
@@ -110,24 +176,24 @@ export async function POST(req) {
     }
 
     // ── Build Stripe line items ──────────────────────────────────
-    const stripeLineItems = line_items.map(item => ({
+    const stripeLineItems = validatedItems.map(item => ({
       price_data: {
         currency: 'eur',
         product_data: {
           name: `${item.ticket_name} — ${event_name}`,
           metadata: { ticket_id: item.ticket_id, event_id },
         },
-        unit_amount: Math.round((item.unit_price || 0) * 100),
+        unit_amount: Math.round(item.unit_price * 100),
       },
       quantity: item.quantity,
     }));
 
-    if (booking_fee > 0) {
+    if (serverBookingFee > 0) {
       stripeLineItems.push({
         price_data: {
           currency: 'eur',
           product_data: { name: 'Booking fee' },
-          unit_amount: Math.round(booking_fee * 100),
+          unit_amount: Math.round(serverBookingFee * 100),
         },
         quantity: 1,
       });
@@ -139,11 +205,11 @@ export async function POST(req) {
       .insert({
         event_id,
         status:         'pending_payment',
-        total:          total || 0,
-        booking_fee:    booking_fee || 0,
-        discount:       discount || 0,
-        coupon_id:      coupon_id   || null,
-        coupon_code:    coupon_code || null,
+        total:          serverTotal,
+        booking_fee:    serverBookingFee,
+        discount:       serverDiscount,
+        coupon_id:      verifiedCouponId   || null,
+        coupon_code:    verifiedCouponCode || null,
         customer_email:    customer_email    || null,
         customer_name:     customer_name     || null,
         customer_phone:    customer_phone    || null,
@@ -162,7 +228,7 @@ export async function POST(req) {
 
     // Insert order items
     const { error: itemsError } = await supabase.from('order_items').insert(
-      line_items.map(item => ({
+      validatedItems.map(item => ({
         order_id:    orderId,
         ticket_name: item.ticket_name || null,
         quantity:    item.quantity    || 1,

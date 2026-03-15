@@ -3,6 +3,7 @@
    Body: { organiser_id: string, password: string }
 */
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '../../../../lib/adminAuth';
 
 function adminSupabase() {
   return createClient(
@@ -12,6 +13,8 @@ function adminSupabase() {
 }
 
 export async function POST(req) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   try {
     const { organiser_id, password } = await req.json();
     if (!organiser_id || !password) {

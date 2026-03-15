@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { orgFetch } from '../../../../../lib/organiserFetch';
 
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
@@ -17,37 +18,37 @@ function fmtDate(dt) {
 }
 
 const CSS = `
-.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-mid); text-decoration: none; margin-bottom: 20px; }
-.back-link:hover { color: var(--text); }
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 500; text-decoration: none; margin-bottom: 20px; }
+.back-link:hover { color: var(--black); }
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.page-sub { font-size: 13px; color: var(--text-mid); }
+.page-title { font-size: 24px; font-weight: 800; color: var(--black); margin-bottom: 4px; letter-spacing: -0.02em; }
+.page-sub { font-size: 14px; color: var(--muted); font-weight: 500; }
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .search-wrap { position: relative; flex: 1; min-width: 200px; }
-.search-wrap input { width: 100%; padding: 9px 13px 9px 34px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; background: #fff; }
-.search-wrap input:focus { border-color: var(--accent); }
-.search-ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-light); font-size: 13px; }
-.count-label { font-size: 13px; color: var(--text-mid); white-space: nowrap; }
-.btn-export { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1.5px solid var(--border); background: #fff; color: var(--text-mid); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; }
-.btn-export:hover { border-color: var(--accent); color: var(--accent); }
-.table-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.search-wrap input { width: 100%; padding: 9px 13px 9px 34px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; outline: none; background: var(--surface); }
+.search-wrap input:focus { border-color: var(--black); }
+.search-ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
+.count-label { font-size: 13px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+.btn-export { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; transition: all 0.15s; }
+.btn-export:hover { border-color: var(--black); color: var(--black); }
+.table-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; }
 table { width: 100%; border-collapse: collapse; }
-thead th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-mid); background: #f9fafb; border-bottom: 1px solid var(--border); }
-td { padding: 12px 16px; border-top: 1px solid #f3f4f6; font-size: 14px; color: var(--text); vertical-align: middle; }
-tr:hover td { background: #fafafa; }
-.mono { font-family: monospace; font-size: 12px; color: var(--text-mid); }
-.empty-state { text-align: center; padding: 48px 20px; color: var(--text-mid); font-size: 14px; }
-.btn-resend { padding: 5px 11px; border: 1.5px solid var(--border); border-radius: 6px; background: #fff; color: var(--text-mid); font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; transition: all 0.15s; }
-.btn-resend:hover { border-color: var(--accent); color: var(--accent); }
+thead th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); background: var(--bg); border-bottom: 1.5px solid var(--border); }
+td { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 14px; color: var(--black); vertical-align: middle; font-weight: 500; }
+tr:hover td { background: var(--bg); }
+.mono { font-family: monospace; font-size: 12px; color: var(--muted); }
+.empty-state { text-align: center; padding: 56px 20px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.btn-resend { padding: 5px 11px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; transition: all 0.15s; }
+.btn-resend:hover { border-color: var(--black); color: var(--black); }
 .btn-resend:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-resend.sent { border-color: #a7f3d0; color: #065f46; background: #f0fdf9; }
-.skel { height: 14px; border-radius: 4px; background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+.btn-resend.sent { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+.skel { height: 14px; border-radius: 8px; background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-.checkin-done { font-size: 12px; color: #065f46; font-weight: 600; }
+.checkin-done { font-size: 12px; color: var(--green); font-weight: 700; }
 .checkin-partial { font-size: 12px; color: #92400e; font-weight: 500; }
-.checkin-none { font-size: 12px; color: var(--text-light); }
-.btn-checkin { padding: 5px 11px; border: 1.5px solid #a7f3d0; border-radius: 6px; background: #f0fdf9; color: #065f46; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; }
-.btn-checkin:hover { background: #d1fae5; }
+.checkin-none { font-size: 12px; color: var(--muted); font-weight: 500; }
+.btn-checkin { padding: 5px 11px; border: 1.5px solid var(--green); border-radius: 8px; background: var(--green-dim); color: var(--green); font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; transition: all 0.15s; }
+.btn-checkin:hover { background: rgba(72,193,110,0.2); }
 .btn-checkin:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
 
@@ -61,10 +62,9 @@ export default function OrgAttendeesPage() {
   const [checkingIn, setCheckingIn] = useState({}); // order_id → 'loading' | 'done'
 
   useEffect(() => {
-    const organiser_id = localStorage.getItem('organiser_id');
-    if (!organiser_id) { router.push('/organiser/login'); return; }
+    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
 
-    fetch(`/api/organiser/events/${eventId}/attendees?organiser_id=${organiser_id}`)
+    orgFetch(`/api/organiser/events/${eventId}/attendees`)
       .then(r => r.json())
       .then(json => { setData(json); setLoading(false); })
       .catch(() => setLoading(false));
@@ -83,13 +83,11 @@ export default function OrgAttendeesPage() {
   });
 
   async function checkIn(orderId) {
-    const organiser_id = localStorage.getItem('organiser_id');
     setCheckingIn(c => ({ ...c, [orderId]: 'loading' }));
     try {
-      const res  = await fetch(`/api/organiser/events/${eventId}/attendees`, {
+      const res  = await orgFetch(`/api/organiser/events/${eventId}/attendees`, {
         method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ organiser_id, order_id: orderId }),
+        body:    JSON.stringify({ order_id: orderId }),
       });
       const json = await res.json();
       if (json.success) {
@@ -108,13 +106,11 @@ export default function OrgAttendeesPage() {
   }
 
   async function resendTicket(orderId) {
-    const organiser_id = localStorage.getItem('organiser_id');
     setResending(r => ({ ...r, [orderId]: 'sending' }));
     try {
-      const res  = await fetch('/api/organiser/resend-ticket', {
+      const res  = await orgFetch('/api/organiser/resend-ticket', {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ order_id: orderId, organiser_id }),
+        body:    JSON.stringify({ order_id: orderId }),
       });
       const json = await res.json();
       setResending(r => ({ ...r, [orderId]: json.success ? 'sent' : 'error' }));
@@ -204,16 +200,16 @@ export default function OrgAttendeesPage() {
                 return (
                   <tr key={a.order_id}>
                     <td className="mono">#{a.order_id?.slice(0,8).toUpperCase()}</td>
-                    <td style={{ fontWeight: 500 }}>{a.name}</td>
-                    <td style={{ fontSize: 13, color: 'var(--text-mid)' }}>{a.email}</td>
-                    <td style={{ fontSize: 13, color: 'var(--text-mid)' }}>{a.ticket_summary || '—'}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtComp(a.total)}</td>
-                    <td style={{ fontSize: 13, color: 'var(--text-mid)' }}>{fmtDate(a.created_at)}</td>
+                    <td style={{ fontWeight: 600 }}>{a.name}</td>
+                    <td style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>{a.email}</td>
+                    <td style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>{a.ticket_summary || '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--green)' }}>{fmtComp(a.total)}</td>
+                    <td style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>{fmtDate(a.created_at)}</td>
                     <td>
                       {allCheckedIn ? (
                         <div>
                           <div className="checkin-done">✓ Checked in</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 2 }}>
+                          <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 500, marginTop: 2 }}>
                             {new Date(a.checked_in_at).toLocaleString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </div>
                         </div>

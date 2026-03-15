@@ -2,6 +2,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { orgFetch } from '../../../lib/organiserFetch';
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 function toLocalDT(s) { return s ? s.slice(0, 16) : ''; }
@@ -44,57 +45,57 @@ const BLANK_EVENT = {
 };
 
 const CSS = `
-.ef-back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-mid); text-decoration: none; margin-bottom: 20px; }
-.ef-back:hover { color: var(--text); }
+.ef-back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 500; text-decoration: none; margin-bottom: 20px; }
+.ef-back:hover { color: var(--black); }
 .ef-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
-.ef-title { font-size: 20px; font-weight: 700; color: var(--text); }
+.ef-title { font-size: 24px; font-weight: 800; color: var(--black); letter-spacing: -0.02em; }
 .ef-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.btn-save { padding: 9px 20px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; }
-.btn-save:hover { background: var(--accent-dark); }
-.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-delete { padding: 9px 16px; background: #fff; color: var(--danger, #ef4444); border: 1.5px solid #fca5a5; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
-.btn-delete:hover { background: #fef2f2; }
-.btn-preview { padding: 9px 14px; background: #fff; color: var(--text-mid); border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
-.btn-preview:hover { border-color: #aaa; }
-.error { background: #fef2f2; border: 1px solid #fecaca; color: #ef4444; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
+.btn-save { padding: 9px 20px; background: var(--black); color: var(--white); border: none; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: opacity 0.15s; }
+.btn-save:hover { opacity: 0.8; }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-delete { padding: 9px 16px; background: var(--surface); color: #ef4444; border: 1.5px solid rgba(239,68,68,0.4); border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: all 0.15s; }
+.btn-delete:hover { background: rgba(239,68,68,0.08); }
+.btn-preview { padding: 9px 14px; background: var(--surface); color: var(--muted); border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s; }
+.btn-preview:hover { border-color: var(--black); color: var(--black); }
+.error { background: rgba(239,68,68,0.08); border: 1.5px solid rgba(239,68,68,0.3); color: #ef4444; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
 .form-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
-.section { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-.section-title { font-size: 13px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 18px; }
+.section { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+.section-title { font-size: 15px; font-weight: 700; color: var(--black); letter-spacing: -0.01em; margin-bottom: 18px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-group { margin-bottom: 16px; }
 .form-group:last-child { margin-bottom: 0; }
-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
-input, textarea, select { width: 100%; padding: 9px 13px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--text); background: #fff; outline: none; transition: border-color 0.15s; }
-input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+input, textarea, select { width: 100%; padding: 9px 13px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; color: var(--black); background: var(--surface); outline: none; transition: border-color 0.15s; }
+input:focus, textarea:focus, select:focus { border-color: var(--black); }
 textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
-.ticket-card { border: 1.5px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 14px; position: relative; }
+.ticket-card { border: 1.5px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 14px; position: relative; }
 .ticket-card:last-child { margin-bottom: 0; }
 .ticket-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.ticket-label { font-size: 13px; font-weight: 600; color: var(--text); }
-.btn-remove { background: none; border: none; cursor: pointer; color: var(--text-mid); font-size: 18px; line-height: 1; padding: 0 2px; transition: color 0.15s; }
+.ticket-label { font-size: 13px; font-weight: 700; color: var(--black); }
+.btn-remove { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 18px; line-height: 1; padding: 0 2px; transition: color 0.15s; }
 .btn-remove:hover { color: #ef4444; }
-.btn-add-ticket { width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: 8px; background: none; color: var(--text-mid); font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; margin-top: 14px; }
-.btn-add-ticket:hover { border-color: var(--accent); color: var(--accent); }
+.btn-add-ticket { width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: 8px; background: none; color: var(--muted); font-size: 13px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: all 0.15s; margin-top: 14px; }
+.btn-add-ticket:hover { border-color: var(--black); color: var(--black); }
 .status-toggle { display: flex; gap: 8px; }
-.status-btn { flex: 1; padding: 8px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif; cursor: pointer; background: #fff; color: var(--text-mid); transition: all 0.15s; }
-.status-btn.active-draft { border-color: #d1d5db; background: #f9fafb; color: var(--text); }
-.status-btn.active-pub { border-color: var(--accent); background: #f0fdf9; color: var(--accent-dark); }
-.status-btn.active-soldout { border-color: #ef4444; background: #fef2f2; color: #b91c1c; }
-.btn-ticket-soldout { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; border: 1.5px solid #fca5a5; background: #fef2f2; color: #b91c1c; transition: all 0.15s; white-space: nowrap; }
-.btn-ticket-soldout:hover { background: #fee2e2; }
-.btn-ticket-reactivate { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; border: 1.5px solid #6ee7b7; background: #f0fdf9; color: #065f46; transition: all 0.15s; white-space: nowrap; }
-.btn-ticket-reactivate:hover { background: #d1fae5; }
-.ticket-soldout-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-.hint { font-size: 11px; color: var(--text-light); margin-top: 5px; }
+.status-btn { flex: 1; padding: 8px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; background: var(--surface); color: var(--muted); transition: all 0.15s; }
+.status-btn.active-draft { border-color: var(--border); background: var(--bg); color: var(--black); font-weight: 700; }
+.status-btn.active-pub { border-color: var(--green); background: var(--green-dim); color: var(--green); font-weight: 700; }
+.status-btn.active-soldout { border-color: #ef4444; background: rgba(239,68,68,0.08); color: #ef4444; font-weight: 700; }
+.btn-ticket-soldout { padding: 4px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; border: 1.5px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.08); color: #ef4444; transition: all 0.15s; white-space: nowrap; }
+.btn-ticket-soldout:hover { background: rgba(239,68,68,0.15); }
+.btn-ticket-reactivate { padding: 4px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; border: 1.5px solid var(--green); background: var(--green-dim); color: var(--green); transition: all 0.15s; white-space: nowrap; }
+.btn-ticket-reactivate:hover { background: rgba(72,193,110,0.2); }
+.ticket-soldout-badge { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 700; background: rgba(239,68,68,0.1); color: #ef4444; border: 1.5px solid rgba(239,68,68,0.3); }
+.hint { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 5px; }
 .label-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
 .label-row label { margin-bottom: 0; }
 .tip-wrap { position: relative; display: inline-flex; }
-.tip-icon { width: 15px; height: 15px; border-radius: 50%; background: #e5e7eb; color: #6b7280; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; cursor: default; user-select: none; }
-.tip-box { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #111827; color: #fff; font-size: 11px; line-height: 1.5; padding: 8px 10px; border-radius: 6px; white-space: normal; width: 220px; z-index: 10; pointer-events: none; }
-.tip-box::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #111827; }
+.tip-icon { width: 15px; height: 15px; border-radius: 50%; background: var(--border); color: var(--muted); font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; cursor: default; user-select: none; }
+.tip-box { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--black); color: var(--white); font-size: 11px; line-height: 1.5; padding: 8px 10px; border-radius: 8px; white-space: normal; width: 220px; z-index: 10; pointer-events: none; font-weight: 500; }
+.tip-box::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--black); }
 .tip-wrap:hover .tip-box { display: block; }
 .upload-box { border: 1.5px dashed var(--border); border-radius: 8px; padding: 14px; cursor: pointer; transition: border-color 0.15s; text-align: center; position: relative; }
-.upload-box:hover { border-color: var(--accent); }
+.upload-box:hover { border-color: var(--black); }
 .upload-box.has-image { border-style: solid; padding: 8px; }
 .upload-box input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 .upload-preview { width: 100%; border-radius: 6px; object-fit: cover; display: block; }
@@ -102,39 +103,39 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
 .upload-preview.poster { max-height: 140px; }
 .upload-placeholder { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0; pointer-events: none; }
 .upload-icon { font-size: 22px; }
-.upload-cta { font-size: 12px; font-weight: 600; color: var(--accent); }
-.upload-spec { font-size: 11px; color: var(--text-light); line-height: 1.4; }
-.upload-change { font-size: 11px; color: var(--text-mid); margin-top: 6px; }
-.upload-error { font-size: 11px; color: #ef4444; margin-top: 5px; }
-.upload-spinner { font-size: 11px; color: var(--text-mid); margin-top: 5px; }
+.upload-cta { font-size: 12px; font-weight: 700; color: var(--black); }
+.upload-spec { font-size: 11px; color: var(--muted); font-weight: 500; line-height: 1.4; }
+.upload-change { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 6px; }
+.upload-error { font-size: 11px; color: #ef4444; margin-top: 5px; font-weight: 600; }
+.upload-spinner { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 5px; }
 .pac-container-wrap { width: 100%; }
 .pac-container-wrap gmp-place-autocomplete { width: 100%; }
-gmp-place-autocomplete { --gmp-input-padding: 9px 13px; --gmp-input-border: 1.5px solid #e5e7eb; --gmp-input-border-radius: 8px; --gmp-input-font-size: 14px; --gmp-input-font-family: 'Inter', sans-serif; --gmp-input-color: #111827; width: 100%; }
-.venue-chip { display: flex; align-items: center; gap: 8px; padding: 9px 13px; background: #f0fdf9; border: 1.5px solid #6ee7b7; border-radius: 8px; font-size: 14px; color: #065f46; margin-bottom: 0; }
+gmp-place-autocomplete { --gmp-input-padding: 9px 13px; --gmp-input-border: 1.5px solid var(--border); --gmp-input-border-radius: 8px; --gmp-input-font-size: 14px; --gmp-input-font-family: 'Plus Jakarta Sans', sans-serif; --gmp-input-color: var(--black); width: 100%; }
+.venue-chip { display: flex; align-items: center; gap: 8px; padding: 9px 13px; background: var(--green-dim); border: 1.5px solid var(--green); border-radius: 8px; font-size: 14px; color: var(--green); margin-bottom: 0; font-weight: 500; }
 .venue-chip-name { flex: 1; }
-.venue-chip-change { background: none; border: none; cursor: pointer; color: #6b7280; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; padding: 2px 6px; border-radius: 4px; }
-.venue-chip-change:hover { background: #d1fae5; color: #065f46; }
-.ticket-card-saved { background: #f0fdf9; border-color: #6ee7b7; }
-.ticket-saved-check { color: #16a34a; font-size: 15px; font-weight: 700; }
+.venue-chip-change { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; padding: 2px 6px; border-radius: 4px; transition: all 0.15s; }
+.venue-chip-change:hover { background: rgba(72,193,110,0.2); color: var(--green); }
+.ticket-card-saved { background: var(--green-dim); border-color: var(--green); }
+.ticket-saved-check { color: var(--green); font-size: 15px; font-weight: 700; }
 .ticket-save-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
-.btn-save-ticket { padding: 8px 16px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; }
-.btn-save-ticket:hover { background: var(--accent-dark); }
-.btn-save-create { padding: 8px 16px; background: #fff; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
-.btn-save-create:hover { background: #f0fdf9; }
-.btn-edit-ticket { padding: 5px 12px; background: #fff; color: var(--text-mid); border: 1.5px solid var(--border); border-radius: 6px; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
-.btn-edit-ticket:hover { border-color: var(--accent); color: var(--accent); }
+.btn-save-ticket { padding: 8px 16px; background: var(--black); color: var(--white); border: none; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: opacity 0.15s; }
+.btn-save-ticket:hover { opacity: 0.8; }
+.btn-save-create { padding: 8px 16px; background: var(--surface); color: var(--black); border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: all 0.15s; }
+.btn-save-create:hover { border-color: var(--black); }
+.btn-edit-ticket { padding: 5px 12px; background: var(--surface); color: var(--muted); border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: all 0.15s; }
+.btn-edit-ticket:hover { border-color: var(--black); color: var(--black); }
 .multiday-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 4px; }
-.multiday-btn { flex: 1; padding: 9px 12px; border: none; background: #fff; color: var(--text-mid); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+.multiday-btn { flex: 1; padding: 9px 12px; border: none; background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.15s; }
 .multiday-btn:first-child { border-right: 1.5px solid var(--border); }
-.multiday-btn.active { background: #f0fdf9; color: var(--accent-dark); font-weight: 600; }
-.day-card { border: 1.5px solid #bae6fd; border-radius: 10px; padding: 18px; margin-bottom: 12px; background: #f0f9ff; position: relative; }
+.multiday-btn.active { background: var(--black); color: var(--white); font-weight: 700; }
+.day-card { border: 1.5px solid #bae6fd; border-radius: 12px; padding: 18px; margin-bottom: 12px; background: #f0f9ff; position: relative; }
 .day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .day-label { font-size: 13px; font-weight: 700; color: #0369a1; display: flex; align-items: center; gap: 6px; }
-.day-badge { background: #0369a1; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+.day-badge { background: #0369a1; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 100px; }
 .day-actions { display: flex; gap: 8px; align-items: center; }
-.btn-copy-day { font-size: 11px; color: var(--accent); background: none; border: 1.5px solid var(--accent); border-radius: 5px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 600; padding: 3px 8px; transition: all 0.15s; }
-.btn-copy-day:hover { background: #f0fdf9; }
-.day-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: #dbeafe; color: #1d4ed8; }
+.btn-copy-day { font-size: 11px; color: #0369a1; background: none; border: 1.5px solid #0369a1; border-radius: 8px; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; padding: 3px 8px; transition: all 0.15s; }
+.btn-copy-day:hover { background: #e0f2fe; }
+.day-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 700; background: #dbeafe; color: #1d4ed8; }
 .day-pill.festival { background: #fef3c7; color: #92400e; }
 @media(max-width:768px) { .form-layout { grid-template-columns: 1fr; } .form-row { grid-template-columns: 1fr; } }
 `;
@@ -158,7 +159,7 @@ function ImageUpload({ value, onChange, type, spec, tooltip }) {
     fd.append('file', file);
     fd.append('type', type);
     try {
-      const res  = await fetch('/api/organiser/upload', { method: 'POST', body: fd });
+      const res  = await orgFetch('/api/organiser/upload', { method: 'POST', body: fd });
       const json = await res.json();
       if (json.url) { onChange(json.url); } else { setUploadErr(json.error || 'Upload failed'); }
     } catch { setUploadErr('Upload failed. Please try again.'); }
@@ -445,7 +446,7 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
                         <div className="day-label">
                           <span className="day-badge">{i + 1}</span>
                           {day.name || `Day ${i + 1}`}
-                          {day.date ? <span style={{ fontWeight: 400, color: '#64748b', fontSize: 12 }}>{day.date}</span> : null}
+                          {day.date ? <span style={{ fontWeight: 500, color: '#64748b', fontSize: 12 }}>{day.date}</span> : null}
                         </div>
                         <div className="day-actions">
                           <button type="button" className="btn-copy-day" title="Add next day with same capacity, date +1" onClick={() => copyDayBelow(key)}>
@@ -503,7 +504,7 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <span className="ticket-saved-check">✓</span>
                           <span className="ticket-label">{t.name || `Ticket ${i + 1}`}</span>
-                          {t.price && <span style={{ fontSize: 13, color: '#6b7280' }}>· €{parseFloat(t.price).toFixed(2)}</span>}
+                          {t.price && <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>· €{parseFloat(t.price).toFixed(2)}</span>}
                           {isMultiDay && (
                             assignedLabel
                               ? <span className="day-pill">{assignedLabel}</span>
@@ -660,11 +661,11 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
                   const dayTix = tickets.filter(t => t.event_day_id === key || t.event_day_id === d.id);
                   const festTix = tickets.filter(t => !t.event_day_id);
                   return (
-                    <div key={key} style={{ marginBottom: 10, padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+                    <div key={key} style={{ marginBottom: 10, padding: '10px 12px', background: '#f0f9ff', borderRadius: 10, border: '1.5px solid #bae6fd' }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#0369a1' }}>
                         {d.name || `Day ${i + 1}`}{d.date ? ` · ${d.date}` : ''}
                       </div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500, marginTop: 2 }}>
                         {dayTix.length} day ticket{dayTix.length !== 1 ? 's' : ''}
                         {festTix.length > 0 ? ` + ${festTix.length} festival pass${festTix.length !== 1 ? 'es' : ''}` : ''}
                         {d.capacity ? ` · cap: ${Number(d.capacity).toLocaleString()}` : ' · unlimited'}

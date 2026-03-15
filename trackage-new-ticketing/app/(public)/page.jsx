@@ -726,7 +726,7 @@ export default function HomePage() {
       {/* ── NAVBAR ── */}
       <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
         <Link href="/" className="nav-logo">
-          <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '32px', width: 'auto', display: 'block', filter: 'invert(1)' }} />
+          <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '32px', width: 'auto', display: 'block', filter: 'invert(1)' }} />
         </Link>
 
         <div className="nav-links">
@@ -921,9 +921,8 @@ export default function HomePage() {
             <div className="footer-col-title">Navigate</div>
             <div className="footer-links">
               <Link href="/" className="footer-link">Events</Link>
-              <Link href="https://trackagescheme.com/about-us" target="_blank" className="footer-link">About</Link>
-              <Link href="https://trackagescheme.com/services" target="_blank" className="footer-link">Services</Link>
-              <Link href="https://trackagescheme.com/contact" target="_blank" className="footer-link">Contact</Link>
+              <Link href="/about" className="footer-link">About</Link>
+              <Link href="/contact" className="footer-link">Contact</Link>
             </div>
           </div>
           <div>
@@ -931,7 +930,6 @@ export default function HomePage() {
             <div className="footer-links">
               <Link href="/terms" className="footer-link">Terms & Conditions</Link>
               <Link href="/privacy" className="footer-link">Privacy Policy</Link>
-              <Link href="/refunds" className="footer-link">Refund Policy</Link>
             </div>
           </div>
         </div>

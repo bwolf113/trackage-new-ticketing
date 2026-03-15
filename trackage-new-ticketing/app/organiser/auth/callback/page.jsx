@@ -16,6 +16,19 @@ function AuthCallbackPageInner() {
   }, []);
 
   async function handleCallback() {
+    // If this is a password recovery redirect, hand off to the reset-password page
+    // Supabase appends type=recovery in the URL hash or as a query param
+    const type = searchParams.get('type');
+    if (type === 'recovery') {
+      router.replace('/organiser/reset-password');
+      return;
+    }
+    // Also check the hash fragment (implicit flow recovery links)
+    if (typeof window !== 'undefined' && window.location.hash.includes('type=recovery')) {
+      router.replace('/organiser/reset-password' + window.location.hash);
+      return;
+    }
+
     const code = searchParams.get('code');
 
     if (code) {

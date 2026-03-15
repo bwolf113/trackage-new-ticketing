@@ -1,11 +1,13 @@
 /* app/api/organiser/issue-comp/route.js
    POST — issue complimentary tickets to attendees
-   Body: { organiser_id, event_id, attendees: [{ first_name, last_name, email, quantity, ticket_id }] }
+   Body: { event_id, attendees: [{ first_name, last_name, email, quantity, ticket_id }] }
+   Auth: Bearer token
 */
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail, ticketConfirmationEmail } from '../../../../lib/sendEmail';
 import { generateQRPublicURL } from '../../../../lib/qrcode.js';
 import crypto from 'crypto';
+import { getOrganiserFromRequest } from '../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(
@@ -16,12 +18,15 @@ function adminSupabase() {
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { organiser_id, event_id, attendees } = body;
+    const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+    if (errorResponse) return errorResponse;
 
-    if (!organiser_id)      return Response.json({ error: 'organiser_id required' }, { status: 400 });
-    if (!event_id)          return Response.json({ error: 'event_id required' },     { status: 400 });
-    if (!attendees?.length) return Response.json({ error: 'attendees required' },    { status: 400 });
+    const body = await req.json();
+    const { event_id, attendees } = body;
+    const organiser_id = organiser.id;
+
+    if (!event_id)          return Response.json({ error: 'event_id required' },  { status: 400 });
+    if (!attendees?.length) return Response.json({ error: 'attendees required' }, { status: 400 });
 
     const supabase = adminSupabase();
 

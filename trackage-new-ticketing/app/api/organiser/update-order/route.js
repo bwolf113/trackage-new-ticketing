@@ -1,8 +1,9 @@
 /* app/api/organiser/update-order/route.js
-   POST { order_id, organiser_id, customer_name, customer_email }
-   Verifies the order belongs to an event owned by this organiser before updating.
+   POST { order_id, customer_name, customer_email }
+   Auth: Bearer token — verifies the order belongs to the authenticated organiser.
 */
 import { createClient } from '@supabase/supabase-js';
+import { getOrganiserFromRequest } from '../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(
@@ -13,9 +14,12 @@ function adminSupabase() {
 
 export async function POST(req) {
   try {
-    const { order_id, organiser_id, customer_name, customer_email } = await req.json();
-    if (!order_id)     return Response.json({ error: 'order_id required' },     { status: 400 });
-    if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+    const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+    if (errorResponse) return errorResponse;
+
+    const { order_id, customer_name, customer_email } = await req.json();
+    if (!order_id) return Response.json({ error: 'order_id required' }, { status: 400 });
+    const organiser_id = organiser.id;
 
     const supabase = adminSupabase();
 

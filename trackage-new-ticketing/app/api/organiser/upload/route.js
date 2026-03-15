@@ -3,6 +3,7 @@
    Validates, uploads to Supabase Storage bucket "event-media", returns public URL.
 */
 import { createClient } from '@supabase/supabase-js';
+import { getOrganiserFromRequest } from '../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(
@@ -11,10 +12,13 @@ function adminSupabase() {
   );
 }
 
-const MAX_BYTES   = 500 * 1024; // 500 KB
+const MAX_BYTES     = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export async function POST(req) {
+  const { errorResponse } = await getOrganiserFromRequest(req);
+  if (errorResponse) return errorResponse;
+
   try {
     const formData = await req.formData();
     const file = formData.get('file');

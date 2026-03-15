@@ -28,7 +28,8 @@ export default function AdminLayout({ children }) {
 
   useEffect(() => {
     const isAdmin = localStorage.getItem('admin_authenticated');
-    if (!isAdmin && pathname !== '/admin/login') router.push('/admin/login');
+    const hasToken = localStorage.getItem('admin_token');
+    if ((!isAdmin || !hasToken) && pathname !== '/admin/login') router.push('/admin/login');
   }, [pathname]);
 
   function toggleCollapse() {
@@ -39,6 +40,7 @@ export default function AdminLayout({ children }) {
 
   function handleLogout() {
     localStorage.removeItem('admin_authenticated');
+    localStorage.removeItem('admin_token');
     router.push('/admin/login');
   }
 
@@ -49,20 +51,21 @@ export default function AdminLayout({ children }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
-          --accent: #0a9e7f; --accent-dark: #087d65; --accent-bg: #f0fdf9;
-          --text: #111827; --text-mid: #6b7280; --text-light: #9ca3af;
-          --border: #e5e7eb; --bg: #f9fafb; --white: #ffffff; --danger: #ef4444;
+          --bg: #F5F6FA; --surface: #FFFFFF; --border: #EBEDF0;
+          --muted: #767C8C; --green: #48C16E; --green-dim: rgba(72,193,110,0.12);
+          --black: #000000; --white: #FFFFFF;
         }
-        html, body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+        html, body { background: var(--bg); color: var(--black); font-family: 'Plus Jakarta Sans', sans-serif; }
         .al-sidebar {
           width: ${sidebarW}; background: #000;
           border-right: 1px solid rgba(255,255,255,0.08);
           display: flex; flex-direction: column;
           position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
           transition: width 0.2s ease, transform 0.25s ease; overflow: hidden;
+          font-family: 'Plus Jakarta Sans', sans-serif;
         }
         .al-logo {
           padding: 0 8px; height: 56px; min-height: 56px;
@@ -85,9 +88,10 @@ export default function AdminLayout({ children }) {
           padding: 9px 10px; border-radius: 8px; text-decoration: none;
           color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 500;
           transition: all 0.15s; white-space: nowrap; overflow: hidden;
+          font-family: 'Plus Jakarta Sans', sans-serif;
         }
         .al-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
-        .al-item.active { background: rgba(10,158,127,0.2); color: #0a9e7f; font-weight: 600; }
+        .al-item.active { background: rgba(72,193,110,0.18); color: #48C16E; font-weight: 600; }
         .al-icon { font-size: 15px; min-width: 20px; width: 20px; text-align: center; }
         .al-label { overflow: hidden; white-space: nowrap; }
         .al-foot { padding: 10px 6px; border-top: 1px solid rgba(255,255,255,0.08); }
@@ -95,17 +99,17 @@ export default function AdminLayout({ children }) {
           width: 100%; display: flex; align-items: center; gap: 10px;
           padding: 9px 10px; border-radius: 8px; background: none; border: none;
           color: rgba(255,255,255,0.65); font-size: 13px; font-weight: 500;
-          cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; white-space: nowrap; overflow: hidden;
+          cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.15s; white-space: nowrap; overflow: hidden;
         }
         .al-logout:hover { background: rgba(239,68,68,0.15); color: #f87171; }
         .al-main { margin-left: ${sidebarW}; flex: 1; min-height: 100vh; background: var(--bg); display: flex; flex-direction: column; transition: margin-left 0.2s ease; }
-        .al-topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+        .al-topbar { background: var(--surface); border-bottom: 1.5px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
         .al-topbar-l { display: flex; align-items: center; gap: 12px; }
-        .al-menu-btn { display: none; background: none; border: 1px solid var(--border); color: var(--text-mid); padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 16px; line-height: 1; }
-        .al-page-title { font-size: 15px; font-weight: 600; color: var(--text); }
+        .al-menu-btn { display: none; background: none; border: 1.5px solid var(--border); color: var(--muted); padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 16px; line-height: 1; }
+        .al-page-title { font-size: 15px; font-weight: 700; color: var(--black); font-family: 'Plus Jakarta Sans', sans-serif; }
         .al-topbar-r { display: flex; align-items: center; gap: 10px; }
-        .al-avatar { width: 30px; height: 30px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700; }
-        .al-username { font-size: 13px; color: var(--text-mid); }
+        .al-avatar { width: 30px; height: 30px; background: var(--black); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700; }
+        .al-username { font-size: 13px; color: var(--muted); font-weight: 500; font-family: 'Plus Jakarta Sans', sans-serif; }
         .al-content { padding: 28px 32px; flex: 1; }
         .al-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
         @media (max-width: 768px) {
@@ -125,7 +129,7 @@ export default function AdminLayout({ children }) {
       <aside className={`al-sidebar ${mobileOpen ? 'open' : ''}`}>
         <div className="al-logo">
           {!collapsed && (
-            <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '22px', width: 'auto', display: 'block' }} />
+            <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" style={{ height: '22px', width: 'auto', display: 'block' }} />
           )}
           <button className="al-collapse" onClick={toggleCollapse} title={collapsed ? 'Expand' : 'Collapse'}>
             {collapsed ? '▶' : '◀'}

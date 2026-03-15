@@ -1,8 +1,9 @@
 /* app/api/organiser/dashboard/route.js
    GET — returns dashboard stats for an organiser.
-   Query: organiser_id
+   Auth: Bearer token
 */
 import { createClient } from '@supabase/supabase-js';
+import { getOrganiserFromRequest } from '../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(
@@ -13,9 +14,9 @@ function adminSupabase() {
 
 export async function GET(req) {
   try {
-    const { searchParams } = new URL(req.url);
-    const organiser_id = searchParams.get('organiser_id');
-    if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+    const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+    if (errorResponse) return errorResponse;
+    const organiser_id = organiser.id;
 
     const supabase = adminSupabase();
 

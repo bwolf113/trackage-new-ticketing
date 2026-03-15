@@ -3,6 +3,7 @@
    POST — create event + days + tickets (service-role, bypasses RLS)
 */
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '../../../../lib/adminAuth';
 
 function adminSupabase() {
   return createClient(
@@ -11,7 +12,9 @@ function adminSupabase() {
   );
 }
 
-export async function GET() {
+export async function GET(req) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   try {
     const supabase = adminSupabase();
     const [{ data: events, error: evErr }, { data: orgs }] = await Promise.all([
@@ -32,6 +35,8 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   try {
     const body = await req.json();
     const { event: eventData, tickets = [], days = [], isMultiDay = false } = body;

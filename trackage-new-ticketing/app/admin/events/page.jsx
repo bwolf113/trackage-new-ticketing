@@ -2,6 +2,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { adminFetch } from '../../../lib/adminFetch';
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
 function slug(str) {
@@ -55,119 +56,113 @@ const BLANK_EVENT = () => ({
 
 /* ─── styles ──────────────────────────────────────────────────────── */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --accent:      #0a9e7f;
-  --accent-dark: #087d65;
-  --accent-bg:   #f0fdf9;
-  --text:        #111827;
-  --text-mid:    #6b7280;
-  --text-light:  #9ca3af;
-  --border:      #e5e7eb;
-  --bg:          #f9fafb;
-  --white:       #ffffff;
-  --danger:      #ef4444;
-  --danger-bg:   #fef2f2;
-  --warning:     #f59e0b;
-  --warning-bg:  #fffbeb;
-  --info:        #3b82f6;
-  --info-bg:     #eff6ff;
+  --bg:        #F5F6FA;
+  --surface:   #FFFFFF;
+  --border:    #EBEDF0;
+  --muted:     #767C8C;
+  --green:     #48C16E;
+  --green-dim: rgba(72,193,110,0.12);
+  --black:     #000000;
+  --white:     #FFFFFF;
+  --danger:    #ef4444;
+  --danger-bg: rgba(239,68,68,0.1);
 }
 
-.ev { font-family: 'Inter', sans-serif; color: var(--text); }
+.ev { font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black); }
 
 /* ── page header ── */
 .page-header {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
 }
-.page-title { font-size: 22px; font-weight: 700; }
-.page-sub   { font-size: 14px; color: var(--text-mid); margin-top: 2px; }
+.page-title { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+.page-sub   { font-size: 14px; color: var(--muted); margin-top: 2px; font-weight: 500; }
 
 /* ── buttons ── */
 .btn {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 9px 18px; border-radius: 8px;
-  font-size: 14px; font-weight: 600;
+  font-size: 13px; font-weight: 700;
   cursor: pointer; border: none;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   transition: all 0.15s;
   white-space: nowrap;
 }
-.btn-primary  { background: var(--accent); color: #fff; }
-.btn-primary:hover  { background: var(--accent-dark); }
-.btn-ghost    { background: transparent; color: var(--text-mid); border: 1.5px solid var(--border); }
-.btn-ghost:hover    { border-color: var(--accent); color: var(--accent); }
+.btn-primary  { background: var(--black); color: var(--white); border: none; }
+.btn-primary:hover  { opacity: 0.85; }
+.btn-ghost    { background: var(--surface); color: var(--muted); border: 1.5px solid var(--border); }
+.btn-ghost:hover    { border-color: var(--black); color: var(--black); }
 .btn-danger   { background: var(--danger-bg); color: var(--danger); border: 1.5px solid #fecaca; }
-.btn-danger:hover   { background: #fee2e2; }
+.btn-danger:hover   { background: rgba(239,68,68,0.2); }
 .btn-sm { padding: 6px 12px; font-size: 12px; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── status badge ── */
 .badge {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 10px; border-radius: 20px;
-  font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 100px;
+  font-size: 11px; font-weight: 700;
 }
-.badge-draft     { background: #f3f4f6; color: #6b7280; }
-.badge-published { background: #dcfce7; color: #16a34a; }
-.badge-sold_out  { background: #fef2f2; color: #b91c1c; }
-.badge-ended     { background: #fee2e2; color: #dc2626; }
+.badge-draft     { background: rgba(0,0,0,0.06); color: var(--muted); }
+.badge-published { background: var(--green-dim); color: var(--green); }
+.badge-sold_out  { background: var(--danger-bg); color: var(--danger); }
+.badge-ended     { background: var(--danger-bg); color: var(--danger); }
 
 /* ── search / filter bar ── */
 .toolbar {
   display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
 }
 .search-wrap { position: relative; flex: 1; min-width: 200px; }
-.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-light); font-size: 14px; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; }
 .search-input {
   width: 100%; padding: 9px 12px 9px 36px;
   border: 1.5px solid var(--border); border-radius: 8px;
-  font-size: 14px; font-family: 'Inter', sans-serif; color: var(--text);
-  background: var(--white); outline: none;
+  font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black);
+  background: var(--surface); outline: none;
 }
-.search-input:focus { border-color: var(--accent); }
+.search-input:focus { border-color: var(--black); }
 
 .filter-select {
   padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px;
-  font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text);
-  background: var(--white); outline: none; cursor: pointer;
+  font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black);
+  background: var(--surface); outline: none; cursor: pointer;
 }
-.filter-select:focus { border-color: var(--accent); }
+.filter-select:focus { border-color: var(--black); }
 
 /* ── events table ── */
 .table-card {
-  background: var(--white); border: 1px solid var(--border);
-  border-radius: 12px; overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 16px; overflow: hidden;
 }
 .ev-table { width: 100%; border-collapse: collapse; }
 .ev-table th {
-  background: #f9fafb; padding: 11px 16px;
-  text-align: left; font-size: 11px; font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--text-mid); border-bottom: 1px solid var(--border);
+  background: var(--bg); padding: 11px 16px;
+  text-align: left; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 1.5px solid var(--border);
 }
-.ev-table td { padding: 14px 16px; border-top: 1px solid #f3f4f6; font-size: 14px; color: #374151; vertical-align: middle; }
-.ev-table tr:hover td { background: #fafafa; }
+.ev-table td { padding: 14px 16px; border-top: 1px solid var(--border); font-size: 14px; color: var(--black); vertical-align: middle; font-weight: 500; }
+.ev-table tr:hover td { background: var(--bg); }
 
 .event-thumb {
   width: 48px; height: 48px; border-radius: 8px; object-fit: cover;
-  background: #f3f4f6; border: 1px solid var(--border);
+  background: var(--bg); border: 1.5px solid var(--border);
   display: flex; align-items: center; justify-content: center;
-  font-size: 20px; color: var(--text-light); flex-shrink: 0;
+  font-size: 20px; color: var(--muted); flex-shrink: 0;
 }
 .event-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
 
 .event-name-cell { display: flex; align-items: center; gap: 12px; }
-.event-name  { font-weight: 600; color: var(--text); font-size: 14px; }
-.event-slug  { font-size: 11px; color: var(--text-light); margin-top: 2px; font-family: monospace; }
+.event-name  { font-weight: 600; color: var(--black); font-size: 14px; }
+.event-slug  { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: monospace; }
 
 .actions { display: flex; gap: 6px; }
 
-.empty-row td { text-align: center; padding: 56px 20px; color: var(--text-light); font-size: 14px; }
+.empty-row td { text-align: center; padding: 56px 20px; color: var(--muted); font-size: 14px; font-weight: 500; }
 
 /* ── modal overlay ── */
 .modal-overlay {
@@ -176,9 +171,8 @@ const CSS = `
   padding: 24px 16px; overflow-y: auto;
 }
 .modal {
-  background: var(--white); border-radius: 16px;
+  background: var(--surface); border-radius: 20px; border: 1.5px solid var(--border);
   width: 100%; max-width: 820px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
   animation: slide-up 0.2s ease;
 }
 @keyframes slide-up {
@@ -188,24 +182,24 @@ const CSS = `
 
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 24px 28px; border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; background: var(--white);
-  border-radius: 16px 16px 0 0; z-index: 10;
+  padding: 24px 28px; border-bottom: 1.5px solid var(--border);
+  position: sticky; top: 0; background: var(--surface);
+  border-radius: 20px 20px 0 0; z-index: 10;
 }
-.modal-title { font-size: 18px; font-weight: 700; }
+.modal-title { font-size: 18px; font-weight: 700; color: var(--black); }
 .modal-close {
-  background: none; border: none; font-size: 20px;
-  cursor: pointer; color: var(--text-mid); padding: 4px;
-  border-radius: 6px; transition: background 0.15s;
-  font-family: 'Inter', sans-serif;
+  background: var(--surface); border: 1.5px solid var(--border); font-size: 20px;
+  cursor: pointer; color: var(--muted); padding: 4px 8px;
+  border-radius: 8px; transition: all 0.15s; line-height: 1;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
-.modal-close:hover { background: #f3f4f6; }
+.modal-close:hover { background: var(--bg); color: var(--black); border-color: var(--black); }
 
 .modal-body { padding: 28px; }
 .modal-footer {
   display: flex; justify-content: flex-end; gap: 10px;
-  padding: 20px 28px; border-top: 1px solid var(--border);
-  background: #f9fafb; border-radius: 0 0 16px 16px;
+  padding: 20px 28px; border-top: 1.5px solid var(--border);
+  background: var(--bg); border-radius: 0 0 20px 20px;
 }
 
 /* ── form ── */
@@ -217,12 +211,12 @@ const CSS = `
 .form-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
 .section-label {
-  font-size: 13px; font-weight: 700; color: var(--text);
-  text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
   margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
 }
 .section-label .dot {
-  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
 }
 
 .form-grid { display: grid; gap: 14px; }
@@ -231,21 +225,21 @@ const CSS = `
 
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field label {
-  font-size: 12px; font-weight: 600; color: #374151;
+  font-size: 12px; font-weight: 700; color: var(--black);
   letter-spacing: 0.02em;
 }
 .field input, .field textarea, .field select {
   border: 1.5px solid var(--border); border-radius: 8px;
-  padding: 9px 12px; font-size: 14px; color: var(--text);
-  font-family: 'Inter', sans-serif; background: var(--white);
-  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  padding: 9px 12px; font-size: 14px; color: var(--black);
+  font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface);
+  outline: none; transition: border-color 0.15s;
   width: 100%;
 }
 .field input:focus, .field textarea:focus, .field select:focus {
-  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(10,158,127,0.08);
+  border-color: var(--black);
 }
 .field textarea { resize: vertical; min-height: 90px; }
-.field .hint { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.field .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 /* ── image upload ── */
 .img-upload {
@@ -253,11 +247,11 @@ const CSS = `
   padding: 20px; text-align: center; cursor: pointer;
   transition: border-color 0.15s, background 0.15s; position: relative;
 }
-.img-upload:hover { border-color: var(--accent); background: var(--accent-bg); }
+.img-upload:hover { border-color: var(--black); background: var(--bg); }
 .img-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .img-upload-icon { font-size: 24px; margin-bottom: 8px; }
-.img-upload-text { font-size: 13px; color: var(--text-mid); }
-.img-upload-hint { font-size: 11px; color: var(--text-light); margin-top: 4px; }
+.img-upload-text { font-size: 13px; color: var(--muted); }
+.img-upload-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
 .img-preview {
   width: 100%; max-height: 140px; object-fit: cover;
   border-radius: 8px; display: block;
@@ -268,23 +262,23 @@ const CSS = `
 
 .ticket-card {
   border: 1.5px solid var(--border); border-radius: 10px;
-  overflow: hidden; background: #fafafa;
+  overflow: hidden; background: var(--bg);
 }
 .ticket-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; background: var(--white);
+  padding: 12px 16px; background: var(--surface);
   border-bottom: 1px solid var(--border);
   cursor: pointer; user-select: none;
 }
 .ticket-header-left { display: flex; align-items: center; gap: 10px; }
 .ticket-num {
   width: 22px; height: 22px; border-radius: 6px;
-  background: var(--accent-bg); color: var(--accent);
+  background: var(--green-dim); color: var(--green);
   font-size: 11px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
-.ticket-header-name { font-size: 14px; font-weight: 600; color: var(--text); }
-.ticket-header-price { font-size: 13px; color: var(--text-mid); }
+.ticket-header-name { font-size: 14px; font-weight: 600; color: var(--black); }
+.ticket-header-price { font-size: 13px; color: var(--muted); }
 
 .ticket-body { padding: 16px; }
 
@@ -292,36 +286,35 @@ const CSS = `
   display: flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; padding: 12px;
   border: 2px dashed var(--border); border-radius: 10px;
-  background: none; cursor: pointer; color: var(--accent);
-  font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif;
+  background: none; cursor: pointer; color: var(--muted);
+  font-size: 14px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif;
   transition: all 0.15s;
 }
-.add-ticket-btn:hover { border-color: var(--accent); background: var(--accent-bg); }
+.add-ticket-btn:hover { border-color: var(--black); color: var(--black); }
 
 /* ── toast ── */
 .toast {
   position: fixed; bottom: 24px; right: 24px;
-  background: #111827; color: #fff;
+  background: var(--black); color: var(--white);
   padding: 12px 20px; border-radius: 10px;
-  font-size: 14px; font-weight: 500;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  font-size: 14px; font-weight: 600;
   z-index: 999; display: flex; align-items: center; gap: 8px;
   animation: slide-up 0.2s ease;
 }
-.toast-success { background: var(--accent); }
+.toast-success { background: var(--green); }
 .toast-error   { background: var(--danger); }
 
 /* ── multi-day ── */
 .multiday-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 6px; }
-.multiday-btn { flex: 1; padding: 9px 12px; border: none; background: #fff; color: var(--text-mid); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+.multiday-btn { flex: 1; padding: 9px 12px; border: none; background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.15s; }
 .multiday-btn:first-child { border-right: 1.5px solid var(--border); }
-.multiday-btn.active { background: #f0fdf9; color: var(--accent-dark); font-weight: 600; }
+.multiday-btn.active { background: var(--black); color: var(--white); font-weight: 700; }
 .day-card { border: 1.5px solid #bae6fd; border-radius: 10px; padding: 16px; margin-bottom: 10px; background: #f0f9ff; }
 .day-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .day-card-label { font-size: 13px; font-weight: 700; color: #0369a1; display: flex; align-items: center; gap: 6px; }
 .day-card-badge { background: #0369a1; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
-.btn-copy-day { font-size: 11px; color: var(--accent); background: none; border: 1.5px solid var(--accent); border-radius: 5px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 600; padding: 3px 8px; transition: all 0.15s; }
-.btn-copy-day:hover { background: #f0fdf9; }
+.btn-copy-day { font-size: 11px; color: var(--muted); background: none; border: 1.5px solid var(--border); border-radius: 5px; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; padding: 3px 8px; transition: all 0.15s; }
+.btn-copy-day:hover { border-color: var(--black); color: var(--black); }
 .day-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: #dbeafe; color: #1d4ed8; margin-left: 6px; }
 .day-pill-festival { background: #fef3c7; color: #92400e; }
 
@@ -344,9 +337,8 @@ const CSS = `
   padding: 24px 16px; overflow-y: auto;
 }
 .preview-shell {
-  background: var(--white); border-radius: 16px;
+  background: var(--surface); border-radius: 16px; border: 1.5px solid var(--border);
   width: 100%; max-width: 480px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
   animation: slide-up 0.2s ease;
   overflow: hidden;
 }
@@ -359,7 +351,7 @@ const CSS = `
 .preview-topbar-label {
   display: flex; align-items: center; gap: 7px;
 }
-.preview-dot { width: 8px; height: 8px; border-radius: 50%; background: #0a9e7f; }
+.preview-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
 .preview-url {
   font-size: 11px; color: #9ca3af; font-family: monospace;
   background: #1f2937; padding: 4px 10px; border-radius: 6px;
@@ -367,7 +359,7 @@ const CSS = `
 }
 
 /* public page styles scoped inside .pub- */
-.pub-page { font-family: 'Inter', sans-serif; background: #0d0d0d; color: #fff; min-height: 400px; }
+.pub-page { font-family: 'Plus Jakarta Sans', sans-serif; background: #0d0d0d; color: #fff; min-height: 400px; }
 
 .pub-poster-wrap { position: relative; width: 100%; aspect-ratio: 3/4; max-height: 420px; overflow: hidden; background: #1a1a1a; }
 .pub-poster { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -381,13 +373,13 @@ const CSS = `
 }
 .pub-status-pill {
   position: absolute; top: 14px; left: 14px;
-  padding: 4px 12px; border-radius: 20px;
+  padding: 4px 12px; border-radius: 100px;
   font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
 }
 .pub-pill-draft     { background: rgba(255,255,255,0.15); color: #d1d5db; backdrop-filter: blur(4px); }
-.pub-pill-published { background: rgba(10,158,127,0.85); color: #fff; backdrop-filter: blur(4px); }
-.pub-pill-sold_out  { background: rgba(239,68,68,0.85);  color: #fff; backdrop-filter: blur(4px); }
-.pub-pill-ended     { background: rgba(239,68,68,0.85);  color: #fff; backdrop-filter: blur(4px); }
+.pub-pill-published { background: rgba(72,193,110,0.85);  color: #fff; backdrop-filter: blur(4px); }
+.pub-pill-sold_out  { background: rgba(239,68,68,0.85);   color: #fff; backdrop-filter: blur(4px); }
+.pub-pill-ended     { background: rgba(239,68,68,0.85);   color: #fff; backdrop-filter: blur(4px); }
 
 .pub-content { padding: 20px 20px 32px; }
 
@@ -403,7 +395,7 @@ const CSS = `
 }
 .pub-meta-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
 .pub-meta-text { line-height: 1.4; }
-.pub-meta-link { color: #0a9e7f; text-decoration: none; font-weight: 500; }
+.pub-meta-link { color: var(--green); text-decoration: none; font-weight: 500; }
 .pub-meta-link:hover { text-decoration: underline; }
 
 .pub-divider { border: none; border-top: 1px solid #2a2a2a; margin: 20px 0; }
@@ -428,31 +420,31 @@ const CSS = `
 .pub-ticket-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
 .pub-ticket-inv  { font-size: 12px; color: #6b7280; }
 .pub-ticket-right { text-align: right; flex-shrink: 0; }
-.pub-ticket-price { font-size: 18px; font-weight: 800; color: #0a9e7f; }
+.pub-ticket-price { font-size: 18px; font-weight: 800; color: var(--green); }
 .pub-ticket-fee   { font-size: 11px; color: #6b7280; margin-top: 2px; }
 .pub-buy-btn {
   display: block; width: 100%;
-  background: #0a9e7f; color: #fff;
+  background: var(--green); color: #fff;
   border: none; border-radius: 10px;
   padding: 14px; font-size: 15px; font-weight: 700;
   text-align: center; cursor: pointer; margin-top: 16px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 .pub-no-tickets { color: #6b7280; font-size: 14px; text-align: center; padding: 20px 0; }
 
 /* ── pac (Google Places) ── */
 .pac-container-wrap { width: 100%; }
 .pac-container-wrap gmp-place-autocomplete { width: 100%; }
-gmp-place-autocomplete { --gmp-input-padding: 9px 12px; --gmp-input-border: 1.5px solid #e5e7eb; --gmp-input-border-radius: 8px; --gmp-input-font-size: 14px; --gmp-input-font-family: 'Inter', sans-serif; --gmp-input-color: #111827; width: 100%; }
-.venue-chip { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: #f0fdf9; border: 1.5px solid #6ee7b7; border-radius: 8px; font-size: 14px; color: #065f46; }
+gmp-place-autocomplete { --gmp-input-padding: 9px 12px; --gmp-input-border: 1.5px solid var(--border); --gmp-input-border-radius: 8px; --gmp-input-font-size: 14px; --gmp-input-font-family: 'Plus Jakarta Sans', sans-serif; --gmp-input-color: var(--black); width: 100%; }
+.venue-chip { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--green-dim); border: 1.5px solid var(--green); border-radius: 8px; font-size: 14px; color: var(--black); }
 .venue-chip-name { flex: 1; }
-.venue-chip-change { background: none; border: none; cursor: pointer; color: #6b7280; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; padding: 2px 6px; border-radius: 4px; }
-.venue-chip-change:hover { background: #d1fae5; color: #065f46; }
+.venue-chip-change { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; padding: 2px 6px; border-radius: 4px; }
+.venue-chip-change:hover { color: var(--black); }
 
 /* ── ticket saved state ── */
-.ticket-card-saved { background: #f0fdf9; border-color: #6ee7b7; }
+.ticket-card-saved { background: var(--green-dim); border-color: var(--green); }
 .ticket-saved-row { display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap; }
-.ticket-saved-check { color: #16a34a; font-size: 15px; font-weight: 700; }
+.ticket-saved-check { color: var(--green); font-size: 15px; font-weight: 700; }
 .ticket-save-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
 
 /* ── delete confirm ── */
@@ -461,13 +453,12 @@ gmp-place-autocomplete { --gmp-input-padding: 9px 12px; --gmp-input-border: 1.5p
   z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 .confirm-box {
-  background: var(--white); border-radius: 12px; padding: 28px;
-  max-width: 400px; width: 100%;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  background: var(--surface); border-radius: 20px; border: 1.5px solid var(--border);
+  padding: 28px; max-width: 400px; width: 100%;
   animation: slide-up 0.15s ease;
 }
-.confirm-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-.confirm-body  { font-size: 14px; color: var(--text-mid); margin-bottom: 24px; line-height: 1.5; }
+.confirm-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: var(--black); }
+.confirm-body  { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; font-weight: 500; }
 .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 `;
 
@@ -551,7 +542,7 @@ function TicketCard({ ticket, index, onChange, onRemove, onSaveAndCreateAnother,
               <span className="ticket-header-price">· €{parseFloat(ticket.price || 0).toFixed(2)}</span>
             )}
             {isSoldOut && (
-              <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>Sold Out</span>
+              <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 100, fontSize: 11, fontWeight: 700, background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid #fecaca' }}>Sold Out</span>
             )}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -559,8 +550,8 @@ function TicketCard({ ticket, index, onChange, onRemove, onSaveAndCreateAnother,
               type="button"
               className="btn btn-sm"
               style={isSoldOut
-                ? { background: '#f0fdf9', color: '#065f46', border: '1.5px solid #6ee7b7' }
-                : { background: '#fef2f2', color: '#b91c1c', border: '1.5px solid #fca5a5' }}
+                ? { background: 'var(--green-dim)', color: 'var(--green)', border: '1.5px solid var(--green)' }
+                : { background: 'var(--danger-bg)', color: 'var(--danger)', border: '1.5px solid var(--danger)' }}
               onClick={() => onChange({ ...ticket, status: isSoldOut ? 'active' : 'sold_out' })}
             >
               {isSoldOut ? 'Reactivate' : 'Mark Sold Out'}
@@ -864,17 +855,15 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
 
       // Route all writes through the admin API (service-role key, bypasses RLS)
       if (initial?.id) {
-        const res = await fetch(`/api/admin/events/${initial.id}`, {
+        const res = await adminFetch(`/api/admin/events/${initial.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ event: eventData, tickets, days, isMultiDay }),
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Save failed');
       } else {
-        const res = await fetch('/api/admin/events', {
+        const res = await adminFetch('/api/admin/events', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ event: eventData, tickets, days, isMultiDay }),
         });
         const json = await res.json();
@@ -1103,7 +1092,7 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
           {isMultiDay && (
             <div className="form-section">
               <div className="section-label"><span className="dot" /> Event Days</div>
-              <div style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 14, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
                 Add one card per day. Set a <strong>Daily Capacity</strong> to cap total attendees for that day — Festival Passes count toward every day's cap.
               </div>
               {days.map((day, i) => {
@@ -1155,7 +1144,7 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
           {/* ── Tickets ── */}
           <div className="form-section">
             <div className="section-label"><span className="dot" /> Tickets</div>
-            <div style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 14, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
               {isMultiDay
                 ? <>Assign each ticket to a specific day, or choose <strong>All Days (Festival Pass)</strong> for tickets covering the full event.</>
                 : <>Fill in each ticket type below. Click <strong>+ Add another ticket type</strong> when you're ready to add more.</>
@@ -1371,7 +1360,7 @@ export default function EventsPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/events');
+      const res = await adminFetch('/api/admin/events');
       const json = await res.json();
       setEvents(json.events || []);
       setOrganisers(json.organisers || []);
@@ -1388,7 +1377,7 @@ export default function EventsPage() {
 
   async function handleDelete() {
     const id = deleteTarget.id;
-    await fetch(`/api/admin/events/${id}`, { method: 'DELETE' });
+    await adminFetch(`/api/admin/events/${id}`, { method: 'DELETE' });
     setDeleteTarget(null);
     showToast('Event deleted.');
     load();
@@ -1413,9 +1402,8 @@ export default function EventsPage() {
   async function toggleSoldOut(ev) {
     const newStatus = ev.status === 'sold_out' ? 'published' : 'sold_out';
     setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, status: newStatus } : x));
-    const res = await fetch(`/api/admin/events/${ev.id}`, {
+    const res = await adminFetch(`/api/admin/events/${ev.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
     if (!res.ok) { showToast('Failed to update status', 'error'); load(); }
@@ -1472,7 +1460,7 @@ export default function EventsPage() {
       {/* ── Table ── */}
       <div className="table-card">
         {loading ? (
-          <div style={{ padding: 56, textAlign: 'center', color: 'var(--text-light)', fontSize: 14 }}>Loading events…</div>
+          <div style={{ padding: 56, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>Loading events…</div>
         ) : (
           <table className="ev-table">
             <thead>
@@ -1512,10 +1500,10 @@ export default function EventsPage() {
                       {ev.status === 'sold_out' ? 'Sold Out' : ev.status.charAt(0).toUpperCase() + ev.status.slice(1)}
                     </span>
                   </td>
-                  <td style={{ fontSize: 13, color: 'var(--text-mid)' }}>{formatDate(ev.start_time)}</td>
+                  <td style={{ fontSize: 13, color: 'var(--muted)' }}>{formatDate(ev.start_time)}</td>
                   <td>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{(ev.tickets || []).length}</span>
-                    <span style={{ fontSize: 12, color: 'var(--text-light)', marginLeft: 4 }}>types</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 4 }}>types</span>
                   </td>
                   <td>
                     <div className="actions">
@@ -1526,8 +1514,8 @@ export default function EventsPage() {
                       <button
                         className="btn btn-sm"
                         style={ev.status === 'sold_out'
-                          ? { background: '#f0fdf9', color: '#065f46', border: '1.5px solid #6ee7b7' }
-                          : { background: '#fef2f2', color: '#b91c1c', border: '1.5px solid #fca5a5' }}
+                          ? { background: 'var(--green-dim)', color: 'var(--green)', border: '1.5px solid var(--green)' }
+                          : { background: 'var(--danger-bg)', color: 'var(--danger)', border: '1.5px solid var(--danger)' }}
                         onClick={() => toggleSoldOut(ev)}
                       >
                         {ev.status === 'sold_out' ? '▶ Reactivate' : '✕ Mark Sold Out'}

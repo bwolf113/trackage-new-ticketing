@@ -1,10 +1,12 @@
 /* app/api/organiser/crm/send-email/route.js
    POST — send a broadcast email to a segment of attendees
-   Body: { organiser_id, segment, event_id?, subject, message }
+   Body: { segment, event_id?, subject, message }
    Segments: all | per_event | loyal | local | foreign
+   Auth: Bearer token
 */
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '../../../../../lib/sendEmail';
+import { getOrganiserFromRequest } from '../../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -67,10 +69,13 @@ function broadcastHtml({ organiserName, subject, message, eventName }) {
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { organiser_id, segment, event_id, subject, message } = body;
+    const { organiser: authOrganiser, errorResponse } = await getOrganiserFromRequest(req);
+    if (errorResponse) return errorResponse;
 
-    if (!organiser_id)    return Response.json({ error: 'organiser_id required' }, { status: 400 });
+    const body = await req.json();
+    const { segment, event_id, subject, message } = body;
+    const organiser_id = authOrganiser.id;
+
     if (!segment)         return Response.json({ error: 'segment required' },      { status: 400 });
     if (!subject?.trim()) return Response.json({ error: 'subject required' },      { status: 400 });
     if (!message?.trim()) return Response.json({ error: 'message required' },      { status: 400 });

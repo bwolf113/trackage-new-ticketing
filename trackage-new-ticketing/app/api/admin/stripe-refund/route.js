@@ -4,6 +4,7 @@
 */
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '../../../../lib/adminAuth';
 
 function adminSupabase() {
   return createClient(
@@ -27,6 +28,8 @@ async function getStripeKey(supabase) {
 }
 
 export async function POST(req) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   try {
     const { order_id, amount_cents } = await req.json();
     if (!order_id) return Response.json({ error: 'order_id required' }, { status: 400 });

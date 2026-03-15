@@ -51,7 +51,7 @@ export async function generateQRPublicURL(text, filename) {
   }
 }
 
-const SUPABASE_LOGO_URL = 'https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png';
+const SUPABASE_LOGO_URL = 'https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png';
 
 export async function getLogoURL() {
   return SUPABASE_LOGO_URL;

@@ -1,7 +1,8 @@
 /* app/api/organiser/events/[id]/orders/route.js
-   GET — orders for an event (query: organiser_id)
+   GET — orders for an event (auth via Bearer token)
 */
 import { createClient } from '@supabase/supabase-js';
+import { getOrganiserFromRequest } from '../../../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(
@@ -12,9 +13,8 @@ function adminSupabase() {
 
 export async function GET(req, { params }) {
   const { id: eventId } = await params;
-  const { searchParams } = new URL(req.url);
-  const organiser_id = searchParams.get('organiser_id');
-  if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+  const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+  if (errorResponse) return errorResponse;
 
   const supabase = adminSupabase();
 
@@ -25,7 +25,7 @@ export async function GET(req, { params }) {
     .eq('id', eventId)
     .single();
 
-  if (!event || event.organiser_id !== organiser_id) {
+  if (!event || event.organiser_id !== organiser.id) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 

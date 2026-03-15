@@ -67,94 +67,118 @@ export default function AdminDashboard() {
   const top = orgLeaders[0];
   const bottom = orgLeaders[orgLeaders.length - 1];
   const STAT_CARDS = [
-    { label: 'Total Revenue',      value: fmt(stats?.totalRevenue),                   sub: `${stats?.orderCount || 0} completed orders`, color: '#0a9e7f', bg: '#f0fdf9' },
-    { label: 'Tickets Sold',       value: (stats?.totalTickets || 0).toLocaleString(), sub: 'across all events',                          color: '#3b82f6', bg: '#eff6ff' },
-    { label: 'Stripe Fees (est.)', value: fmt(stats?.totalStripeFees),                sub: '~3% of total processed',                     color: '#8b5cf6', bg: '#f5f3ff' },
-    { label: 'Active Organisers',  value: (stats?.activeOrgCount || 0).toString(),     sub: 'registered on the platform',                 color: '#f59e0b', bg: '#fffbeb' },
+    { label: 'Total Revenue',      value: fmt(stats?.totalRevenue),                    sub: `${stats?.orderCount || 0} completed orders` },
+    { label: 'Tickets Sold',       value: (stats?.totalTickets || 0).toLocaleString(), sub: 'across all events'                          },
+    { label: 'Stripe Fees (est.)', value: fmt(stats?.totalStripeFees),                 sub: '~3% of total processed'                     },
+    { label: 'Active Organisers',  value: (stats?.activeOrgCount || 0).toString(),     sub: 'registered on the platform'                 },
   ];
 
   return (
     <div className="dash">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        .dash { font-family: 'Inter', sans-serif; color: #111827; }
-        .dash-heading { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-        .dash-sub { font-size: 14px; color: #6b7280; margin-bottom: 24px; }
-        .filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; }
-        .filter-label { font-size: 13px; font-weight: 500; color: #6b7280; }
-        .filter-btn { background: #fff; border: 1.5px solid #e5e7eb; color: #374151; padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; }
-        .filter-btn:hover { border-color: #0a9e7f; color: #0a9e7f; }
-        .filter-btn.active { background: #0a9e7f; border-color: #0a9e7f; color: #fff; }
-        .date-input { border: 1.5px solid #e5e7eb; border-radius: 8px; padding: 7px 12px; font-size: 13px; font-family: 'Inter', sans-serif; color: #111827; background: #fff; outline: none; }
-        .date-input:focus { border-color: #0a9e7f; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; margin-bottom: 32px; }
-        .stat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .stat-label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
-        .stat-value { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
-        .stat-sub { font-size: 12px; color: #9ca3af; }
-        .stat-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 17px; margin-bottom: 14px; }
-        .skel { height: 28px; width: 100px; border-radius: 6px; background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        :root {
+          --black: #000000; --white: #ffffff; --bg: #F5F6FA; --surface: #ffffff;
+          --border: #EBEDF0; --muted: #767C8C; --green: #48C16E; --green-dim: rgba(72,193,110,0.12);
+        }
+        .dash { font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black); background: var(--bg); margin: -24px; padding: 32px; min-height: 100vh; }
+        .dash-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+        .dash-heading { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 3px; }
+        .dash-sub { font-size: 14px; color: var(--muted); font-weight: 500; }
+        .filter-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .filter-btn { background: var(--surface); border: 1.5px solid var(--border); color: var(--muted); padding: 7px 16px; border-radius: 100px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.15s; }
+        .filter-btn:hover { border-color: var(--black); color: var(--black); }
+        .filter-btn.active { background: var(--black); border-color: var(--black); color: var(--white); }
+        .date-input { border: 1.5px solid var(--border); border-radius: 100px; padding: 7px 14px; font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black); background: var(--surface); outline: none; font-weight: 500; }
+        .date-input:focus { border-color: var(--black); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .stat-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 24px; position: relative; }
+        .stat-card-accent { border-color: var(--green); }
+        .stat-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); position: absolute; top: 24px; right: 24px; }
+        .stat-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+        .stat-value { font-size: 30px; font-weight: 800; line-height: 1; margin-bottom: 6px; letter-spacing: -0.02em; color: var(--black); }
+        .stat-value-green { color: var(--green); }
+        .stat-sub { font-size: 12px; color: var(--muted); font-weight: 500; }
+        .skel { height: 30px; width: 120px; border-radius: 8px; background: linear-gradient(90deg,var(--border) 25%,var(--bg) 50%,var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-        .section-title { font-size: 16px; font-weight: 600; margin-bottom: 14px; }
+        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .section-title { font-size: 15px; font-weight: 700; color: var(--black); letter-spacing: -0.01em; }
         .highlight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
-        .highlight-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .highlight-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; margin-bottom: 10px; }
-        .tag-top { background: #dcfce7; color: #16a34a; } .tag-bottom { background: #fee2e2; color: #dc2626; }
-        .highlight-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-        .highlight-stats { font-size: 13px; color: #6b7280; }
-        .table-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .highlight-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 22px 24px; }
+        .highlight-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 100px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+        .tag-top { background: var(--green-dim); color: var(--green); }
+        .tag-bottom { background: rgba(0,0,0,0.06); color: var(--muted); }
+        .highlight-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.01em; }
+        .highlight-stats { font-size: 13px; color: var(--muted); font-weight: 500; }
+        .table-wrap { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; }
         .data-table { width: 100%; border-collapse: collapse; }
-        .data-table th { background: #f9fafb; padding: 12px 20px; text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
-        .data-table td { padding: 14px 20px; border-top: 1px solid #f3f4f6; font-size: 14px; color: #374151; }
-        .data-table tr:hover td { background: #fafafa; }
-        .rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; font-size: 12px; font-weight: 700; }
-        .rank-1{background:#fef9c3;color:#854d0e} .rank-2{background:#f1f5f9;color:#475569} .rank-3{background:#fef3c7;color:#92400e} .rank-n{background:#f3f4f6;color:#9ca3af}
-        .empty-state { text-align: center; padding: 48px 20px; color: #9ca3af; font-size: 14px; }
-        @media(max-width:640px){ .highlight-grid{grid-template-columns:1fr} .stats-grid{grid-template-columns:1fr 1fr} .stat-value{font-size:22px} }
+        .data-table th { background: var(--bg); padding: 12px 20px; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 1.5px solid var(--border); font-family: 'Plus Jakarta Sans', sans-serif; }
+        .data-table td { padding: 14px 20px; border-top: 1px solid var(--border); font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .data-table tr:hover td { background: var(--bg); }
+        .rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+        .rank-1 { background: var(--black); color: var(--white); }
+        .rank-2 { background: var(--border); color: var(--muted); }
+        .rank-3 { background: var(--border); color: var(--muted); }
+        .rank-n { background: var(--bg); color: var(--muted); }
+        .empty-state { text-align: center; padding: 56px 20px; color: var(--muted); font-size: 14px; font-weight: 500; }
+        @media(max-width:640px){ .highlight-grid{grid-template-columns:1fr} .stats-grid{grid-template-columns:1fr 1fr} .stat-value{font-size:22px} .dash-header{flex-direction:column} }
       `}</style>
-      <div className="dash-heading">Dashboard</div>
-      <div className="dash-sub">Here's what's happening with your platform.</div>
-      <div className="filter-bar">
-        <span className="filter-label">Period:</span>
-        {[{key:'this_month',label:'This month'},{key:'last_month',label:'Last month'},{key:'custom',label:'Custom'}].map(f => (
-          <button key={f.key} className={`filter-btn ${dateFilter===f.key?'active':''}`} onClick={()=>setDateFilter(f.key)}>{f.label}</button>
-        ))}
-        {dateFilter==='custom' && (<>
-          <input type="date" className="date-input" value={customStart} onChange={e=>setCustomStart(e.target.value)} />
-          <span style={{color:'#9ca3af'}}>→</span>
-          <input type="date" className="date-input" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} />
-        </>)}
+
+      <div className="dash-header">
+        <div>
+          <div className="dash-heading">Dashboard</div>
+          <div className="dash-sub">Platform overview and organiser performance</div>
+        </div>
+        <div className="filter-bar">
+          {[{key:'this_month',label:'This month'},{key:'last_month',label:'Last month'},{key:'custom',label:'Custom'}].map(f => (
+            <button key={f.key} className={`filter-btn ${dateFilter===f.key?'active':''}`} onClick={()=>setDateFilter(f.key)}>{f.label}</button>
+          ))}
+          {dateFilter==='custom' && (<>
+            <input type="date" className="date-input" value={customStart} onChange={e=>setCustomStart(e.target.value)} />
+            <span style={{color:'var(--muted)',fontWeight:600}}>→</span>
+            <input type="date" className="date-input" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} />
+          </>)}
+        </div>
       </div>
+
       <div className="stats-grid">
-        {STAT_CARDS.map(card => (
-          <div key={card.label} className="stat-card">
-            <div className="stat-icon" style={{background:card.bg,color:card.color}}>
-              {card.label==='Total Revenue'&&'€'}{card.label==='Tickets Sold'&&'🎫'}{card.label==='Stripe Fees (est.)'&&'💳'}{card.label==='Active Organisers'&&'👤'}
-            </div>
+        {STAT_CARDS.map((card, i) => (
+          <div key={card.label} className={`stat-card ${i===0?'stat-card-accent':''}`}>
+            {i===0 && <div className="stat-dot"/>}
             <div className="stat-label">{card.label}</div>
-            {loading?<div className="skel"/>:<div className="stat-value" style={{color:card.color}}>{card.value}</div>}
-            {!loading&&<div className="stat-sub">{card.sub}</div>}
+            {loading ? <div className="skel"/> : <div className={`stat-value ${i===0?'stat-value-green':''}`}>{card.value}</div>}
+            {!loading && <div className="stat-sub">{card.sub}</div>}
           </div>
         ))}
       </div>
+
       {!loading && orgLeaders.length > 1 && (<>
-        <div className="section-title">Organiser Highlights</div>
+        <div className="section-header"><div className="section-title">Organiser Highlights</div></div>
         <div className="highlight-grid">
-          <div className="highlight-card"><span className="highlight-tag tag-top">⬆ Top performer</span><div className="highlight-name">{top?.name}</div><div className="highlight-stats">{top?.orders} orders · {fmt(top?.revenue)}</div></div>
-          <div className="highlight-card"><span className="highlight-tag tag-bottom">⬇ Lowest sales</span><div className="highlight-name">{bottom?.name}</div><div className="highlight-stats">{bottom?.orders} orders · {fmt(bottom?.revenue)}</div></div>
+          <div className="highlight-card">
+            <div><span className="highlight-tag tag-top">↑ Top performer</span></div>
+            <div className="highlight-name">{top?.name}</div>
+            <div className="highlight-stats">{top?.orders} orders · {fmt(top?.revenue)}</div>
+          </div>
+          <div className="highlight-card">
+            <div><span className="highlight-tag tag-bottom">↓ Lowest sales</span></div>
+            <div className="highlight-name">{bottom?.name}</div>
+            <div className="highlight-stats">{bottom?.orders} orders · {fmt(bottom?.revenue)}</div>
+          </div>
         </div>
       </>)}
-      <div className="section-title">Organisers ranked by revenue</div>
+
+      <div className="section-header"><div className="section-title">Organisers ranked by revenue</div></div>
       <div className="table-wrap">
-        {loading?<div className="empty-state">Loading…</div>:orgLeaders.length===0?<div className="empty-state">No sales data for this period.</div>:(
+        {loading ? <div className="empty-state">Loading…</div> : orgLeaders.length===0 ? <div className="empty-state">No sales data for this period.</div> : (
           <table className="data-table">
             <thead><tr><th>#</th><th>Organiser</th><th>Orders</th><th>Revenue</th></tr></thead>
-            <tbody>{orgLeaders.map((org,i)=>(
+            <tbody>{orgLeaders.map((org, i) => (
               <tr key={org.id}>
                 <td><span className={`rank-badge ${i<3?`rank-${i+1}`:'rank-n'}`}>{i+1}</span></td>
-                <td style={{fontWeight:600,color:'#111827'}}>{org.name}</td>
-                <td>{org.orders}</td>
-                <td style={{fontWeight:600,color:'#0a9e7f'}}>{fmt(org.revenue)}</td>
+                <td style={{fontWeight:700,color:'#000'}}>{org.name}</td>
+                <td style={{color:'var(--muted)',fontWeight:500}}>{org.orders}</td>
+                <td style={{fontWeight:700,color:'var(--green)'}}>{fmt(org.revenue)}</td>
               </tr>
             ))}</tbody>
           </table>

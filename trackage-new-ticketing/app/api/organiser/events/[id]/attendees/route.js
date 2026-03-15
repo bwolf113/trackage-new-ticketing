@@ -1,8 +1,9 @@
 /* app/api/organiser/events/[id]/attendees/route.js
-   GET   — attendee list for an event (query: organiser_id)
-   PATCH — manually check in all attendees for an order (body: { organiser_id, order_id })
+   GET   — attendee list for an event (auth via Bearer token)
+   PATCH — manually check in all attendees for an order (auth via Bearer token)
 */
 import { createClient } from '@supabase/supabase-js';
+import { getOrganiserFromRequest } from '../../../../../../lib/organiserAuth';
 
 function adminSupabase() {
   return createClient(
@@ -13,9 +14,8 @@ function adminSupabase() {
 
 export async function GET(req, { params }) {
   const { id: eventId } = await params;
-  const { searchParams } = new URL(req.url);
-  const organiser_id = searchParams.get('organiser_id');
-  if (!organiser_id) return Response.json({ error: 'organiser_id required' }, { status: 400 });
+  const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+  if (errorResponse) return errorResponse;
 
   const supabase = adminSupabase();
 
@@ -26,7 +26,7 @@ export async function GET(req, { params }) {
     .eq('id', eventId)
     .single();
 
-  if (!event || event.organiser_id !== organiser_id) {
+  if (!event || event.organiser_id !== organiser.id) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -99,15 +99,18 @@ export async function GET(req, { params }) {
 
 export async function PATCH(req, { params }) {
   const { id: eventId } = await params;
-  const { organiser_id, order_id } = await req.json();
-  if (!organiser_id || !order_id) return Response.json({ error: 'organiser_id and order_id required' }, { status: 400 });
+  const { organiser, errorResponse } = await getOrganiserFromRequest(req);
+  if (errorResponse) return errorResponse;
+
+  const { order_id } = await req.json();
+  if (!order_id) return Response.json({ error: 'order_id required' }, { status: 400 });
 
   const supabase = adminSupabase();
 
   // Verify ownership
   const { data: event } = await supabase
     .from('events').select('organiser_id').eq('id', eventId).single();
-  if (!event || event.organiser_id !== organiser_id) {
+  if (!event || event.organiser_id !== organiser.id) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 

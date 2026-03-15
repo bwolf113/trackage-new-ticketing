@@ -2,6 +2,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { orgFetch } from '../../../lib/organiserFetch';
 
 function fmt(n) {
   return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
@@ -33,7 +34,7 @@ function getPeriodDates(period, customFrom, customTo) {
 /* ── SVG Area Chart ── */
 function AreaChart({ data, valueKey, color, formatY }) {
   if (!data?.length) {
-    return <div style={{ textAlign: 'center', padding: '48px 20px', color: '#9ca3af', fontSize: 14 }}>No data for this period.</div>;
+    return <div style={{ textAlign: 'center', padding: '56px 20px', color: 'var(--muted)', fontSize: 14, fontWeight: 500 }}>No data for this period.</div>;
   }
   const W = 560, H = 160, PAD = { top: 12, right: 16, bottom: 36, left: 56 };
   const iW = W - PAD.left - PAD.right, iH = H - PAD.top - PAD.bottom;
@@ -55,12 +56,12 @@ function AreaChart({ data, valueKey, color, formatY }) {
           <stop offset="100%" stopColor={color} stopOpacity="0.01" />
         </linearGradient>
       </defs>
-      {yT.map((t, i) => <line key={i} x1={PAD.left} x2={W - PAD.right} y1={t.y} y2={t.y} stroke="#f3f4f6" strokeWidth="1" />)}
+      {yT.map((t, i) => <line key={i} x1={PAD.left} x2={W - PAD.right} y1={t.y} y2={t.y} stroke="#EBEDF0" strokeWidth="1" />)}
       <path d={area} fill={`url(#${gid})`} />
       <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
       {data.map((d, i) => <circle key={i} cx={xOf(i)} cy={yOf(d[valueKey] || 0)} r="3.5" fill={color} />)}
-      {yT.map((t, i) => <text key={i} x={PAD.left - 8} y={t.y + 4} textAnchor="end" fontSize="9" fill="#9ca3af" fontFamily="Inter,sans-serif">{formatY(t.v)}</text>)}
-      {xI.map(i => <text key={i} x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="9" fill="#9ca3af" fontFamily="Inter,sans-serif">{fmtDay(data[i].date)}</text>)}
+      {yT.map((t, i) => <text key={i} x={PAD.left - 8} y={t.y + 4} textAnchor="end" fontSize="9" fill="#767C8C" fontFamily="Plus Jakarta Sans,sans-serif">{formatY(t.v)}</text>)}
+      {xI.map(i => <text key={i} x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="9" fill="#767C8C" fontFamily="Plus Jakarta Sans,sans-serif">{fmtDay(data[i].date)}</text>)}
     </svg>
   );
 }
@@ -74,67 +75,68 @@ const SEGMENTS = [
 ];
 
 const CSS = `
-.crm-tabs { display: flex; gap: 4px; background: #f3f4f6; border-radius: 10px; padding: 4px; margin-bottom: 28px; width: fit-content; }
-.crm-tab { padding: 8px 20px; border-radius: 8px; border: none; background: transparent; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; color: var(--text-mid); cursor: pointer; transition: all 0.15s; }
-.crm-tab.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.crm-tabs { display: flex; gap: 4px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 100px; padding: 4px; margin-bottom: 28px; width: fit-content; }
+.crm-tab { padding: 7px 20px; border-radius: 100px; border: none; background: transparent; font-size: 13px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+.crm-tab.active { background: var(--black); color: var(--white); }
 .period-bar { display: flex; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
-.period-btn { padding: 7px 14px; border: 1.5px solid var(--border); border-radius: 8px; background: #fff; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; color: var(--text-mid); cursor: pointer; transition: all 0.15s; }
-.period-btn.active { border-color: var(--accent); color: var(--accent); background: #f0fdf9; }
+.period-btn { padding: 7px 14px; border: 1.5px solid var(--border); border-radius: 100px; background: var(--surface); font-size: 12px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+.period-btn.active { border-color: var(--black); color: var(--black); background: var(--surface); }
+.period-btn:hover { border-color: var(--black); color: var(--black); }
 .date-range { display: flex; gap: 8px; align-items: center; }
-.date-input { padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; font-family: 'Inter', sans-serif; color: var(--text); background: #fff; outline: none; }
-.date-input:focus { border-color: var(--accent); }
+.date-input { padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; color: var(--black); background: var(--surface); outline: none; }
+.date-input:focus { border-color: var(--black); }
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
-.tile { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; }
-.tile-label { font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
-.tile-value { font-size: 28px; font-weight: 700; line-height: 1; color: var(--text); }
-.tile-value.green  { color: #0a9e7f; }
+.tile { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 20px 22px; }
+.tile-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+.tile-value { font-size: 28px; font-weight: 700; line-height: 1; color: var(--black); }
+.tile-value.green  { color: var(--green); }
 .tile-value.blue   { color: #3b82f6; }
 .tile-value.purple { color: #8b5cf6; }
-.chart-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
-.chart-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+.chart-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; }
+.chart-title { font-size: 15px; font-weight: 700; color: var(--black); letter-spacing: -0.01em; margin-bottom: 16px; }
 .chart-wrap { width: 100%; overflow-x: auto; }
 .ev-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.ev-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.ev-table th { text-align: left; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 12px; border-bottom: 1.5px solid var(--border); background: var(--bg); }
 .ev-table th:not(:first-child) { text-align: right; }
-.ev-table td { padding: 11px 12px; border-bottom: 1px solid #f3f4f6; color: var(--text); }
-.ev-table td:not(:first-child) { text-align: right; color: var(--text-mid); }
-.ev-table td:last-child { font-weight: 600; color: var(--text); }
+.ev-table td { padding: 11px 12px; border-top: 1px solid var(--border); color: var(--black); font-weight: 500; }
+.ev-table td:not(:first-child) { text-align: right; color: var(--muted); }
+.ev-table td:last-child { font-weight: 700; color: var(--green); }
 .ev-table tr:last-child td { border-bottom: none; }
-.section-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-.section-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.section-sub { font-size: 13px; color: var(--text-mid); margin-bottom: 22px; line-height: 1.5; }
+.section-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+.section-title { font-size: 15px; font-weight: 700; color: var(--black); letter-spacing: -0.01em; margin-bottom: 4px; }
+.section-sub { font-size: 13px; color: var(--muted); font-weight: 500; margin-bottom: 22px; line-height: 1.5; }
 .seg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-.seg-card { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: #fff; border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.15s; }
-.seg-card:hover { border-color: #a7f3d0; }
-.seg-card.selected { border-color: var(--accent); background: #f0fdf9; }
+.seg-card { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.15s; }
+.seg-card:hover { border-color: var(--black); }
+.seg-card.selected { border-color: var(--black); background: var(--bg); }
 .seg-icon { font-size: 22px; flex-shrink: 0; line-height: 1; margin-top: 1px; }
 .seg-info { flex: 1; min-width: 0; }
-.seg-label { font-size: 13px; font-weight: 600; color: var(--text); }
-.seg-desc { font-size: 11px; color: var(--text-mid); margin-top: 2px; line-height: 1.4; }
-.seg-count { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--accent); background: #e6faf5; border-radius: 20px; padding: 2px 10px; align-self: center; white-space: nowrap; }
+.seg-label { font-size: 13px; font-weight: 700; color: var(--black); }
+.seg-desc { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 2px; line-height: 1.4; }
+.seg-count { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--green); background: var(--green-dim); border-radius: 100px; padding: 2px 10px; align-self: center; white-space: nowrap; }
 .event-picker { margin-bottom: 20px; }
-.field-label { font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px; }
-.select-field { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 12px center; outline: none; cursor: pointer; appearance: none; padding-right: 32px; }
-.select-field:focus { border-color: var(--accent); }
+.field-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 6px; }
+.select-field { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; color: var(--black); background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23767C8C' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 12px center; outline: none; cursor: pointer; appearance: none; padding-right: 32px; }
+.select-field:focus { border-color: var(--black); }
 .select-field:disabled { opacity: 0.5; cursor: not-allowed; }
-.compose-input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); background: #fff; outline: none; box-sizing: border-box; margin-bottom: 16px; }
-.compose-input:focus { border-color: var(--accent); }
-.compose-textarea { width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); background: #fff; outline: none; box-sizing: border-box; resize: vertical; min-height: 150px; line-height: 1.6; margin-bottom: 16px; }
-.compose-textarea:focus { border-color: var(--accent); }
-.email-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border); }
-.recipient-hint { font-size: 13px; color: var(--text-mid); }
-.recipient-count { font-weight: 700; color: var(--accent); }
-.btn-send { display: inline-flex; align-items: center; gap: 8px; padding: 11px 24px; background: var(--accent); color: #fff; border: none; border-radius: 9px; font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; }
-.btn-send:hover { background: var(--accent-dark); }
-.btn-send:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-cancel { padding: 11px 16px; background: none; border: 1.5px solid var(--border); border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--text-mid); transition: all 0.15s; }
-.btn-cancel:hover { border-color: #9ca3af; color: var(--text); }
+.compose-input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; color: var(--black); background: var(--surface); outline: none; box-sizing: border-box; margin-bottom: 16px; }
+.compose-input:focus { border-color: var(--black); }
+.compose-textarea { width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; color: var(--black); background: var(--surface); outline: none; box-sizing: border-box; resize: vertical; min-height: 150px; line-height: 1.6; margin-bottom: 16px; }
+.compose-textarea:focus { border-color: var(--black); }
+.email-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-top: 16px; border-top: 1.5px solid var(--border); }
+.recipient-hint { font-size: 13px; color: var(--muted); font-weight: 500; }
+.recipient-count { font-weight: 700; color: var(--green); }
+.btn-send { display: inline-flex; align-items: center; gap: 8px; padding: 11px 24px; background: var(--black); color: var(--white); border: none; border-radius: 8px; font-size: 14px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: opacity 0.15s; }
+.btn-send:hover { opacity: 0.8; }
+.btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-cancel { padding: 11px 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--muted); transition: all 0.15s; }
+.btn-cancel:hover { border-color: var(--black); color: var(--black); }
 .confirm-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.confirm-warn { font-size: 13px; color: #b45309; font-weight: 600; }
-.result-banner { border-radius: 10px; padding: 14px 18px; font-size: 14px; font-weight: 500; margin-bottom: 20px; }
-.result-banner.success { background: #f0fdf9; border: 1px solid #a7f3d0; color: #065f46; }
-.result-banner.error   { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
-.skel { border-radius: 6px; background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+.confirm-warn { font-size: 13px; color: #b45309; font-weight: 700; }
+.result-banner { border-radius: 12px; padding: 14px 18px; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
+.result-banner.success { background: var(--green-dim); border: 1.5px solid var(--green); color: var(--green); }
+.result-banner.error   { background: rgba(239,68,68,0.1); border: 1.5px solid #ef4444; color: #ef4444; }
+.skel { border-radius: 8px; background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 @media(max-width:640px) { .tiles { grid-template-columns: 1fr 1fr; } .seg-grid { grid-template-columns: 1fr; } .date-range { flex-wrap: wrap; } }
 @media(max-width:480px) { .tiles { grid-template-columns: 1fr; } }
@@ -163,24 +165,22 @@ export default function CRMPage() {
   const [confirm,    setConfirm]   = useState(false);
 
   const loadReports = useCallback(async (p, cf, ct) => {
-    const orgId = localStorage.getItem('organiser_id');
-    if (!orgId) { router.push('/organiser/login'); return; }
+    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
     setRLoading(true);
     const { from, to } = getPeriodDates(p ?? 'month', cf ?? '', ct ?? '');
-    const params = new URLSearchParams({ organiser_id: orgId });
+    const params = new URLSearchParams();
     if (from) params.set('from', from);
     if (to)   params.set('to',   to);
-    const res  = await fetch(`/api/organiser/crm/reports?${params}`).catch(() => null);
+    const res  = await orgFetch(`/api/organiser/crm/reports?${params}`).catch(() => null);
     const json = res ? await res.json() : {};
     setReports(json);
     setRLoading(false);
   }, [router]);
 
   const loadSegments = useCallback(async () => {
-    const orgId = localStorage.getItem('organiser_id');
-    if (!orgId) return;
+    if (!localStorage.getItem('organiser_id')) return;
     setSegLoad(true);
-    const res  = await fetch(`/api/organiser/crm/segments?organiser_id=${orgId}`).catch(() => null);
+    const res  = await orgFetch('/api/organiser/crm/segments').catch(() => null);
     const json = res ? await res.json() : {};
     setSegData(json);
     setSelEvent('');
@@ -208,16 +208,13 @@ export default function CRMPage() {
 
   async function handleSend() {
     if (!confirm) { setConfirm(true); return; }
-    const orgId = localStorage.getItem('organiser_id');
     setSending(true);
     setResult(null);
     setConfirm(false);
     try {
-      const res  = await fetch('/api/organiser/crm/send-email', {
+      const res  = await orgFetch('/api/organiser/crm/send-email', {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
-          organiser_id: orgId,
           segment,
           event_id: segment === 'per_event' ? selEvent : undefined,
           subject,
@@ -269,7 +266,7 @@ export default function CRMPage() {
             {period === 'custom' && (
               <div className="date-range">
                 <input type="date" className="date-input" value={customFrom} onChange={e => setFrom(e.target.value)} />
-                <span style={{ color: 'var(--text-mid)', fontSize: 12 }}>to</span>
+                <span style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 500 }}>to</span>
                 <input type="date" className="date-input" value={customTo} onChange={e => setTo(e.target.value)} />
                 <button className="period-btn active" onClick={handleCustomApply}>Apply</button>
               </div>
@@ -296,7 +293,7 @@ export default function CRMPage() {
           <div className="chart-card">
             <div className="chart-title">Daily Revenue</div>
             <div className="chart-wrap">
-              {rLoading ? <div className="skel" style={{ height: 160 }} /> : <AreaChart data={daily} valueKey="revenue" color="#0a9e7f" formatY={v => `€${Math.round(v)}`} />}
+              {rLoading ? <div className="skel" style={{ height: 160 }} /> : <AreaChart data={daily} valueKey="revenue" color="#48C16E" formatY={v => `€${Math.round(v)}`} />}
             </div>
           </div>
 
@@ -316,7 +313,7 @@ export default function CRMPage() {
                 {[1,2,3].map(i => <div key={i} className="skel" style={{ height: 40 }} />)}
               </div>
             ) : byEvent.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px 20px', color: '#9ca3af', fontSize: 14 }}>No paid orders in this period.</div>
+              <div style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--muted)', fontSize: 14, fontWeight: 500 }}>No paid orders in this period.</div>
             ) : (
               <table className="ev-table">
                 <thead>
@@ -390,7 +387,7 @@ export default function CRMPage() {
                 {segLoading ? (
                   <div className="skel" style={{ height: 44, borderRadius: 8 }} />
                 ) : !segData?.events?.length ? (
-                  <p style={{ fontSize: 13, color: 'var(--text-mid)', margin: 0 }}>No events found.</p>
+                  <p style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500, margin: 0 }}>No events found.</p>
                 ) : (
                   <select
                     className="select-field"
@@ -411,7 +408,7 @@ export default function CRMPage() {
           <div className="section-card">
             <div className="section-title">Compose Email</div>
             <div className="section-sub">Write your message. Every recipient in the selected segment will receive the same email.</div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#f0fdf9', border: '1px solid #a7f3d0', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#065f46', lineHeight: 1.5 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: 'var(--green-dim)', border: '1.5px solid var(--green)', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: 'var(--green)', lineHeight: 1.5, fontWeight: 500 }}>
               <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>ℹ️</span>
               <span><strong>Marketing consent is enforced automatically.</strong> Only attendees who opted in to promotional communications at checkout will receive this email. Those who did not consent are excluded from all segments.</span>
             </div>

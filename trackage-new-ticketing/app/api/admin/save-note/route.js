@@ -4,6 +4,7 @@
 */
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '../../../../lib/sendEmail';
+import { checkAdminAuth } from '../../../../lib/adminAuth';
 
 function adminSupabase() {
   return createClient(
@@ -12,7 +13,14 @@ function adminSupabase() {
   );
 }
 
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 export async function POST(req) {
+  const authError = checkAdminAuth(req);
+  if (authError) return authError;
   try {
     const { order_id, type, content } = await req.json();
     if (!order_id || !type || !content?.trim()) {
@@ -59,7 +67,7 @@ export async function POST(req) {
   <p style="margin:0 0 16px;font-size:14px;color:#555;line-height:1.6">
     You have a message from the Trackage Scheme team regarding your order <strong>#${orderRef}</strong> for <strong>${event}</strong>:
   </p>
-  <div style="background:#f9f9f9;border-left:3px solid #0a9e7f;border-radius:0 6px 6px 0;padding:14px 18px;margin:0 0 20px;font-size:14px;color:#1a1a1a;line-height:1.6">${content.trim().replace(/\n/g, '<br>')}</div>
+  <div style="background:#f9f9f9;border-left:3px solid #0a9e7f;border-radius:0 6px 6px 0;padding:14px 18px;margin:0 0 20px;font-size:14px;color:#1a1a1a;line-height:1.6">${escapeHtml(content.trim()).replace(/\n/g, '<br>')}</div>
   <p style="margin:0;font-size:13px;color:#999">If you have any questions, reply to this email or contact us at <a href="mailto:team@trackagescheme.com" style="color:#0a9e7f">team@trackagescheme.com</a>.</p>
 </td></tr>
 </table>

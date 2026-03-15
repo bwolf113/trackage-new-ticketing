@@ -561,7 +561,7 @@ export default function EventPage() {
       <style>{CSS}</style>
       <nav className="nav">
         <Link href="/" className="nav-logo">
-          <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
+          <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
         </Link>
         <Link href="/" className="nav-back">← Back to events</Link>
       </nav>
@@ -584,7 +584,7 @@ export default function EventPage() {
       <style>{CSS}</style>
       <nav className="nav">
         <Link href="/" className="nav-logo">
-          <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
+          <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
         </Link>
       </nav>
       <div className="page-center" style={{ marginTop: 64 }}>
@@ -608,7 +608,7 @@ export default function EventPage() {
       {/* ── NAV ── */}
       <nav className="nav">
         <Link href="/" className="nav-logo">
-          <img src="https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
+          <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
         </Link>
         <Link href="/" className="nav-back">← All events</Link>
         <div className="nav-right">
