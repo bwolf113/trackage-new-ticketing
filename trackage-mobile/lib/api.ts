@@ -18,6 +18,26 @@ export async function getOrganiserEvents(token: string) {
   return json.events as EventSummary[];
 }
 
+export async function createEvent(payload: {
+  event: {
+    name: string;
+    description: string | null;
+    start_time: string | null;
+    end_time: string | null;
+    venue_name: string | null;
+    status: 'draft' | 'published';
+  };
+  tickets: { name: string; price: number; inventory: number | null }[];
+  days: any[];
+}, token: string) {
+  const res = await apiFetch('/api/organiser/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  return res.json() as Promise<{ event_id?: string; error?: string }>;
+}
+
 // ── Orders ────────────────────────────────────────────────────────────────────
 
 export async function getEventOrders(eventId: string, token: string) {

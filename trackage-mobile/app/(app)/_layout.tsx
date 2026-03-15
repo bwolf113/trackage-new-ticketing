@@ -21,6 +21,7 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="events/index" options={{ title: 'My Events' }} />
+      <Stack.Screen name="events/new" options={{ title: 'Create Event' }} />
       <Stack.Screen name="events/[id]/index" options={{ title: '' }} />
       <Stack.Screen name="events/[id]/scan" options={{ title: 'Scan Tickets', headerRight: () => null }} />
     </Stack>

@@ -51,7 +51,7 @@ export default function EventsScreen() {
 
   return (
     <View style={styles.container}>
-      {events.length > 0 && (
+      <View style={styles.toolbar}>
         <View style={styles.searchWrap}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
@@ -62,7 +62,14 @@ export default function EventsScreen() {
             onChangeText={setSearch}
           />
         </View>
-      )}
+        <TouchableOpacity
+          style={styles.createBtn}
+          activeOpacity={0.85}
+          onPress={() => router.push('/(app)/events/new')}
+        >
+          <Text style={styles.createBtnText}>+ New</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={filtered}
@@ -73,7 +80,7 @@ export default function EventsScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>🎫</Text>
             <Text style={styles.emptyTitle}>{search ? 'No events match your search' : 'No events yet'}</Text>
-            <Text style={styles.emptySub}>{search ? 'Try a different search term.' : 'Create events in the organiser dashboard.'}</Text>
+            <Text style={styles.emptySub}>{search ? 'Try a different search term.' : 'Tap "+ New" above to create your first event.'}</Text>
           </View>
         }
         renderItem={({ item: ev }) => (
@@ -121,12 +128,18 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { padding: 16, gap: 12 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 16,
+    marginBottom: 0,
+    gap: 10,
+  },
   searchWrap: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    margin: 16,
-    marginBottom: 0,
     borderRadius: 10,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -134,6 +147,13 @@ const styles = StyleSheet.create({
   },
   searchIcon: { fontSize: 14, marginRight: 6 },
   searchInput: { flex: 1, paddingVertical: 11, fontSize: 14, fontFamily: fonts.regular, color: colors.black },
+  createBtn: {
+    backgroundColor: colors.green,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  createBtnText: { fontSize: 14, fontFamily: fonts.bold, color: colors.white },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,
