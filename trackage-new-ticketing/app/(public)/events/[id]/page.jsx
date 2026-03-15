@@ -111,16 +111,16 @@ body{font-family:var(--sans);background:var(--white);color:var(--text);-webkit-f
 .organiser-label{font-size:11px;color:var(--light);font-weight:500}
 
 /* ── TICKET PANEL ── */
-.ticket-panel{background:var(--white);border:1.5px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,0.07)}
-.ticket-panel-header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--off)}
-.ticket-panel-title{font-family:var(--serif);font-size:20px;color:var(--black);letter-spacing:-0.02em}
-.ticket-panel-sub{font-size:12px;color:var(--mid);margin-top:3px}
+.ticket-panel{background:var(--white);border:2px solid var(--accent);border-radius:16px;overflow:hidden;box-shadow:0 4px 40px rgba(10,158,127,0.13)}
+.ticket-panel-header{padding:20px 24px;border-bottom:1px solid rgba(10,158,127,0.15);background:linear-gradient(135deg,#0a9e7f 0%,#07866a 100%)}
+.ticket-panel-title{font-family:var(--serif);font-size:20px;color:#fff;letter-spacing:-0.02em}
+.ticket-panel-sub{font-size:12px;color:rgba(255,255,255,0.75);margin-top:3px}
 
 /* ── TICKET ROWS ── */
-.ticket-list{padding:8px 0}
-.ticket-row{padding:14px 24px;border-bottom:1px solid var(--border);transition:background 0.1s;position:relative}
+.ticket-list{padding:8px 0;background:#f6fdfb}
+.ticket-row{padding:14px 24px;border-bottom:1px solid rgba(10,158,127,0.1);transition:background 0.1s;position:relative}
 .ticket-row:last-child{border-bottom:none}
-.ticket-row.selected{background:rgba(10,158,127,0.03)}
+.ticket-row.selected{background:rgba(10,158,127,0.07)}
 .ticket-row.soldout{opacity:0.5}
 .ticket-row-main{display:flex;align-items:center;gap:12px}
 .ticket-row-info{flex:1;min-width:0}
