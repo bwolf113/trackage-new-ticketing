@@ -37,14 +37,12 @@ function validatePhone(raw) {
   if (/^\+(?!356)[1-9]\d{7,14}$/.test(n)) return true;
   return false;
 }
-function ticketAvailable(ticket, eventEndTime) {
+function ticketAvailable(ticket) {
   if (ticket.status === 'sold_out') return false;
   const now = new Date();
-  // If sale_start is set, ticket isn't on sale yet
   if (ticket.sale_start && new Date(ticket.sale_start) > now) return false;
-  // If sale_end is set, use it; otherwise fall back to event end time
-  const saleEnd = ticket.sale_end || eventEndTime;
-  if (saleEnd && new Date(saleEnd) < now) return false;
+  // Only block by sale_end if the organiser explicitly set one on the ticket
+  if (ticket.sale_end && new Date(ticket.sale_end) < now) return false;
   const inv = ticket.inventory ?? ticket.quantity_available;
   if (inv == null) return true;
   return (ticket.sold ?? ticket.quantity_sold ?? 0) < inv;
@@ -432,8 +430,8 @@ export default function EventPage() {
   const totalTickets = selectedLines.reduce((s, l) => s + l.qty, 0);
   const allSoldOut = event?.status === 'sold_out' || (
     (event?.tickets || []).length > 0 &&
-    (event?.tickets || []).every(t => !ticketAvailable(t, event?.end_time)));
-  const tabSoldOut = visibleTickets.length > 0 && visibleTickets.every(t => !ticketAvailable(t, event?.end_time));
+    (event?.tickets || []).every(t => !ticketAvailable(t)));
+  const tabSoldOut = visibleTickets.length > 0 && visibleTickets.every(t => !ticketAvailable(t));
 
   // ── Coupon validation ───────────────────────────────────────────
   async function applyCoupon() {
@@ -872,7 +870,7 @@ export default function EventPage() {
                   </div>
                 ) : visibleTickets.map(ticket => {
                   const qty       = quantities[ticket.id] || 0;
-                  const available = ticketAvailable(ticket, event?.end_time);
+                  const available = ticketAvailable(ticket);
                   const remaining = ticketRemaining(ticket);
                   const max       = ticket.max_per_order || 10;
                   const maxQty    = remaining !== null ? Math.min(max, remaining) : max;
