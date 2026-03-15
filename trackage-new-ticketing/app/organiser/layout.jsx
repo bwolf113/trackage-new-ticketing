@@ -92,14 +92,47 @@ export default function OrganiserLayout({ children }) {
           --black: #000000;
           --white: #FFFFFF;
         }
-        html, body { background: var(--bg); color: var(--black); font-family: 'Plus Jakarta Sans', sans-serif; }
+        html, body { background: var(--bg); color: var(--black); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+
+        /* ── Sidebar — mobile-first: off-screen by default ─────────── */
         .ol-sidebar {
-          width: ${sidebarW}; background: #000;
+          width: 220px; background: #000;
           border-right: 1px solid rgba(255,255,255,0.08);
           display: flex; flex-direction: column;
           position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
-          transition: width 0.2s ease; overflow: hidden;
+          overflow: hidden;
+          transform: translateX(-100%);
+          transition: transform 0.25s ease;
         }
+        .ol-sidebar.open { transform: translateX(0); }
+
+        /* ── Main — mobile-first: full width, no margin ─────────────── */
+        .ol-main { margin-left: 0; flex: 1; min-height: 100vh; background: var(--bg); }
+
+        /* ── Desktop: sidebar visible, content pushed right ─────────── */
+        @media (min-width: 769px) {
+          .ol-sidebar {
+            width: ${sidebarW};
+            transform: translateX(0);
+            transition: width 0.2s ease;
+          }
+          .ol-main {
+            margin-left: ${sidebarW};
+            transition: margin-left 0.2s ease;
+          }
+          .ol-menu-btn { display: none !important; }
+          .ol-content { padding: 28px 32px; }
+        }
+
+        /* ── Mobile extras ───────────────────────────────────────────── */
+        @media (max-width: 768px) {
+          .ol-menu-btn { display: block; }
+          .ol-overlay.show { display: block; }
+          .ol-content { padding: 20px 16px; width: 100%; box-sizing: border-box; }
+          .ol-topbar { padding: 0 16px; }
+          .ol-collapse { display: none; }
+        }
+
         .ol-logo {
           padding: 0 10px; height: 56px; min-height: 56px;
           border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -136,26 +169,15 @@ export default function OrganiserLayout({ children }) {
           cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.15s; white-space: nowrap; overflow: hidden;
         }
         .ol-logout:hover { background: rgba(239,68,68,0.15); color: #f87171; }
-        .ol-main { margin-left: ${sidebarW}; flex: 1; min-height: 100vh; background: var(--bg); transition: margin-left 0.2s ease; }
         .ol-topbar { background: var(--surface); border-bottom: 1.5px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
         .ol-topbar-l { display: flex; align-items: center; gap: 12px; }
-        .ol-menu-btn { display: none; background: none; border: 1.5px solid var(--border); color: var(--muted); padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .ol-menu-btn { background: none; border: 1.5px solid var(--border); color: var(--muted); padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 16px; }
         .ol-page-title { font-size: 15px; font-weight: 700; color: var(--black); letter-spacing: -0.01em; }
         .ol-topbar-r { display: flex; align-items: center; gap: 10px; }
         .ol-avatar { width: 30px; height: 30px; background: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700; }
         .ol-username { font-size: 13px; color: var(--muted); font-weight: 500; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .ol-content { padding: 28px 32px; flex: 1; }
+        .ol-content { flex: 1; }
         .ol-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
-        @media (max-width: 768px) {
-          .ol-sidebar { width: 220px !important; transform: translateX(-100%); transition: transform 0.25s ease; }
-          .ol-sidebar.open { transform: translateX(0); }
-          .ol-main { margin-left: 0 !important; width: 100%; max-width: 100vw; overflow-x: hidden; }
-          .ol-menu-btn { display: block; }
-          .ol-overlay.show { display: block; }
-          .ol-content { padding: 20px 16px; width: 100%; box-sizing: border-box; }
-          .ol-topbar { padding: 0 16px; }
-          .ol-collapse { display: none; }
-        }
       `}</style>
 
       <div className={`ol-overlay ${mobileOpen ? 'show' : ''}`} onClick={() => setMobileOpen(false)} />
