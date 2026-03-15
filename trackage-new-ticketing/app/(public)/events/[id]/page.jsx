@@ -27,6 +27,11 @@ function fmtDay(dt) {
   if (!dt) return '';
   return new Date(dt).getDate();
 }
+function validatePhone(raw) {
+  const stripped = raw.replace(/[\s\-().+]/g, '');
+  const withPlus = raw.trim().startsWith('+') ? '+' + stripped : stripped;
+  return /^\+?[0-9]{7,15}$/.test(withPlus);
+}
 function ticketAvailable(ticket, eventEndTime) {
   if (ticket.status === 'sold_out') return false;
   const now = new Date();
@@ -176,6 +181,7 @@ body{font-family:var(--sans);background:var(--white);color:var(--text);-webkit-f
 .customer-field input{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--sans);color:var(--text);background:var(--white);outline:none;transition:border-color 0.15s}
 .customer-field input:focus{border-color:var(--accent)}
 .customer-field input.err{border-color:var(--danger)}
+.field-hint-err{font-size:11px;color:var(--danger);margin-top:2px}
 .customer-full{grid-column:1/-1}
 .consent-box{padding:14px 24px 4px;display:flex;flex-direction:column;gap:10px}
 .consent-row{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
@@ -487,7 +493,8 @@ export default function EventPage() {
     if (!customer.first_name.trim()) errors.first_name = true;
     if (!customer.last_name.trim())  errors.last_name  = true;
     if (!customer.email.trim() || !/\S+@\S+\.\S+/.test(customer.email)) errors.email = true;
-    if (!customer.phone.trim())      errors.phone      = true;
+    if (!customer.phone.trim())            errors.phone = 'required';
+    else if (!validatePhone(customer.phone)) errors.phone = 'invalid';
     if (Object.keys(errors).length) {
       setCustomerErrors(errors);
       showToast('Please fill in all your details.', 'error');
@@ -1028,6 +1035,9 @@ export default function EventPage() {
                       className={customerErrors.phone ? 'err' : ''}
                       onChange={e => { setCustomer(p => ({...p, phone: e.target.value})); setCustomerErrors(p => ({...p, phone: false})); }}
                     />
+                    {customerErrors.phone === 'invalid' && (
+                      <span className="field-hint-err">Enter a valid number including country code, e.g. +356 7900 0000</span>
+                    )}
                   </div>
                 </div>
               </div>
