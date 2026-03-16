@@ -1,0 +1,1174 @@
+/* app/(public)/events/[id]/page.jsx */
+'use client';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { supabase } from '../../../../lib/supabase';
+
+/* ── helpers ──────────────────────────────────────────────────────── */
+function fmt(n) {
+  return new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
+}
+const MT = { timeZone: 'Europe/Malta' };
+function fmtFull(dt) {
+  if (!dt) return '';
+  return new Date(dt).toLocaleDateString('en-MT', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', ...MT,
+  });
+}
+function fmtTime(dt) {
+  if (!dt) return '';
+  return new Date(dt).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit', ...MT });
+}
+function fmtMonth(dt) {
+  if (!dt) return '';
+  return new Date(dt).toLocaleDateString('en-MT', { month: 'short', ...MT }).toUpperCase();
+}
+function fmtDay(dt) {
+  if (!dt) return '';
+  return new Date(dt).toLocaleDateString('en-MT', { day: 'numeric', ...MT });
+}
+function validatePhone(raw) {
+  const n = raw.replace(/[\s\-().]/g, '');
+  // Malta local mobile: exactly 8 digits starting with 7
+  if (/^7\d{7}$/.test(n)) return true;
+  // Malta international mobile: +356 or 00356 + 8 digits starting with 7
+  if (/^(\+356|00356)7\d{7}$/.test(n)) return true;
+  // Other country: must include explicit + country code, 8–15 digits total
+  if (/^\+(?!356)[1-9]\d{7,14}$/.test(n)) return true;
+  return false;
+}
+function ticketAvailable(ticket) {
+  if (ticket.status === 'sold_out') return false;
+  const now = new Date();
+  if (ticket.sale_start && new Date(ticket.sale_start) > now) return false;
+  // Only block by sale_end if the organiser explicitly set one on the ticket
+  if (ticket.sale_end && new Date(ticket.sale_end) < now) return false;
+  const inv = ticket.inventory ?? ticket.quantity_available;
+  if (inv == null) return true;
+  return (ticket.sold ?? ticket.quantity_sold ?? 0) < inv;
+}
+function ticketRemaining(ticket) {
+  const inv = ticket.inventory ?? ticket.quantity_available;
+  if (inv == null) return null;
+  return inv - (ticket.sold ?? ticket.quantity_sold ?? 0);
+}
+
+/* ── CSS ──────────────────────────────────────────────────────────── */
+const CSS = `
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --accent:#0a9e7f; --accent-dark:#087d65; --accent-pale:#e6f7f4;
+  --black:#0a0a0a; --white:#fff; --off:#fafaf9; --text:#1a1a1a;
+  --mid:#555; --light:#999; --border:#e8e8e6;
+  --serif:'DM Serif Display',Georgia,serif;
+  --sans:'DM Sans',system-ui,sans-serif;
+  --danger:#ef4444; --danger-bg:#fef2f2;
+  --warn:#f59e0b; --warn-bg:#fffbeb;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--white);color:var(--text);-webkit-font-smoothing:antialiased}
+
+/* ── NAV ── */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:#fff;border-bottom:1px solid transparent;transition:border-color 0.3s,box-shadow 0.3s}
+.nav.scrolled{border-color:var(--border);box-shadow:0 1px 20px rgba(0,0,0,0.06)}
+.nav-logo{text-decoration:none;display:flex;align-items:center}
+.nav-logo img{height:30px;width:auto;display:block;filter:invert(1)}
+.nav-back{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--mid);text-decoration:none;transition:color 0.15s}
+.nav-back:hover{color:var(--text)}
+.nav-right{display:flex;align-items:center;gap:12px}
+.nav-login-btn{display:flex;align-items:center;gap:7px;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;background:var(--black);color:var(--white);border:none;cursor:pointer;font-family:var(--sans);text-decoration:none;transition:background 0.15s}
+.nav-login-btn:hover{background:#222}
+
+/* ── HERO ── */
+.event-hero{margin-top:64px;position:relative;height:420px;overflow:hidden;background:var(--black)}
+.event-hero-bg{position:absolute;inset:0;background-size:cover;background-position:center}
+.event-hero-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.2) 0%,rgba(0,0,0,0.7) 100%)}
+.event-hero-placeholder{position:absolute;inset:0;background:linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 50%,rgba(10,158,127,0.15) 100%)}
+.event-hero-placeholder::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 25% 60%,rgba(10,158,127,0.12) 0%,transparent 50%),radial-gradient(circle at 75% 30%,rgba(10,158,127,0.06) 0%,transparent 40%)}
+.event-hero-content{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:40px}
+.event-hero-tag{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:white;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:5px 12px;border-radius:4px;margin-bottom:16px;width:fit-content}
+.event-hero-title{font-family:var(--serif);font-size:clamp(32px,5vw,56px);color:white;line-height:1.05;letter-spacing:-0.02em;margin-bottom:12px}
+.event-hero-meta{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.event-hero-meta-item{display:flex;align-items:center;gap:6px;font-size:14px;color:rgba(255,255,255,0.75)}
+.event-hero-dot{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,0.3)}
+
+/* ── LAYOUT ── */
+.page-body{max-width:1100px;margin:0 auto;padding:48px 40px 80px;display:grid;grid-template-columns:1fr 380px;gap:48px;align-items:start}
+.page-left{}
+.page-right{position:sticky;top:84px}
+
+/* ── SECTION ── */
+.section{margin-bottom:40px}
+.section-title{font-family:var(--serif);font-size:22px;color:var(--black);letter-spacing:-0.02em;margin-bottom:16px}
+.divider{height:1px;background:var(--border);margin:32px 0}
+
+/* ── EVENT INFO ── */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.info-card{background:var(--off);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;align-items:flex-start;gap:12px}
+.info-icon{font-size:20px;flex-shrink:0;margin-top:2px}
+.info-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--light);margin-bottom:3px}
+.info-value{font-size:14px;font-weight:600;color:var(--text);line-height:1.4}
+.info-sub{font-size:12px;color:var(--mid);margin-top:2px}
+
+/* ── DESCRIPTION ── */
+.event-desc{font-size:15px;color:var(--mid);line-height:1.75}
+
+/* ── ORGANISER ── */
+.organiser-card{display:flex;align-items:center;gap:14px;padding:16px 20px;background:var(--off);border:1px solid var(--border);border-radius:12px}
+.organiser-avatar{width:44px;height:44px;border-radius:10px;background:var(--black);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:white;flex-shrink:0;font-family:var(--serif)}
+.organiser-name{font-size:15px;font-weight:600;color:var(--text)}
+.organiser-label{font-size:11px;color:var(--light);font-weight:500}
+
+/* ── TICKET PANEL ── */
+.ticket-panel{background:var(--white);border:2px solid var(--accent);border-radius:16px;overflow:hidden;box-shadow:0 4px 40px rgba(10,158,127,0.13)}
+.ticket-panel-header{padding:20px 24px;border-bottom:1px solid rgba(10,158,127,0.15);background:linear-gradient(135deg,#0a9e7f 0%,#07866a 100%)}
+.ticket-panel-title{font-family:var(--serif);font-size:20px;color:#fff;letter-spacing:-0.02em}
+.ticket-panel-sub{font-size:12px;color:rgba(255,255,255,0.75);margin-top:3px}
+
+/* ── TICKET ROWS ── */
+.ticket-list{padding:8px 0;background:#f6fdfb}
+.ticket-row{padding:14px 24px;border-bottom:1px solid rgba(10,158,127,0.1);transition:background 0.1s;position:relative}
+.ticket-row:last-child{border-bottom:none}
+.ticket-row.selected{background:rgba(10,158,127,0.07)}
+.ticket-row.soldout{opacity:0.5}
+.ticket-row-main{display:flex;align-items:center;gap:12px}
+.ticket-row-info{flex:1;min-width:0}
+.ticket-name{font-size:15px;font-weight:600;color:var(--text)}
+.ticket-desc{font-size:12px;color:var(--mid);margin-top:2px;line-height:1.4}
+.ticket-price-wrap{text-align:right;flex-shrink:0}
+.ticket-price{font-size:16px;font-weight:700;color:var(--black);font-family:var(--serif)}
+.ticket-price.free{color:var(--accent)}
+.ticket-fee{font-size:10px;color:var(--light);margin-top:1px}
+.ticket-remaining{font-size:11px;font-weight:600;color:var(--warn);margin-top:3px}
+.ticket-qty-control{display:flex;align-items:center;gap:10px}
+.qty-btn{width:32px;height:32px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);color:var(--text);font-size:18px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;line-height:1;font-family:var(--sans)}
+.qty-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:var(--accent-pale)}
+.qty-btn:disabled{opacity:0.3;cursor:not-allowed}
+.qty-btn.has-qty{border-color:var(--accent);color:var(--accent)}
+.qty-num{font-size:16px;font-weight:700;min-width:28px;text-align:center;color:var(--text)}
+.qty-num.nonzero{color:var(--accent)}
+.soldout-tag{font-size:11px;font-weight:700;color:var(--danger);background:var(--danger-bg);padding:3px 10px;border-radius:20px}
+
+/* ── ORDER SUMMARY ── */
+.order-summary{padding:20px 24px;border-top:1.5px solid var(--border);background:var(--off)}
+.order-summary-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--light);margin-bottom:14px}
+.order-line{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mid);margin-bottom:8px}
+.order-line-name{flex:1}
+.order-line-price{font-weight:600;color:var(--text);flex-shrink:0}
+.order-subtotal{display:flex;justify-content:space-between;font-size:13px;color:var(--mid);padding-top:10px;border-top:1px solid var(--border);margin-top:4px;margin-bottom:6px}
+.order-fee{display:flex;justify-content:space-between;font-size:13px;color:var(--mid);margin-bottom:4px}
+.order-discount{display:flex;justify-content:space-between;font-size:13px;color:var(--accent);font-weight:600;margin-bottom:4px}
+.order-total{display:flex;justify-content:space-between;align-items:baseline;font-size:18px;font-weight:700;color:var(--black);padding-top:12px;border-top:1.5px solid var(--border);margin-top:8px;font-family:var(--serif)}
+
+/* ── COUPON ── */
+.coupon-section{padding:14px 24px;border-top:1px solid var(--border)}
+.coupon-row{display:flex;gap:8px}
+.coupon-input{flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--sans);color:var(--text);background:var(--white);outline:none;transition:border-color 0.15s}
+.coupon-input:focus{border-color:var(--accent)}
+.coupon-input.error{border-color:var(--danger)}
+.coupon-btn{padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;font-family:var(--sans);cursor:pointer;border:1.5px solid var(--border);background:var(--white);color:var(--text);transition:all 0.15s;white-space:nowrap}
+.coupon-btn:hover{border-color:var(--accent);color:var(--accent)}
+.coupon-btn:disabled{opacity:0.5;cursor:not-allowed}
+.coupon-feedback{font-size:12px;margin-top:6px;display:flex;align-items:center;gap:5px}
+.coupon-feedback.success{color:var(--accent)}
+.coupon-feedback.error{color:var(--danger)}
+.coupon-applied{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--accent-pale);border:1px solid rgba(10,158,127,0.25);border-radius:8px;margin-top:8px}
+.coupon-applied-label{font-size:12px;font-weight:600;color:var(--accent-dark)}
+.coupon-remove{background:none;border:none;font-size:11px;color:var(--mid);cursor:pointer;font-family:var(--sans);text-decoration:underline}
+
+/* ── CUSTOMER DETAILS ── */
+.customer-section{padding:16px 24px 0;border-top:1px solid var(--border)}
+.customer-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--light);margin-bottom:12px}
+.customer-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.customer-field{display:flex;flex-direction:column;gap:4px}
+.customer-field label{font-size:11px;font-weight:600;color:var(--mid)}
+.customer-field input{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--sans);color:var(--text);background:var(--white);outline:none;transition:border-color 0.15s}
+.customer-field input:focus{border-color:var(--accent)}
+.customer-field input.err{border-color:var(--danger)}
+.field-hint-err{font-size:11px;color:var(--danger);margin-top:2px}
+.customer-full{grid-column:1/-1}
+.consent-box{padding:14px 24px 4px;display:flex;flex-direction:column;gap:10px}
+.consent-row{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+.consent-row input[type=checkbox]{width:16px;height:16px;min-width:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer}
+.consent-row input[type=checkbox].err{outline:2px solid var(--danger);border-radius:3px}
+.consent-text{font-size:12px;color:var(--mid);line-height:1.5;user-select:none}
+.consent-text strong{color:var(--text)}
+.consent-text.err-text{color:var(--danger)}
+
+/* ── CHECKOUT BTN ── */
+.checkout-section{padding:16px 24px 20px}
+.btn-checkout{width:100%;padding:16px;background:var(--accent);color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;font-family:var(--sans);cursor:pointer;transition:background 0.15s,transform 0.1s,box-shadow 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(10,158,127,0.3)}
+.btn-checkout:hover:not(:disabled){background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(10,158,127,0.4)}
+.btn-checkout:disabled{background:#ccc;cursor:not-allowed;box-shadow:none;transform:none}
+.btn-checkout.loading{position:relative;overflow:hidden}
+.btn-checkout.loading::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.15) 50%,transparent 100%);animation:shimmer-btn 1.2s infinite}
+@keyframes shimmer-btn{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.secure-note{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--light);margin-top:10px}
+
+/* ── EMPTY / ERROR ── */
+.page-center{min-height:80vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:40px}
+.page-center-icon{font-size:48px}
+.page-center-title{font-family:var(--serif);font-size:28px;color:var(--text)}
+.page-center-sub{font-size:14px;color:var(--mid)}
+
+/* ── SKELETON ── */
+.skel{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── DAY TABS ── */
+.day-tabs{display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin:0 0 0 0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.day-tabs::-webkit-scrollbar{display:none}
+.day-tab{flex-shrink:0;padding:12px 18px;font-size:13px;font-weight:600;font-family:var(--sans);color:var(--mid);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;transition:all 0.15s;white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:2px}
+.day-tab:hover{color:var(--black)}
+.day-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.day-tab-date{font-size:10px;font-weight:500;color:var(--light);letter-spacing:0.03em}
+.day-tab.active .day-tab-date{color:var(--accent)}
+.day-tab.festival-tab{border-left:1px solid #e5e7eb;margin-left:4px;padding-left:20px}
+.day-capacity-bar{margin:0 24px 16px;padding:8px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;display:flex;align-items:center;gap:8px;font-size:12px;color:#0369a1}
+.day-capacity-bar.low{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.day-capacity-bar.critical{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+
+/* ── SOLD OUT BANNER ── */
+.soldout-banner{background:var(--danger-bg);border:1.5px solid #fecaca;border-radius:12px;padding:16px 20px;display:flex;gap:12px;align-items:flex-start;margin:16px 24px 0}
+.soldout-banner-icon{font-size:20px;flex-shrink:0}
+.soldout-banner-title{font-size:14px;font-weight:700;color:var(--danger);margin-bottom:3px}
+.soldout-banner-sub{font-size:12px;color:#b91c1c}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--black);color:white;padding:12px 24px;border-radius:10px;font-size:13px;font-weight:500;z-index:300;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.25);animation:toastIn 0.25s ease}
+.toast.error{background:var(--danger)}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ── MOBILE ── */
+@media(max-width:900px){
+  .nav{padding:0 20px}
+  .page-body{grid-template-columns:1fr;padding:24px 20px 60px;gap:0}
+  .page-right{position:static;margin-top:32px}
+  .event-hero{height:300px}
+  .event-hero-content{padding:24px 20px}
+  .info-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .page-body{padding:16px 14px 60px}
+  .event-hero{height:260px}
+  .event-hero-content{padding:16px 14px}
+  .event-hero-title{font-size:clamp(24px,7vw,40px)}
+  .ticket-panel-header{padding:16px 18px}
+  .ticket-row{padding:12px 18px}
+  .order-summary{padding:16px 18px}
+  .customer-grid{grid-template-columns:1fr}
+  .coupon-section{padding:12px 18px}
+  .checkout-section{padding:12px 18px 16px}
+}
+`;
+
+/* ── COMPONENT ────────────────────────────────────────────────────── */
+export default function EventPage() {
+  const { id } = useParams();
+  const router  = useRouter();
+
+  const [scrolled,    setScrolled]    = useState(false);
+  const [event,       setEvent]       = useState(null);
+  const [eventDays,   setEventDays]   = useState([]); // ordered event_days rows
+  const [activeDay,   setActiveDay]   = useState(null); // day id or 'festival' or null
+  const [loading,     setLoading]     = useState(true);
+  const [notFound,    setNotFound]    = useState(false);
+  const [quantities,  setQuantities]  = useState({}); // ticketId → qty
+  const [couponCode,  setCouponCode]  = useState('');
+  const [coupon,      setCoupon]      = useState(null); // validated coupon object
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [hasCoupons,  setHasCoupons]  = useState(false); // true if any active coupon is bound to this event
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [user,        setUser]        = useState(null);
+  const [authOpen,    setAuthOpen]    = useState(false);
+  const [toast,       setToast]       = useState(null);
+
+  // Customer details
+  const [customer, setCustomer] = useState({ first_name: '', last_name: '', email: '', phone: '' });
+  const [customerErrors, setCustomerErrors] = useState({});
+
+  // Consent
+  const [consentData,      setConsentData]      = useState(false);
+  const [consentMarketing, setConsentMarketing] = useState(false);
+  const [consentError,     setConsentError]     = useState(false);
+
+  useEffect(() => {
+    loadEvent();
+    checkUser();
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [id]);
+
+  async function checkUser() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    } catch {}
+  }
+
+  async function loadEvent() {
+    setLoading(true);
+    try {
+      const [eventRes, daysRes] = await Promise.all([
+        supabase
+          .from('events')
+          .select(`
+            id, name, description, venue_name, venue_maps_url, start_time, end_time,
+            thumbnail_url, poster_url, status, booking_fee_pct,
+            organisers ( id, name ),
+            tickets ( id, name, price, inventory, sold, event_day_id, sale_start, sale_end, status )
+          `)
+          .eq('id', id)
+          .single(),
+        supabase
+          .from('event_days')
+          .select('id, name, date, capacity, sort_order')
+          .eq('event_id', id)
+          .order('sort_order'),
+      ]);
+
+      if (eventRes.error || !eventRes.data) { setNotFound(true); setLoading(false); return; }
+
+      const data = eventRes.data;
+      const days = daysRes.data || [];
+
+      // Sort tickets by price
+      if (data.tickets) {
+        data.tickets = data.tickets.sort((a, b) => (a.price || 0) - (b.price || 0));
+      }
+
+      setEvent(data);
+      setEventDays(days);
+
+      // Check if any active coupon is bound specifically to this event
+      const { data: couponRows } = await supabase
+        .from('coupons')
+        .select('id')
+        .eq('status', 'active')
+        .contains('event_ids', [id])
+        .limit(1);
+      setHasCoupons((couponRows?.length || 0) > 0);
+
+      // Set active day tab: first day if multi-day, else null
+      const firstDay = days[0]?.id || null;
+      setActiveDay(firstDay);
+
+      // Default quantities to 0 for all tickets
+      const q = {};
+      (data.tickets || []).forEach(t => { q[t.id] = 0; });
+      setQuantities(q);
+    } catch (err) {
+      console.error('loadEvent error:', err);
+      setNotFound(true);
+    }
+    setLoading(false);
+  }
+
+  function setQty(ticketId, delta) {
+    const ticket = (event?.tickets || []).find(t => t.id === ticketId);
+    if (!ticket) return;
+    const max = ticket.max_per_order || 10;
+    const rem = ticketRemaining(ticket);
+    const maxAllowed = rem !== null ? Math.min(max, rem) : max;
+    setQuantities(prev => {
+      const cur = prev[ticketId] || 0;
+      const next = Math.max(0, Math.min(maxAllowed, cur + delta));
+      return { ...prev, [ticketId]: next };
+    });
+  }
+
+  // ── Day helpers ─────────────────────────────────────────────────
+  const isMultiDay = eventDays.length > 0;
+
+  // Tickets visible in the current tab
+  const visibleTickets = isMultiDay
+    ? (event?.tickets || []).filter(t => {
+        if (activeDay === 'festival') return t.event_day_id === null;
+        return t.event_day_id === activeDay;
+      })
+    : (event?.tickets || []);
+
+  // Festival pass tickets (event_day_id === null)
+  const festivalTickets = (event?.tickets || []).filter(t => t.event_day_id === null);
+  const hasFestivalTab = isMultiDay && festivalTickets.length > 0;
+
+  // Day remaining capacity (for display only — server enforces)
+  function getDayRemaining(day) {
+    if (!day.capacity) return null;
+    const allTix = event?.tickets || [];
+    const used = allTix.reduce((sum, t) => {
+      if (t.event_day_id === day.id || t.event_day_id === null) return sum + (t.sold || 0);
+      return sum;
+    }, 0);
+    return Math.max(0, day.capacity - used);
+  }
+
+  // ── Totals — always computed across ALL tickets (cart persists across tabs) ──
+  const selectedLines = (event?.tickets || [])
+    .filter(t => (quantities[t.id] || 0) > 0)
+    .map(t => ({
+      ticket: t,
+      qty: quantities[t.id],
+      subtotal: (t.price || 0) * quantities[t.id],
+    }));
+
+  const subtotal = selectedLines.reduce((s, l) => s + l.subtotal, 0);
+
+  // Booking fee: use event's settings or default 8%
+  const feeRate  = event?.booking_fee_pct != null ? event.booking_fee_pct / 100 : 0.08;
+  const feeFix   = event?.booking_fee_fixed || 0;
+  const bookingFee = subtotal > 0 ? +(subtotal * feeRate + feeFix).toFixed(2) : 0;
+
+  // Coupon discount
+  let discount = 0;
+  if (coupon && subtotal > 0) {
+    if (coupon.discount_type === 'percent') {
+      discount = +(subtotal * (coupon.discount_value / 100)).toFixed(2);
+    } else {
+      discount = Math.min(coupon.discount_value, subtotal);
+    }
+  }
+
+  const total = Math.max(0, subtotal + bookingFee - discount);
+  const totalTickets = selectedLines.reduce((s, l) => s + l.qty, 0);
+  const allSoldOut = event?.status === 'sold_out' || (
+    (event?.tickets || []).length > 0 &&
+    (event?.tickets || []).every(t => !ticketAvailable(t)));
+  const tabSoldOut = visibleTickets.length > 0 && visibleTickets.every(t => !ticketAvailable(t));
+
+  // ── Coupon validation ───────────────────────────────────────────
+  async function applyCoupon() {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', couponCode.trim().toUpperCase())
+        .eq('status', 'active')
+        .single();
+
+      if (error || !data) {
+        setCouponError('Invalid or expired coupon code.');
+        setCouponLoading(false);
+        return;
+      }
+
+      // Check expiry_date
+      if (data.expiry_date && new Date(data.expiry_date) < new Date()) {
+        setCouponError('This coupon has expired.');
+        setCouponLoading(false);
+        return;
+      }
+
+      // Check usage limit
+      if (data.usage_limit && (data.usage_count || 0) >= data.usage_limit) {
+        setCouponError('This coupon has reached its usage limit.');
+        setCouponLoading(false);
+        return;
+      }
+
+      // Check event binding — coupon must include this event in its event_ids
+      if (!Array.isArray(data.event_ids) || !data.event_ids.includes(id)) {
+        setCouponError('This coupon is not valid for this event.');
+        setCouponLoading(false);
+        return;
+      }
+
+      setCoupon(data);
+      showToast('Coupon applied! 🎉');
+    } catch (err) {
+      setCouponError('Could not validate coupon. Try again.');
+    }
+    setCouponLoading(false);
+  }
+
+  function removeCoupon() {
+    setCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  }
+
+  // ── Per-field blur validation ────────────────────────────────────
+  function validateField(field, value) {
+    switch (field) {
+      case 'first_name': return value.trim() ? false : true;
+      case 'last_name':  return value.trim() ? false : true;
+      case 'email':      return (value.trim() && /\S+@\S+\.\S+/.test(value)) ? false : true;
+      case 'phone':
+        if (!value.trim()) return 'required';
+        return validatePhone(value) ? false : 'invalid';
+      default: return false;
+    }
+  }
+  function handleBlur(field) {
+    const err = validateField(field, customer[field]);
+    if (err !== false) setCustomerErrors(p => ({ ...p, [field]: err }));
+  }
+
+  // ── Checkout ────────────────────────────────────────────────────
+  async function handleCheckout() {
+    if (totalTickets === 0) return;
+
+    // Validate all fields (catches any not yet blurred)
+    const errors = {};
+    if (!customer.first_name.trim()) errors.first_name = true;
+    if (!customer.last_name.trim())  errors.last_name  = true;
+    if (!customer.email.trim() || !/\S+@\S+\.\S+/.test(customer.email)) errors.email = true;
+    if (!customer.phone.trim())            errors.phone = 'required';
+    else if (!validatePhone(customer.phone)) errors.phone = 'invalid';
+    if (Object.keys(errors).length) {
+      setCustomerErrors(errors);
+      showToast('Please fill in all your details.', 'error');
+      return;
+    }
+    setCustomerErrors({});
+
+    if (!consentData) {
+      setConsentError(true);
+      showToast('You must agree to the data storage terms to continue.', 'error');
+      return;
+    }
+    setConsentError(false);
+
+    setCheckoutLoading(true);
+    try {
+      const lineItems = selectedLines.map(l => ({
+        ticket_id:   l.ticket.id,
+        ticket_name: l.ticket.name,
+        quantity:    l.qty,
+        unit_price:  l.ticket.price || 0,
+      }));
+
+      // Capture utm_id from URL for email campaign conversion tracking
+      const urlUtmId = new URLSearchParams(window.location.search).get('utm_id');
+
+      const payload = {
+        event_id:       event.id,
+        event_name:     event.name,
+        line_items:     lineItems,
+        subtotal,
+        booking_fee:    bookingFee,
+        discount,
+        total,
+        coupon_code:    coupon?.code || null,
+        coupon_id:      coupon?.id   || null,
+        customer_email: customer.email,
+        customer_name:  `${customer.first_name} ${customer.last_name}`,
+        customer_first_name: customer.first_name,
+        customer_last_name:  customer.last_name,
+        customer_phone: customer.phone,
+        marketing_consent: consentMarketing,
+        success_url:    `${window.location.origin}/orders/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url:     window.location.href,
+        ...(urlUtmId ? { utm_id: urlUtmId } : {}),
+      };
+
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Checkout failed');
+      }
+    } catch (err) {
+      showToast(err.message || 'Something went wrong. Please try again.', 'error');
+    }
+    setCheckoutLoading(false);
+  }
+
+  function showToast(msg, type = 'success') {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  }
+
+  // ── Render states ───────────────────────────────────────────────
+  if (loading) return (
+    <div>
+      <style>{CSS}</style>
+      <nav className="nav">
+        <Link href="/" className="nav-logo">
+          <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
+        </Link>
+        <Link href="/" className="nav-back">← Back to events</Link>
+      </nav>
+      <div style={{ marginTop: 64, height: 420 }}>
+        <div className="skel" style={{ height: '100%', borderRadius: 0 }} />
+      </div>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 40px', display: 'grid', gridTemplateColumns: '1fr 380px', gap: 48 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="skel" style={{ height: 40, width: '60%' }} />
+          <div className="skel" style={{ height: 16, width: '40%' }} />
+          <div className="skel" style={{ height: 80 }} />
+        </div>
+        <div className="skel" style={{ height: 400, borderRadius: 16 }} />
+      </div>
+    </div>
+  );
+
+  if (notFound) return (
+    <div>
+      <style>{CSS}</style>
+      <nav className="nav">
+        <Link href="/" className="nav-logo">
+          <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
+        </Link>
+      </nav>
+      <div className="page-center" style={{ marginTop: 64 }}>
+        <div className="page-center-icon">🎫</div>
+        <div className="page-center-title">Event not found</div>
+        <div className="page-center-sub">This event may have ended or been removed.</div>
+        <Link href="/" style={{ marginTop: 8, padding: '10px 24px', background: 'var(--accent)', color: 'white', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
+          Browse all events
+        </Link>
+      </div>
+    </div>
+  );
+
+  const org = event.organisers;
+  const orgInitial = org?.name?.[0]?.toUpperCase() || '?';
+
+  return (
+    <div>
+      <style>{CSS}</style>
+
+      {/* ── NAV ── */}
+      <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
+        <Link href="/" className="nav-logo">
+          <img src="https://tdqylvqcoxnyzqkesibj.supabase.co/storage/v1/object/public/emails/brand/logo-white.png" alt="Trackage Scheme" />
+        </Link>
+        <Link href="/" className="nav-back">← All events</Link>
+        <div className="nav-right">
+          {user ? (
+            <span style={{ fontSize: 13, color: 'var(--mid)' }}>{user.email?.split('@')[0]}</span>
+          ) : (
+            <button className="nav-login-btn" onClick={() => setAuthOpen(true)}>Sign in</button>
+          )}
+        </div>
+      </nav>
+
+      {/* ── HERO ── */}
+      <div className="event-hero">
+        {event.poster_url || event.thumbnail_url
+          ? <div className="event-hero-bg" style={{ backgroundImage: `url(${event.poster_url || event.thumbnail_url})` }} />
+          : <div className="event-hero-placeholder" />
+        }
+        <div className="event-hero-content">
+          <div className="event-hero-tag">
+            <span>🎵</span> {org?.name || 'Trackage Scheme'}
+          </div>
+          <h1 className="event-hero-title">{event.name}</h1>
+          <div className="event-hero-meta">
+            {isMultiDay && eventDays.length > 0 ? (
+              <>
+                <span className="event-hero-meta-item">
+                  📅 {eventDays.length}-day festival
+                  {eventDays[0]?.date && eventDays[eventDays.length - 1]?.date
+                    ? ` · ${new Date(eventDays[0].date + 'T12:00:00').toLocaleDateString('en-MT', { day: 'numeric', month: 'short' })} – ${new Date(eventDays[eventDays.length - 1].date + 'T12:00:00').toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                    : ''}
+                </span>
+                {event.venue_name && (
+                  <>
+                    <div className="event-hero-dot" />
+                    <span className="event-hero-meta-item">
+                      {event.venue_maps_url
+                        ? <a href={event.venue_maps_url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>📍 {event.venue_name}</a>
+                        : <>📍 {event.venue_name}</>}
+                    </span>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                {event.start_time && (
+                  <span className="event-hero-meta-item">
+                    📅 {fmtFull(event.start_time)}
+                  </span>
+                )}
+                {event.start_time && (
+                  <>
+                    <div className="event-hero-dot" />
+                    <span className="event-hero-meta-item">🕐 {fmtTime(event.start_time)}</span>
+                  </>
+                )}
+                {event.venue_name && (
+                  <>
+                    <div className="event-hero-dot" />
+                    <span className="event-hero-meta-item">
+                      {event.venue_maps_url
+                        ? <a href={event.venue_maps_url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>📍 {event.venue_name}</a>
+                        : <>📍 {event.venue_name}</>}
+                    </span>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── BODY ── */}
+      <div className="page-body">
+
+        {/* ── LEFT: event info ── */}
+        <div className="page-left">
+
+          {/* Info cards */}
+          <div className="section">
+            <div className="info-grid">
+              {isMultiDay && eventDays.length > 0 ? (
+                <div className="info-card">
+                  <div className="info-icon">📅</div>
+                  <div>
+                    <div className="info-label">Festival Dates</div>
+                    {eventDays.map(day => (
+                      <div key={day.id} className="info-value" style={{ fontSize: 14, marginBottom: 2 }}>
+                        {day.name}{day.date ? ` — ${new Date(day.date + 'T12:00:00').toLocaleDateString('en-MT', { weekday: 'long', day: 'numeric', month: 'long' })}` : ''}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : event.start_time ? (
+                <div className="info-card">
+                  <div className="info-icon">📅</div>
+                  <div>
+                    <div className="info-label">Date</div>
+                    <div className="info-value">{fmtFull(event.start_time)}</div>
+                    <div className="info-sub">{fmtTime(event.start_time)}{event.end_time ? ` – ${fmtTime(event.end_time)}` : ''}</div>
+                  </div>
+                </div>
+              ) : null}
+              {event.venue_name && (
+                <div className="info-card">
+                  <div className="info-icon">📍</div>
+                  <div>
+                    <div className="info-label">Venue</div>
+                    <div className="info-value">
+                      {event.venue_maps_url
+                        ? <a href={event.venue_maps_url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>{event.venue_name}</a>
+                        : event.venue_name}
+                    </div>
+                    {event.address && <div className="info-sub">{event.address}</div>}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="divider" />
+
+          {/* Description */}
+          {event.description && (
+            <>
+              <div className="section">
+                <div className="section-title">About this event</div>
+                <div className="event-desc"
+                  dangerouslySetInnerHTML={{ __html: event.description.replace(/\n/g, '<br/>') }}
+                />
+              </div>
+              <div className="divider" />
+            </>
+          )}
+
+          {/* Organiser */}
+          {org && (
+            <div className="section">
+              <div className="section-title">Organiser</div>
+              <div className="organiser-card">
+                <div className="organiser-avatar">{orgInitial}</div>
+                <div>
+                  <div className="organiser-name">{org.name}</div>
+                  <div className="organiser-label">Event organiser</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* ── RIGHT: ticket panel ── */}
+        <div className="page-right">
+          <div className="ticket-panel">
+
+            <div className="ticket-panel-header">
+              <div className="ticket-panel-title">Get tickets</div>
+              <div className="ticket-panel-sub">
+                {allSoldOut
+                  ? 'This event is sold out'
+                  : isMultiDay
+                    ? `${eventDays.length}-day festival · ${event.venue_name || 'Select your tickets'}`
+                    : event.start_time
+                      ? `${fmtMonth(event.start_time)} ${fmtDay(event.start_time)} · ${fmtTime(event.start_time)}`
+                      : 'Select your tickets below'
+                }
+              </div>
+            </div>
+
+            {/* ── Day tabs (multi-day only) ── */}
+            {isMultiDay && !allSoldOut && (
+              <div className="day-tabs">
+                {eventDays.map(day => (
+                  <button
+                    key={day.id}
+                    className={`day-tab ${activeDay === day.id ? 'active' : ''}`}
+                    onClick={() => setActiveDay(day.id)}
+                  >
+                    {day.name || `Day`}
+                    {day.date && (
+                      <span className="day-tab-date">
+                        {new Date(day.date + 'T12:00:00').toLocaleDateString('en-MT', { day: 'numeric', month: 'short' })}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                {hasFestivalTab && (
+                  <button
+                    className={`day-tab festival-tab ${activeDay === 'festival' ? 'active' : ''}`}
+                    onClick={() => setActiveDay('festival')}
+                  >
+                    🎪 Festival Pass
+                    <span className="day-tab-date">All days</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Day capacity bar */}
+            {isMultiDay && !allSoldOut && activeDay && activeDay !== 'festival' && (() => {
+              const day = eventDays.find(d => d.id === activeDay);
+              if (!day || !day.capacity) return null;
+              const rem = getDayRemaining(day);
+              const pct = rem / day.capacity;
+              const cls = pct < 0.1 ? 'critical' : pct < 0.25 ? 'low' : '';
+              return (
+                <div className={`day-capacity-bar ${cls}`}>
+                  <span style={{ fontSize: 14 }}>{cls === 'critical' ? '🔴' : cls === 'low' ? '🟠' : '🟢'}</span>
+                  <span>
+                    <strong>{rem.toLocaleString()}</strong> of {day.capacity.toLocaleString()} spots remaining for {day.name || 'this day'}
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Sold out banner */}
+            {allSoldOut && (
+              <div className="soldout-banner">
+                <div className="soldout-banner-icon">😔</div>
+                <div>
+                  <div className="soldout-banner-title">Sold out</div>
+                  <div className="soldout-banner-sub">All tickets for this event have been sold.</div>
+                </div>
+              </div>
+            )}
+
+            {/* Ticket list */}
+            {!allSoldOut && (
+              <div className="ticket-list">
+                {visibleTickets.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--light)', fontSize: 13 }}>
+                    No tickets available for this selection.
+                  </div>
+                ) : visibleTickets.map(ticket => {
+                  const qty       = quantities[ticket.id] || 0;
+                  const available = ticketAvailable(ticket);
+                  const remaining = ticketRemaining(ticket);
+                  const max       = ticket.max_per_order || 10;
+                  const maxQty    = remaining !== null ? Math.min(max, remaining) : max;
+
+                  return (
+                    <div
+                      key={ticket.id}
+                      className={`ticket-row ${qty > 0 ? 'selected' : ''} ${!available ? 'soldout' : ''}`}
+                    >
+                      <div className="ticket-row-main">
+                        <div className="ticket-row-info">
+                          <div className="ticket-name">{ticket.name}</div>
+                          {ticket.description && (
+                            <div className="ticket-desc">{ticket.description}</div>
+                          )}
+                          {available && remaining !== null && remaining <= 5 && (
+                            <div className="ticket-remaining">Only {remaining} left!</div>
+                          )}
+                        </div>
+                        <div className="ticket-price-wrap">
+                          <div className={`ticket-price ${ticket.price === 0 ? 'free' : ''}`}>
+                            {ticket.price === 0 ? 'Free' : fmt(ticket.price)}
+                          </div>
+                          {ticket.price > 0 && bookingFee > 0 && (
+                            <div className="ticket-fee">+ booking fee</div>
+                          )}
+                        </div>
+                        {!available ? (
+                          <span className="soldout-tag">Sold out</span>
+                        ) : (
+                          <div className="ticket-qty-control">
+                            <button
+                              className={`qty-btn ${qty > 0 ? 'has-qty' : ''}`}
+                              onClick={() => setQty(ticket.id, -1)}
+                              disabled={qty === 0}
+                            >−</button>
+                            <span className={`qty-num ${qty > 0 ? 'nonzero' : ''}`}>{qty}</span>
+                            <button
+                              className={`qty-btn ${qty > 0 ? 'has-qty' : ''}`}
+                              onClick={() => setQty(ticket.id, 1)}
+                              disabled={qty >= maxQty}
+                            >+</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Cross-tab cart summary (multi-day only — shows tickets selected from other tabs) */}
+                {isMultiDay && selectedLines.some(l => !visibleTickets.find(t => t.id === l.ticket.id)) && (
+                  <div style={{ margin: '12px 0 0', padding: '10px 14px', background: '#f0fdf9', borderRadius: 8, border: '1px solid #a7f3d0' }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#065f46', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Also in your cart
+                    </div>
+                    {selectedLines
+                      .filter(l => !visibleTickets.find(t => t.id === l.ticket.id))
+                      .map(l => (
+                        <div key={l.ticket.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#047857', padding: '2px 0' }}>
+                          <span>{l.qty}× {l.ticket.name}</span>
+                          <span>{fmt(l.subtotal)}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Coupon — only shown when at least one active coupon is bound to this event */}
+            {!allSoldOut && totalTickets > 0 && hasCoupons && (
+              <div className="coupon-section">
+                {coupon ? (
+                  <div className="coupon-applied">
+                    <span className="coupon-applied-label">
+                      🏷 {coupon.code} — {coupon.discount_type === 'percent'
+                        ? `${coupon.discount_value}% off`
+                        : `${fmt(coupon.discount_value)} off`}
+                    </span>
+                    <button className="coupon-remove" onClick={removeCoupon}>Remove</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="coupon-row">
+                      <input
+                        className={`coupon-input ${couponError ? 'error' : ''}`}
+                        placeholder="Coupon code"
+                        value={couponCode}
+                        onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && applyCoupon()}
+                      />
+                      <button
+                        className="coupon-btn"
+                        onClick={applyCoupon}
+                        disabled={!couponCode.trim() || couponLoading}
+                      >{couponLoading ? '…' : 'Apply'}</button>
+                    </div>
+                    {couponError && (
+                      <div className="coupon-feedback error">✗ {couponError}</div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Order summary */}
+            {!allSoldOut && totalTickets > 0 && (
+              <div className="order-summary">
+                <div className="order-summary-title">Order summary</div>
+
+                {selectedLines.map(l => (
+                  <div key={l.ticket.id} className="order-line">
+                    <span className="order-line-name">{l.qty}× {l.ticket.name}</span>
+                    <span className="order-line-price">{fmt(l.subtotal)}</span>
+                  </div>
+                ))}
+
+                <div className="order-subtotal">
+                  <span>Subtotal</span>
+                  <span>{fmt(subtotal)}</span>
+                </div>
+                {bookingFee > 0 && (
+                  <div className="order-fee">
+                    <span>Booking fee</span>
+                    <span>{fmt(bookingFee)}</span>
+                  </div>
+                )}
+                {discount > 0 && (
+                  <div className="order-discount">
+                    <span>Discount ({coupon?.code})</span>
+                    <span>−{fmt(discount)}</span>
+                  </div>
+                )}
+
+                <div className="order-total">
+                  <span>Total</span>
+                  <span>{fmt(total)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Customer details */}
+            {!allSoldOut && totalTickets > 0 && (
+              <div className="customer-section">
+                <div className="customer-title">Your details</div>
+                <div className="customer-grid">
+                  <div className="customer-field">
+                    <label>First name *</label>
+                    <input
+                      type="text"
+                      placeholder="John"
+                      value={customer.first_name}
+                      className={customerErrors.first_name ? 'err' : ''}
+                      onChange={e => { const v = e.target.value; setCustomer(p => ({...p, first_name: v})); if (v.trim()) setCustomerErrors(p => ({...p, first_name: false})); }}
+                      onBlur={() => handleBlur('first_name')}
+                    />
+                  </div>
+                  <div className="customer-field">
+                    <label>Last name *</label>
+                    <input
+                      type="text"
+                      placeholder="Smith"
+                      value={customer.last_name}
+                      className={customerErrors.last_name ? 'err' : ''}
+                      onChange={e => { const v = e.target.value; setCustomer(p => ({...p, last_name: v})); if (v.trim()) setCustomerErrors(p => ({...p, last_name: false})); }}
+                      onBlur={() => handleBlur('last_name')}
+                    />
+                  </div>
+                  <div className="customer-field customer-full">
+                    <label>Email address *</label>
+                    <input
+                      type="email"
+                      placeholder="john@example.com"
+                      value={customer.email}
+                      className={customerErrors.email ? 'err' : ''}
+                      onChange={e => { const v = e.target.value; setCustomer(p => ({...p, email: v})); if (v.trim() && /\S+@\S+\.\S+/.test(v)) setCustomerErrors(p => ({...p, email: false})); }}
+                      onBlur={() => handleBlur('email')}
+                    />
+                  </div>
+                  <div className="customer-field customer-full">
+                    <label>Mobile number *</label>
+                    <input
+                      type="tel"
+                      placeholder="+356 7900 0000"
+                      value={customer.phone}
+                      className={customerErrors.phone ? 'err' : ''}
+                      onChange={e => { const v = e.target.value; setCustomer(p => ({...p, phone: v})); if (validatePhone(v)) setCustomerErrors(p => ({...p, phone: false})); }}
+                      onBlur={() => handleBlur('phone')}
+                    />
+                    {customerErrors.phone === 'invalid' && (
+                      <span className="field-hint-err">Enter a valid number including country code, e.g. +356 7900 0000</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Consent checkboxes */}
+            {!allSoldOut && totalTickets > 0 && (
+              <div className="consent-box">
+                <label className="consent-row" onClick={() => { setConsentData(v => !v); setConsentError(false); }}>
+                  <input
+                    type="checkbox"
+                    checked={consentData}
+                    readOnly
+                    className={consentError ? 'err' : ''}
+                  />
+                  <span className={`consent-text${consentError ? ' err-text' : ''}`}>
+                    <strong>I agree to my details being stored</strong> so that my tickets can be issued and my order can be managed, as per the <a href="https://tickets.trackagescheme.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#48C16E', textDecoration: 'underline' }}>terms and conditions</a>. This is required to complete your purchase.
+                  </span>
+                </label>
+                <label className="consent-row" onClick={() => setConsentMarketing(v => !v)}>
+                  <input
+                    type="checkbox"
+                    checked={consentMarketing}
+                    readOnly
+                  />
+                  <span className="consent-text">
+                    I agree to receive <strong>promotional communications</strong> about future events and offers from the organiser. You can unsubscribe at any time.
+                  </span>
+                </label>
+              </div>
+            )}
+
+            {/* Checkout button */}
+            {!allSoldOut && (
+              <div className="checkout-section">
+                <button
+                  className={`btn-checkout ${checkoutLoading ? 'loading' : ''}`}
+                  disabled={totalTickets === 0 || checkoutLoading}
+                  onClick={handleCheckout}
+                >
+                  {checkoutLoading
+                    ? 'Redirecting to payment…'
+                    : totalTickets === 0
+                      ? 'Select tickets to continue'
+                      : `Pay ${fmt(total)} →`
+                  }
+                </button>
+                <div className="secure-note">
+                  🔒 Secure payment via Stripe
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      </div>
+
+      {/* ── AUTH MODAL ── */}
+      {authOpen && (
+        <div
+          style={{ position:'fixed',inset:0,zIndex:200,background:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',padding:20 }}
+          onClick={() => setAuthOpen(false)}
+        >
+          <div
+            style={{ background:'white',borderRadius:20,width:'100%',maxWidth:400,padding:'40px 36px',position:'relative',boxShadow:'0 24px 80px rgba(0,0,0,0.25)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setAuthOpen(false)}
+              style={{ position:'absolute',top:16,right:16,background:'#f5f5f3',border:'none',borderRadius:'50%',width:32,height:32,cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:'#666' }}
+            >✕</button>
+            <div style={{ fontFamily:'var(--serif)',fontSize:26,color:'var(--black)',marginBottom:6,letterSpacing:'-0.02em' }}>Sign in to buy</div>
+            <div style={{ fontSize:14,color:'var(--mid)',marginBottom:28,lineHeight:1.5 }}>You need an account to complete your purchase. It only takes a second.</div>
+
+            <button
+              onClick={async () => { await supabase.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.href } }); }}
+              style={{ width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:10,padding:'13px 20px',borderRadius:10,fontSize:14,fontWeight:600,fontFamily:'var(--sans)',cursor:'pointer',background:'#f7f7f5',color:'var(--text)',border:'1.5px solid var(--border)',marginBottom:10 }}
+            >
+              <svg viewBox="0 0 18 18" fill="none" style={{width:18,height:18}}>
+                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+                <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+                <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+              </svg>
+              Continue with Google
+            </button>
+
+            <div style={{ fontSize:11,color:'var(--light)',textAlign:'center',marginTop:16,lineHeight:1.5 }}>
+              By signing in you agree to our <a href="/terms" style={{color:'var(--mid)'}}>Terms</a> and <a href="/privacy" style={{color:'var(--mid)'}}>Privacy Policy</a>.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TOAST ── */}
+      {toast && <div className={`toast ${toast.type === 'error' ? 'error' : ''}`}>{toast.msg}</div>}
+
+    </div>
+  );
+}
