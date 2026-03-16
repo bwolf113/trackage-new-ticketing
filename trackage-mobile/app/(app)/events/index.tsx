@@ -3,9 +3,10 @@ import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator, TextInput, RefreshControl, Image,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../lib/AuthContext';
-import { getOrganiserEvents, EventSummary } from '../../../lib/api';
+import { getOrganiserEvents, EventSummary, BASE_URL } from '../../../lib/api';
 import { colors, fonts } from '../../../lib/theme';
 
 function fmtDate(dt: string | null) {
@@ -20,6 +21,14 @@ export default function EventsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function copyEventLink(ev: EventSummary) {
+    const url = `${BASE_URL}/events/${ev.id}`;
+    await Clipboard.setStringAsync(url);
+    setCopiedId(ev.id);
+    setTimeout(() => setCopiedId((prev) => (prev === ev.id ? null : prev)), 2000);
+  }
 
   async function load(showRefresh = false) {
     if (!organiser || !session) { setLoading(false); return; }
@@ -101,20 +110,32 @@ export default function EventsScreen() {
               {ev.venue_name ? <Text style={styles.meta}>{ev.venue_name}</Text> : null}
               <Text style={styles.meta}>{ev.completed_orders ?? 0} order{ev.completed_orders !== 1 ? 's' : ''}</Text>
             </View>
-            <View style={[
-              styles.badge,
-              ev.status === 'published' ? styles.badgePub :
-              ev.status === 'sold_out'  ? styles.badgeSoldOut :
-              styles.badgeDraft,
-            ]}>
-              <Text style={[
-                styles.badgeText,
-                ev.status === 'published' ? styles.badgePubText :
-                ev.status === 'sold_out'  ? styles.badgeSoldOutText :
-                styles.badgeDraftText,
+            <View style={styles.cardActions}>
+              <TouchableOpacity
+                style={[styles.copyBtn, copiedId === ev.id && styles.copyBtnCopied]}
+                onPress={(e) => { e.stopPropagation?.(); copyEventLink(ev); }}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={[styles.copyBtnText, copiedId === ev.id && styles.copyBtnTextCopied]}>
+                  {copiedId === ev.id ? 'Copied!' : 'Copy link'}
+                </Text>
+              </TouchableOpacity>
+              <View style={[
+                styles.badge,
+                ev.status === 'published' ? styles.badgePub :
+                ev.status === 'sold_out'  ? styles.badgeSoldOut :
+                styles.badgeDraft,
               ]}>
-                {ev.status === 'sold_out' ? 'Sold Out' : ev.status}
-              </Text>
+                <Text style={[
+                  styles.badgeText,
+                  ev.status === 'published' ? styles.badgePubText :
+                  ev.status === 'sold_out'  ? styles.badgeSoldOutText :
+                  styles.badgeDraftText,
+                ]}>
+                  {ev.status === 'sold_out' ? 'Sold Out' : ev.status}
+                </Text>
+              </View>
             </View>
           </TouchableOpacity>
         )}
@@ -178,6 +199,27 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   name: { fontSize: 15, fontFamily: fonts.semiBold, color: colors.black, marginBottom: 3 },
   meta: { fontSize: 12, fontFamily: fonts.regular, color: colors.muted, marginTop: 2 },
+  cardActions: { alignItems: 'flex-end', gap: 6, flexShrink: 0 },
+  copyBtn: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  copyBtnCopied: {
+    backgroundColor: colors.successBg,
+    borderColor: colors.success,
+  },
+  copyBtnText: {
+    fontSize: 11,
+    fontFamily: fonts.semiBold,
+    color: colors.muted,
+  },
+  copyBtnTextCopied: {
+    color: colors.success,
+  },
   badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   badgePub: { backgroundColor: colors.successBg },
   badgeDraft: { backgroundColor: colors.bg },

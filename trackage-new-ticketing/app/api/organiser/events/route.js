@@ -4,6 +4,7 @@
 */
 import { createClient } from '@supabase/supabase-js';
 import { getOrganiserFromRequest } from '../../../../lib/organiserAuth';
+import { sendEmail } from '../../../../lib/sendEmail';
 
 function adminSupabase() {
   return createClient(
@@ -152,6 +153,31 @@ export async function POST(req) {
       const { error: ticketError } = await supabase.from('tickets').insert(ticketRows);
       if (ticketError) console.error('Ticket insert error:', ticketError);
     }
+
+    // Notify team about the new event (fire-and-forget)
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tickets.trackagescheme.com';
+    sendEmail({
+      to: 'team@trackagescheme.com',
+      subject: `New event created: ${eventData.name}`,
+      html: `
+        <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+          <h2 style="margin:0 0 16px;font-size:18px;color:#1a1a1a">New event created</h2>
+          <table style="width:100%;border:1px solid #e8e8e6;border-radius:8px;border-collapse:collapse;overflow:hidden">
+            <tr><td style="padding:10px 14px;font-size:12px;font-weight:700;color:#999;border-bottom:1px solid #f0f0f0">Event</td><td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1a1a1a;border-bottom:1px solid #f0f0f0">${eventData.name}</td></tr>
+            <tr><td style="padding:10px 14px;font-size:12px;font-weight:700;color:#999;border-bottom:1px solid #f0f0f0">Organiser</td><td style="padding:10px 14px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #f0f0f0">${organiser.name} (${organiser.email})</td></tr>
+            <tr><td style="padding:10px 14px;font-size:12px;font-weight:700;color:#999;border-bottom:1px solid #f0f0f0">Status</td><td style="padding:10px 14px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #f0f0f0">${eventData.status || 'draft'}</td></tr>
+            <tr><td style="padding:10px 14px;font-size:12px;font-weight:700;color:#999;border-bottom:1px solid #f0f0f0">Venue</td><td style="padding:10px 14px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #f0f0f0">${eventData.venue_name || '—'}</td></tr>
+            <tr><td style="padding:10px 14px;font-size:12px;font-weight:700;color:#999;border-bottom:1px solid #f0f0f0">Tickets</td><td style="padding:10px 14px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #f0f0f0">${tickets?.length || 0} ticket type(s)</td></tr>
+            <tr><td style="padding:10px 14px;font-size:12px;font-weight:700;color:#999">Days</td><td style="padding:10px 14px;font-size:14px;color:#1a1a1a">${days?.length || 0} day(s)</td></tr>
+          </table>
+          <div style="margin-top:20px;text-align:center">
+            <a href="${siteUrl}/organiser/events/${event.id}" style="display:inline-block;background:#0a0a0a;color:#fff;padding:11px 24px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700">View event →</a>
+            <span style="margin:0 8px;color:#999">·</span>
+            <a href="${siteUrl}/events/${event.id}" style="display:inline-block;background:#48C16E;color:#fff;padding:11px 24px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700">Public page →</a>
+          </div>
+        </div>
+      `,
+    }).catch(err => console.error('Team notification email failed:', err.message));
 
     return Response.json({ event_id: event.id });
   } catch (err) {

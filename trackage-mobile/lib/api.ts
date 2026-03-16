@@ -25,6 +25,7 @@ export async function createEvent(payload: {
     start_time: string | null;
     end_time: string | null;
     venue_name: string | null;
+    venue_maps_url: string | null;
     status: 'draft' | 'published';
   };
   tickets: { name: string; price: number; inventory: number | null }[];

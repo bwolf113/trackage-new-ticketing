@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
-  StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView,
+  Platform, Modal,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../lib/AuthContext';
-import { createEvent } from '../../../lib/api';
+import { createEvent, BASE_URL } from '../../../lib/api';
 import { colors, fonts } from '../../../lib/theme';
 
 interface TicketDraft {
@@ -15,29 +17,25 @@ interface TicketDraft {
   inventory: string;
 }
 
+interface VenuePrediction {
+  description: string;
+  place_id: string;
+}
+
+interface PickerState {
+  target: 'start' | 'end';
+  step: 'date' | 'time';
+  tempDate: Date;
+}
+
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
-// Convert Malta local datetime string → UTC ISO (handles DST correctly)
-function maltaDTtoUTC(str: string): string | null {
-  if (!str.trim()) return null;
-  const normalized = str.trim().replace(' ', 'T');
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalized)) return null;
-  const [yr, mo, da, hr, mi] = normalized.replace('T', '-').split(/[:\-]/).map(Number);
-  let utcMs = Date.UTC(yr, mo - 1, da, hr, mi);
-  for (let i = 0; i < 3; i++) {
-    const d = new Date(utcMs);
-    const ps = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Europe/Malta',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: false,
-    }).formatToParts(d);
-    const get = (t: string) => parseInt(ps.find(p => p.type === t)?.value ?? '0');
-    const maltaMs = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'));
-    const diff = Date.UTC(yr, mo - 1, da, hr, mi) - maltaMs;
-    if (Math.abs(diff) < 60000) break;
-    utcMs += diff;
-  }
-  return new Date(utcMs).toISOString();
+function formatDisplayDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZone: 'Europe/Malta',
+  }).format(date).replace(',', '');
 }
 
 export default function CreateEventScreen() {
@@ -47,22 +45,104 @@ export default function CreateEventScreen() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [venueName, setVenueName] = useState('');
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [status, setStatus] = useState<'draft' | 'published'>('draft');
   const [tickets, setTickets] = useState<TicketDraft[]>([
     { _id: uid(), name: 'General Admission', price: '', inventory: '' },
   ]);
 
+  // Venue search
+  const [venueQuery, setVenueQuery] = useState('');
+  const [venuePredictions, setVenuePredictions] = useState<VenuePrediction[]>([]);
+  const [selectedVenue, setSelectedVenue] = useState<{ name: string; maps_url: string } | null>(null);
+  const [venueSearching, setVenueSearching] = useState(false);
+  const venueDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Date/time picker state
+  const [pickerState, setPickerState] = useState<PickerState | null>(null);
+
+  // Venue search debounce
+  useEffect(() => {
+    if (venueDebounce.current) clearTimeout(venueDebounce.current);
+    if (!venueQuery.trim() || selectedVenue) {
+      setVenuePredictions([]);
+      return;
+    }
+    venueDebounce.current = setTimeout(async () => {
+      setVenueSearching(true);
+      try {
+        const res = await fetch(
+          `${BASE_URL}/api/organiser/places?q=${encodeURIComponent(venueQuery)}`,
+          { headers: { Authorization: `Bearer ${session!.access_token}` } }
+        );
+        const data = await res.json();
+        setVenuePredictions(data.predictions || []);
+      } catch { /* ignore */ } finally { setVenueSearching(false); }
+    }, 350);
+    return () => { if (venueDebounce.current) clearTimeout(venueDebounce.current); };
+  }, [venueQuery, selectedVenue]);
+
+  async function selectVenuePrediction(pred: VenuePrediction) {
+    setVenuePredictions([]);
+    setVenueSearching(true);
+    try {
+      const res = await fetch(
+        `${BASE_URL}/api/organiser/places?place_id=${encodeURIComponent(pred.place_id)}`,
+        { headers: { Authorization: `Bearer ${session!.access_token}` } }
+      );
+      const data = await res.json();
+      setSelectedVenue({ name: data.name || pred.description, maps_url: data.maps_url || '' });
+      setVenueQuery('');
+    } catch {
+      setSelectedVenue({ name: pred.description, maps_url: '' });
+      setVenueQuery('');
+    } finally { setVenueSearching(false); }
+  }
+
+  // ── Date picker helpers ──────────────────────────────────────
+  function openPicker(target: 'start' | 'end') {
+    const current = target === 'start' ? startDate : endDate;
+    setPickerState({ target, step: 'date', tempDate: current ?? new Date() });
+  }
+
+  // Android: date dialog then time dialog sequentially
+  function handleAndroidPickerChange(_: any, date?: Date) {
+    if (!pickerState) return;
+    if (!date) { setPickerState(null); return; }
+    if (pickerState.step === 'date') {
+      setPickerState({ ...pickerState, step: 'time', tempDate: date });
+    } else {
+      if (pickerState.target === 'start') setStartDate(date);
+      else setEndDate(date);
+      setPickerState(null);
+    }
+  }
+
+  // iOS: modal with spinner pickers
+  function handleIOSPickerChange(_: any, date?: Date) {
+    if (!pickerState || !date) return;
+    setPickerState({ ...pickerState, tempDate: date });
+  }
+
+  function confirmIOSStep() {
+    if (!pickerState) return;
+    if (pickerState.step === 'date') {
+      setPickerState({ ...pickerState, step: 'time' });
+    } else {
+      if (pickerState.target === 'start') setStartDate(pickerState.tempDate);
+      else setEndDate(pickerState.tempDate);
+      setPickerState(null);
+    }
+  }
+
+  // ── Ticket helpers ───────────────────────────────────────────
   function addTicket() {
     setTickets(ts => [...ts, { _id: uid(), name: '', price: '', inventory: '' }]);
   }
-
   function removeTicket(id: string) {
     setTickets(ts => ts.filter(t => t._id !== id));
   }
-
   function updateTicket(id: string, field: keyof Omit<TicketDraft, '_id'>, value: string) {
     setTickets(ts => ts.map(t => t._id === id ? { ...t, [field]: value } : t));
   }
@@ -83,27 +163,16 @@ export default function CreateEventScreen() {
       }
     }
 
-    const parsedStart = startTime ? maltaDTtoUTC(startTime) : null;
-    const parsedEnd = endTime ? maltaDTtoUTC(endTime) : null;
-
-    if (startTime && !parsedStart) {
-      Alert.alert('Invalid Date', 'Start date/time must be in format YYYY-MM-DD HH:MM\ne.g. 2026-04-16 20:00');
-      return;
-    }
-    if (endTime && !parsedEnd) {
-      Alert.alert('Invalid Date', 'End date/time must be in format YYYY-MM-DD HH:MM\ne.g. 2026-04-17 02:00');
-      return;
-    }
-
     setSaving(true);
     try {
       const result = await createEvent({
         event: {
           name: name.trim(),
           description: description.trim() || null,
-          start_time: parsedStart,
-          end_time: parsedEnd,
-          venue_name: venueName.trim() || null,
+          start_time: startDate ? startDate.toISOString() : null,
+          end_time: endDate ? endDate.toISOString() : null,
+          venue_name: selectedVenue?.name ?? null,
+          venue_maps_url: selectedVenue?.maps_url ?? null,
           status,
         },
         tickets: tickets.map(t => ({
@@ -120,10 +189,7 @@ export default function CreateEventScreen() {
             text: 'Open Event',
             onPress: () => router.replace({ pathname: '/(app)/events/[id]', params: { id: result.event_id! } }),
           },
-          {
-            text: 'Back to Events',
-            onPress: () => router.replace('/(app)/events'),
-          },
+          { text: 'Back to Events', onPress: () => router.replace('/(app)/events') },
         ]);
       } else {
         Alert.alert('Error', result.error || 'Failed to create event.');
@@ -171,45 +237,66 @@ export default function CreateEventScreen() {
             />
           </View>
 
+          {/* Date/Time Pickers */}
           <View style={styles.row}>
             <View style={[styles.field, { flex: 1 }]}>
               <Text style={styles.label}>START (Malta Time)</Text>
-              <TextInput
-                style={styles.input}
-                value={startTime}
-                onChangeText={setStartTime}
-                placeholder="2026-04-16 20:00"
-                placeholderTextColor={colors.muted}
-                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <TouchableOpacity style={styles.dateBtn} onPress={() => openPicker('start')} activeOpacity={0.7}>
+                <Text style={startDate ? styles.dateBtnText : styles.dateBtnPlaceholder}>
+                  {startDate ? formatDisplayDate(startDate) : 'Select date & time'}
+                </Text>
+              </TouchableOpacity>
             </View>
             <View style={[styles.field, { flex: 1 }]}>
               <Text style={styles.label}>END (Malta Time)</Text>
-              <TextInput
-                style={styles.input}
-                value={endTime}
-                onChangeText={setEndTime}
-                placeholder="2026-04-17 02:00"
-                placeholderTextColor={colors.muted}
-                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <TouchableOpacity style={styles.dateBtn} onPress={() => openPicker('end')} activeOpacity={0.7}>
+                <Text style={endDate ? styles.dateBtnText : styles.dateBtnPlaceholder}>
+                  {endDate ? formatDisplayDate(endDate) : 'Select date & time'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
-          <Text style={styles.hint}>Format: YYYY-MM-DD HH:MM (e.g. 2026-04-16 20:00)</Text>
 
-          <View style={[styles.field, { marginTop: 12 }]}>
+          {/* Venue */}
+          <View style={[styles.field, { marginTop: 4 }]}>
             <Text style={styles.label}>VENUE</Text>
-            <TextInput
-              style={styles.input}
-              value={venueName}
-              onChangeText={setVenueName}
-              placeholder="e.g. The Grand Social, Valletta"
-              placeholderTextColor={colors.muted}
-            />
+            {selectedVenue ? (
+              <View style={styles.venueChip}>
+                <Text style={styles.venueChipText} numberOfLines={1}>📍 {selectedVenue.name}</Text>
+                <TouchableOpacity onPress={() => setSelectedVenue(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.venueChipChange}>× Change</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View>
+                <TextInput
+                  style={styles.input}
+                  value={venueQuery}
+                  onChangeText={setVenueQuery}
+                  placeholder="Search for a venue…"
+                  placeholderTextColor={colors.muted}
+                  autoCorrect={false}
+                  autoCapitalize="words"
+                />
+                {venueSearching && (
+                  <ActivityIndicator size="small" color={colors.muted} style={{ position: 'absolute', right: 12, top: 12 }} />
+                )}
+                {venuePredictions.length > 0 && (
+                  <View style={styles.predictionsList}>
+                    {venuePredictions.map(pred => (
+                      <TouchableOpacity
+                        key={pred.place_id}
+                        style={styles.predictionItem}
+                        onPress={() => selectVenuePrediction(pred)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.predictionText} numberOfLines={2}>📍 {pred.description}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         </View>
 
@@ -305,6 +392,49 @@ export default function CreateEventScreen() {
 
         <View style={{ height: 48 }} />
       </ScrollView>
+
+      {/* ── iOS Date/Time Picker Modal ── */}
+      {Platform.OS === 'ios' && pickerState && (
+        <Modal transparent animationType="slide">
+          <View style={styles.pickerOverlay}>
+            <View style={styles.pickerSheet}>
+              <View style={styles.pickerHeader}>
+                <TouchableOpacity onPress={() => setPickerState(null)}>
+                  <Text style={styles.pickerCancel}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerTitle}>
+                  {pickerState.target === 'start' ? 'Start' : 'End'} —{' '}
+                  {pickerState.step === 'date' ? 'Pick Date' : 'Pick Time'}
+                </Text>
+                <TouchableOpacity onPress={confirmIOSStep}>
+                  <Text style={styles.pickerConfirm}>
+                    {pickerState.step === 'date' ? 'Next →' : 'Done'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={pickerState.tempDate}
+                mode={pickerState.step}
+                display="spinner"
+                onChange={handleIOSPickerChange}
+                style={styles.iosPicker}
+                timeZoneName="Europe/Malta"
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ── Android Date/Time Picker (dialog) ── */}
+      {Platform.OS === 'android' && pickerState && (
+        <DateTimePicker
+          value={pickerState.tempDate}
+          mode={pickerState.step}
+          display="default"
+          onChange={handleAndroidPickerChange}
+          timeZoneName="Europe/Malta"
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -357,6 +487,48 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  // Date button
+  dateBtn: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    backgroundColor: colors.surface,
+  },
+  dateBtnText: { fontSize: 13, fontFamily: fonts.regular, color: colors.black },
+  dateBtnPlaceholder: { fontSize: 13, fontFamily: fonts.regular, color: colors.muted },
+
+  // Venue
+  venueChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.greenDim,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  venueChipText: { flex: 1, fontSize: 14, fontFamily: fonts.regular, color: colors.green },
+  venueChipChange: { fontSize: 12, fontFamily: fonts.semiBold, color: colors.muted },
+  predictionsList: {
+    marginTop: 4,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
+  predictionItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  predictionText: { fontSize: 13, fontFamily: fonts.regular, color: colors.black },
+
   toggle: {
     flexDirection: 'row',
     borderWidth: 1.5,
@@ -407,4 +579,30 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.55 },
   saveBtnText: { fontSize: 15, fontFamily: fonts.bold, color: colors.white },
+
+  // iOS picker modal
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 32,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  pickerTitle: { fontSize: 15, fontFamily: fonts.bold, color: '#111' },
+  pickerCancel: { fontSize: 15, fontFamily: fonts.regular, color: colors.muted },
+  pickerConfirm: { fontSize: 15, fontFamily: fonts.bold, color: colors.green },
+  iosPicker: { backgroundColor: '#fff' },
 });

@@ -30,6 +30,9 @@ const CSS = `
 .ev-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .btn-sm { padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; }
 .btn-sm:hover { border-color: var(--black); color: var(--black); }
+.btn-copy { padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; }
+.btn-copy:hover { border-color: var(--black); color: var(--black); }
+.btn-copy.copied { border-color: var(--green); color: var(--green); background: rgba(72,193,110,0.08); }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; }
 .badge-pub { background: var(--green-dim); color: var(--green); }
 .badge-draft { background: rgba(0,0,0,0.06); color: var(--muted); }
@@ -52,6 +55,16 @@ export default function OrganiserEventsPage() {
   const [events,  setEvents]  = useState([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');
+  const [copiedId, setCopiedId] = useState(null);
+
+  function copyEventLink(ev, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = `${window.location.origin}/events/${ev.id}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(ev.id);
+    setTimeout(() => setCopiedId(prev => prev === ev.id ? null : prev), 2000);
+  }
 
   async function toggleSoldOut(ev, e) {
     e.preventDefault();
@@ -130,6 +143,12 @@ export default function OrganiserEventsPage() {
                 </div>
               </div>
               <div className="ev-actions">
+                <button
+                  className={`btn-copy${copiedId === ev.id ? ' copied' : ''}`}
+                  onClick={e => copyEventLink(ev, e)}
+                >
+                  {copiedId === ev.id ? '✓ Copied!' : '🔗 Copy link'}
+                </button>
                 <Link
                   href={`/organiser/events/${ev.id}/orders`}
                   className="btn-sm"

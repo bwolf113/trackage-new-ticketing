@@ -5,29 +5,52 @@ import {
   ActivityIndicator, Alert, ScrollView, Image,
 } from 'react-native';
 import { router } from 'expo-router';
-import { supabase } from '../../lib/supabase';
 import { colors, fonts } from '../../lib/theme';
 
-export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+const API_BASE = 'https://tickets.trackagescheme.com';
 
-  async function handleLogin() {
-    if (!email.trim() || !password) {
-      Alert.alert('Missing fields', 'Please enter your email and password.');
+export default function ForgotPasswordScreen() {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  async function handleReset() {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) {
+      Alert.alert('Missing email', 'Please enter your email address.');
       return;
     }
+
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-    setLoading(false);
-    if (error) {
-      Alert.alert('Login failed', error.message);
+    try {
+      const res = await fetch(`${API_BASE}/api/organiser/request-password-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || 'Something went wrong. Please try again.');
+      }
+
+      setSent(true);
+      setCooldown(60);
+      const timer = setInterval(() => {
+        setCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setLoading(false);
     }
-    // On success, AuthContext fires onAuthStateChange → RootGuard redirects to (app)/events
   }
 
   return (
@@ -36,7 +59,6 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {/* Header */}
         <View style={styles.header}>
           <Image
             source={{ uri: 'https://bflmjuzmmuhytkxpdrbw.supabase.co/storage/v1/object/public/emails/brand/logo-white.png' }}
@@ -46,8 +68,12 @@ export default function LoginScreen() {
           <Text style={styles.dashboard}>Organiser Dashboard</Text>
         </View>
 
-        {/* Card */}
         <View style={styles.card}>
+          <Text style={styles.title}>Reset your password</Text>
+          <Text style={styles.subtitle}>
+            Enter your email and we'll send you a link to reset your password.
+          </Text>
+
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
@@ -58,43 +84,35 @@ export default function LoginScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
+            editable={!loading}
           />
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor={colors.muted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
-          />
+          {sent && (
+            <View style={styles.successBox}>
+              <Text style={styles.successText}>
+                If an account exists for that email, a reset link has been sent. Check your inbox.
+              </Text>
+            </View>
+          )}
 
           <TouchableOpacity
-            onPress={() => router.push('/(auth)/forgot-password')}
-            style={styles.forgotLink}
-          >
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.btn, loading && styles.btnDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
+            style={[styles.btn, (loading || cooldown > 0) && styles.btnDisabled]}
+            onPress={handleReset}
+            disabled={loading || cooldown > 0}
             activeOpacity={0.85}
           >
-            {loading
-              ? <ActivityIndicator color={colors.white} />
-              : <Text style={styles.btnText}>Sign in</Text>
-            }
+            {loading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : cooldown > 0 ? (
+              <Text style={styles.btnText}>Resend in {cooldown}s</Text>
+            ) : (
+              <Text style={styles.btnText}>{sent ? 'Resend link' : 'Send reset link'}</Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.hint}>Use the same account as the organiser dashboard.</Text>
-
-        <TouchableOpacity onPress={() => router.push('/(auth)/signup')} style={styles.signupLink}>
-          <Text style={styles.signupText}>Don't have an account? <Text style={styles.signupBold}>Create one</Text></Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
+          <Text style={styles.backText}>Back to sign in</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -134,6 +152,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  title: {
+    fontSize: 18,
+    fontFamily: fonts.bold,
+    color: colors.black,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: colors.muted,
+    marginBottom: 8,
+  },
   label: {
     fontSize: 13,
     fontFamily: fonts.semiBold,
@@ -152,6 +182,17 @@ const styles = StyleSheet.create({
     color: colors.black,
     backgroundColor: colors.surface,
   },
+  successBox: {
+    backgroundColor: colors.successBg,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+  },
+  successText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.success,
+  },
   btn: {
     backgroundColor: colors.green,
     borderRadius: 10,
@@ -167,33 +208,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: fonts.bold,
   },
-  forgotLink: {
-    alignSelf: 'flex-end',
-    marginTop: 12,
-  },
-  forgotText: {
-    color: colors.green,
-    fontSize: 13,
-    fontFamily: fonts.medium,
-  },
-  hint: {
-    textAlign: 'center',
-    color: colors.muted,
-    fontSize: 12,
-    fontFamily: fonts.regular,
+  backLink: {
+    alignItems: 'center',
     marginTop: 24,
   },
-  signupLink: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  signupText: {
+  backText: {
     color: colors.muted,
     fontSize: 13,
-    fontFamily: fonts.regular,
-  },
-  signupBold: {
-    color: colors.green,
-    fontFamily: fonts.semiBold,
+    fontFamily: fonts.medium,
+    textDecorationLine: 'underline',
   },
 });
