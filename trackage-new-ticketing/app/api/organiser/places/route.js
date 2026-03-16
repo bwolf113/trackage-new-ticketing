@@ -31,6 +31,7 @@ export async function GET(req) {
         `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}&key=${key}`
       );
       const data = await res.json();
+      console.log('[places autocomplete]', data.status, 'predictions:', data.predictions?.length || 0, data.error_message || '');
       return Response.json({
         predictions: (data.predictions || []).slice(0, 5).map(p => ({
           description: p.description,
