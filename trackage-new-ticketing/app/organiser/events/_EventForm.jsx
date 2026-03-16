@@ -1,6 +1,6 @@
 /* app/organiser/events/_EventForm.jsx — Shared event create/edit form */
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { orgFetch } from '../../../lib/organiserFetch';
 
@@ -271,42 +271,39 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
     }
   }, [initial]);
 
-  // Google Places autocomplete for venue — callback ref so it re-attaches when venue is cleared
-  const pacAttached = useRef(false);
-  const venueContainerRef = useCallback((node) => {
-    if (node === null) { pacAttached.current = false; return; }
-    if (pacAttached.current) return;
-    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
-    if (!key) return;
-    async function init() {
-      if (!window.google) {
-        await new Promise((resolve, reject) => {
-          if (document.getElementById('gplaces-script')) {
-            const poll = setInterval(() => { if (window.google) { clearInterval(poll); resolve(); } }, 100);
-            return;
-          }
-          const s = document.createElement('script');
-          s.id = 'gplaces-script';
-          s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&loading=async`;
-          s.async = true; s.onload = resolve; s.onerror = reject;
-          document.head.appendChild(s);
-        });
-      }
-      const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
-      if (!node || pacAttached.current) return;
-      const pac = new PlaceAutocompleteElement();
-      pac.setAttribute('placeholder', 'Search for a venue…');
-      node.appendChild(pac);
-      pacAttached.current = true;
-      pac.addEventListener('gmp-select', async (e) => {
-        const place = e.placePrediction.toPlace();
-        await place.fetchFields({ fields: ['displayName', 'googleMapsURI'] });
-        setEv('venue_name', place.displayName?.text || (typeof place.displayName === 'string' ? place.displayName : '') || '');
-        setEv('venue_maps_url', place.googleMapsURI || '');
-      });
-    }
-    init().catch(console.error);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Venue search via server-side proxy (Places API New)
+  const [venueQuery, setVenueQuery] = useState('');
+  const [venuePredictions, setVenuePredictions] = useState([]);
+  const [venueSearching, setVenueSearching] = useState(false);
+  const venueDebounce = useRef(null);
+  useEffect(() => {
+    if (venueDebounce.current) clearTimeout(venueDebounce.current);
+    if (!venueQuery.trim() || event.venue_name) { setVenuePredictions([]); return; }
+    venueDebounce.current = setTimeout(async () => {
+      setVenueSearching(true);
+      try {
+        const res = await orgFetch(`/api/organiser/places?q=${encodeURIComponent(venueQuery)}`);
+        const data = await res.json();
+        setVenuePredictions(data.predictions || []);
+      } catch { /* ignore */ } finally { setVenueSearching(false); }
+    }, 350);
+    return () => { if (venueDebounce.current) clearTimeout(venueDebounce.current); };
+  }, [venueQuery, event.venue_name]);
+
+  async function selectVenuePrediction(pred) {
+    setVenuePredictions([]);
+    setVenueSearching(true);
+    try {
+      const res = await orgFetch(`/api/organiser/places?place_id=${encodeURIComponent(pred.place_id)}`);
+      const data = await res.json();
+      setEv('venue_name', data.name || pred.description);
+      setEv('venue_maps_url', data.maps_url || '');
+      setVenueQuery('');
+    } catch {
+      setEv('venue_name', pred.description);
+      setVenueQuery('');
+    } finally { setVenueSearching(false); }
+  }
 
   function setEv(field, value) { setEvent(e => ({ ...e, [field]: value })); }
 
@@ -460,25 +457,39 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
               </div>
               <div className="form-group">
                 <label>Venue Name</label>
-                {process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ? (
-                  event.venue_name ? (
-                    <div className="venue-chip">
-                      <span className="venue-chip-name">📍 {event.venue_name}</span>
-                      <button type="button" className="venue-chip-change" onClick={() => setEv('venue_name', '')}>× Change</button>
-                    </div>
-                  ) : (
-                    <div ref={venueContainerRef} className="pac-container-wrap" />
-                  )
+                {event.venue_name ? (
+                  <div className="venue-chip">
+                    <span className="venue-chip-name">📍 {event.venue_name}</span>
+                    <button type="button" className="venue-chip-change" onClick={() => { setEv('venue_name', ''); setEv('venue_maps_url', ''); }}>× Change</button>
+                  </div>
                 ) : (
-                  <input value={event.venue_name} onChange={e => setEv('venue_name', e.target.value)} placeholder="e.g. The Grand Social, Dublin" />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      value={venueQuery}
+                      onChange={e => setVenueQuery(e.target.value)}
+                      placeholder="Search for a venue…"
+                      autoComplete="off"
+                    />
+                    {venueSearching && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#999' }}>Searching…</span>}
+                    {venuePredictions.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: '#fff', border: '1px solid #e8e8e6', borderRadius: 8, marginTop: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+                        {venuePredictions.map(pred => (
+                          <button
+                            key={pred.place_id}
+                            type="button"
+                            onClick={() => selectVenuePrediction(pred)}
+                            style={{ display: 'block', width: '100%', padding: '10px 14px', border: 'none', borderBottom: '1px solid #f0f0f0', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 14 }}
+                            onMouseOver={e => e.currentTarget.style.background = '#f9f9f8'}
+                            onMouseOut={e => e.currentTarget.style.background = 'none'}
+                          >
+                            📍 {pred.description}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-              {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY && (
-                <div className="form-group">
-                  <label>Google Maps URL</label>
-                  <input type="url" value={event.venue_maps_url} onChange={e => setEv('venue_maps_url', e.target.value)} placeholder="https://maps.google.com/…" />
-                </div>
-              )}
             </div>
 
             {/* ── Event Days (multi-day only) ── */}
