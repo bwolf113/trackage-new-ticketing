@@ -53,7 +53,6 @@ export async function GET(req) {
         }
       );
       const data = await res.json();
-      console.log('[places autocomplete]', res.status, JSON.stringify(data).slice(0, 500));
       const suggestions = data.suggestions || [];
       return Response.json({
         predictions: suggestions.slice(0, 5).map(s => ({

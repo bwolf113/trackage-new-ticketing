@@ -80,9 +80,8 @@ export default function CreateEventScreen() {
           { headers: { Authorization: `Bearer ${session!.access_token}` } }
         );
         const data = await res.json();
-        console.log('[venue search]', res.status, JSON.stringify(data));
         setVenuePredictions(data.predictions || []);
-      } catch (err) { console.error('[venue search error]', err); } finally { setVenueSearching(false); }
+      } catch { /* ignore */ } finally { setVenueSearching(false); }
     }, 350);
     return () => { if (venueDebounce.current) clearTimeout(venueDebounce.current); };
   }, [venueQuery, selectedVenue]);
