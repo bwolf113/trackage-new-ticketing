@@ -638,10 +638,6 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
                         <input type="datetime-local" value={t.sale_end} onChange={e => updateTicket(key, 'sale_end', e.target.value)} />
                       </div>
                     </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label>Disclaimer (optional)</label>
-                      <textarea value={t.disclaimer} onChange={e => updateTicket(key, 'disclaimer', e.target.value)} placeholder="Terms or conditions for this ticket…" style={{ minHeight: 60 }} />
-                    </div>
                     <div className="ticket-save-actions">
                       <button type="button" className="btn-save-ticket" onClick={() => saveTicket(key)}>
                         Save ticket

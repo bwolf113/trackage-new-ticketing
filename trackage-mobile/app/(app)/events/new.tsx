@@ -15,6 +15,8 @@ interface TicketDraft {
   name: string;
   price: string;
   inventory: string;
+  sale_start: Date | null;
+  sale_end: Date | null;
 }
 
 interface VenuePrediction {
@@ -23,9 +25,10 @@ interface VenuePrediction {
 }
 
 interface PickerState {
-  target: 'start' | 'end';
+  target: 'start' | 'end' | 'ticket_sale_start' | 'ticket_sale_end';
   step: 'date' | 'time';
   tempDate: Date;
+  ticketId?: string;
 }
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
@@ -49,7 +52,7 @@ export default function CreateEventScreen() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [status, setStatus] = useState<'draft' | 'published'>('draft');
   const [tickets, setTickets] = useState<TicketDraft[]>([
-    { _id: uid(), name: 'General Admission', price: '', inventory: '' },
+    { _id: uid(), name: 'General Admission', price: '', inventory: '', sale_start: null, sale_end: null },
   ]);
 
   // Venue search
@@ -106,6 +109,23 @@ export default function CreateEventScreen() {
     setPickerState({ target, step: 'date', tempDate: current ?? new Date() });
   }
 
+  function openTicketPicker(ticketId: string, field: 'sale_start' | 'sale_end') {
+    const ticket = tickets.find(t => t._id === ticketId);
+    const current = ticket?.[field];
+    const target = field === 'sale_start' ? 'ticket_sale_start' as const : 'ticket_sale_end' as const;
+    setPickerState({ target, step: 'date', tempDate: current ?? new Date(), ticketId });
+  }
+
+  function applyPickerResult(date: Date) {
+    if (!pickerState) return;
+    if (pickerState.target === 'start') setStartDate(date);
+    else if (pickerState.target === 'end') setEndDate(date);
+    else if (pickerState.ticketId) {
+      const field = pickerState.target === 'ticket_sale_start' ? 'sale_start' : 'sale_end';
+      setTickets(ts => ts.map(t => t._id === pickerState.ticketId ? { ...t, [field]: date } : t));
+    }
+  }
+
   // Android: date dialog then time dialog sequentially
   function handleAndroidPickerChange(_: any, date?: Date) {
     if (!pickerState) return;
@@ -113,8 +133,7 @@ export default function CreateEventScreen() {
     if (pickerState.step === 'date') {
       setPickerState({ ...pickerState, step: 'time', tempDate: date });
     } else {
-      if (pickerState.target === 'start') setStartDate(date);
-      else setEndDate(date);
+      applyPickerResult(date);
       setPickerState(null);
     }
   }
@@ -130,15 +149,14 @@ export default function CreateEventScreen() {
     if (pickerState.step === 'date') {
       setPickerState({ ...pickerState, step: 'time' });
     } else {
-      if (pickerState.target === 'start') setStartDate(pickerState.tempDate);
-      else setEndDate(pickerState.tempDate);
+      applyPickerResult(pickerState.tempDate);
       setPickerState(null);
     }
   }
 
   // ── Ticket helpers ───────────────────────────────────────────
   function addTicket() {
-    setTickets(ts => [...ts, { _id: uid(), name: '', price: '', inventory: '' }]);
+    setTickets(ts => [...ts, { _id: uid(), name: '', price: '', inventory: '', sale_start: null, sale_end: null }]);
   }
   function removeTicket(id: string) {
     setTickets(ts => ts.filter(t => t._id !== id));
@@ -179,6 +197,8 @@ export default function CreateEventScreen() {
           name: t.name.trim() || 'General Admission',
           price: parseFloat(t.price) || 0,
           inventory: t.inventory !== '' ? parseInt(t.inventory) : null,
+          sale_start: t.sale_start ? t.sale_start.toISOString() : null,
+          sale_end: t.sale_end ? t.sale_end.toISOString() : null,
         })),
         days: [],
       }, session!.access_token);
@@ -369,6 +389,25 @@ export default function CreateEventScreen() {
                   />
                 </View>
               </View>
+
+              <View style={styles.row}>
+                <View style={[styles.field, { flex: 1 }]}>
+                  <Text style={styles.label}>SALE START</Text>
+                  <TouchableOpacity style={styles.dateBtn} onPress={() => openTicketPicker(t._id, 'sale_start')} activeOpacity={0.7}>
+                    <Text style={t.sale_start ? styles.dateBtnText : styles.dateBtnPlaceholder}>
+                      {t.sale_start ? formatDisplayDate(t.sale_start) : 'Optional'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={[styles.field, { flex: 1 }]}>
+                  <Text style={styles.label}>SALE END</Text>
+                  <TouchableOpacity style={styles.dateBtn} onPress={() => openTicketPicker(t._id, 'sale_end')} activeOpacity={0.7}>
+                    <Text style={t.sale_end ? styles.dateBtnText : styles.dateBtnPlaceholder}>
+                      {t.sale_end ? formatDisplayDate(t.sale_end) : 'Optional'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           ))}
 
@@ -403,7 +442,7 @@ export default function CreateEventScreen() {
                   <Text style={styles.pickerCancel}>Cancel</Text>
                 </TouchableOpacity>
                 <Text style={styles.pickerTitle}>
-                  {pickerState.target === 'start' ? 'Start' : 'End'} —{' '}
+                  {pickerState.target === 'start' ? 'Start' : pickerState.target === 'end' ? 'End' : pickerState.target === 'ticket_sale_start' ? 'Sale Start' : 'Sale End'} —{' '}
                   {pickerState.step === 'date' ? 'Pick Date' : 'Pick Time'}
                 </Text>
                 <TouchableOpacity onPress={confirmIOSStep}>

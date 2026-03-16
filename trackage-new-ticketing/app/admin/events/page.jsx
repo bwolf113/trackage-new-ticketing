@@ -663,16 +663,6 @@ function TicketCard({ ticket, index, onChange, onRemove, onSaveAndCreateAnother,
           </div>
         </div>
 
-        <div className="field" style={{ marginBottom: 12 }}>
-          <label>Disclaimer text (printed on PDF ticket)</label>
-          <textarea
-            placeholder="e.g. This ticket is non-refundable. Management reserves the right of admission..."
-            value={ticket.disclaimer}
-            onChange={e => set('disclaimer', e.target.value)}
-            rows={3}
-          />
-        </div>
-
         <div className="ticket-save-actions">
           <button type="button" className="btn btn-primary btn-sm" onClick={() => onChange({ ...ticket, _saved: true })}>
             Save ticket
