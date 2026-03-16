@@ -1,5 +1,5 @@
 /* app/api/organiser/places/route.js
-   Google Places proxy — keeps the API key server-side.
+   Google Places (New) proxy — keeps the API key server-side.
    GET ?q=query      → autocomplete predictions
    GET ?place_id=ID  → place name + Google Maps URL
 */
@@ -17,27 +17,48 @@ export async function GET(req) {
     const q       = searchParams.get('q');
     const placeId = searchParams.get('place_id');
 
+    // ── Place details (New API) ──
     if (placeId) {
-      const res  = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=name,url&key=${key}`
+      const res = await fetch(
+        `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=en`,
+        {
+          headers: {
+            'X-Goog-Api-Key': key,
+            'X-Goog-FieldMask': 'displayName,googleMapsUri',
+          },
+        }
       );
       const data = await res.json();
-      if (data.status !== 'OK') return Response.json({ error: 'Place not found' }, { status: 404 });
-      return Response.json({ name: data.result.name, maps_url: data.result.url });
+      if (data.error) return Response.json({ error: 'Place not found' }, { status: 404 });
+      return Response.json({
+        name: data.displayName?.text || '',
+        maps_url: data.googleMapsUri || '',
+      });
     }
 
+    // ── Autocomplete (New API) ──
     if (q) {
-      const res  = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}&key=${key}`
+      const res = await fetch(
+        'https://places.googleapis.com/v1/places:autocomplete',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': key,
+          },
+          body: JSON.stringify({
+            input: q,
+            languageCode: 'en',
+          }),
+        }
       );
       const data = await res.json();
-      console.log('[places autocomplete] full response:', JSON.stringify(data));
+      console.log('[places autocomplete]', res.status, JSON.stringify(data).slice(0, 500));
+      const suggestions = data.suggestions || [];
       return Response.json({
-        google_status: data.status,
-        google_error: data.error_message || null,
-        predictions: (data.predictions || []).slice(0, 5).map(p => ({
-          description: p.description,
-          place_id:    p.place_id,
+        predictions: suggestions.slice(0, 5).map(s => ({
+          description: s.placePrediction?.text?.text || s.placePrediction?.structuredFormat?.mainText?.text || '',
+          place_id: s.placePrediction?.placeId || '',
         })),
       });
     }
