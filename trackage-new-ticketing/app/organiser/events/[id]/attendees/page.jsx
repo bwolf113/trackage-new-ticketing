@@ -32,7 +32,7 @@ const CSS = `
 .count-label { font-size: 13px; color: var(--muted); font-weight: 500; white-space: nowrap; }
 .btn-export { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; transition: all 0.15s; }
 .btn-export:hover { border-color: var(--black); color: var(--black); }
-.table-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; }
+.table-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; }
 thead th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); background: var(--bg); border-bottom: 1.5px solid var(--border); }
 td { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 14px; color: var(--black); vertical-align: middle; font-weight: 500; }
@@ -45,6 +45,7 @@ tr:hover td { background: var(--bg); }
 .btn-resend.sent { border-color: var(--green); color: var(--green); background: var(--green-dim); }
 .skel { height: 14px; border-radius: 8px; background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media(max-width:640px) { table { min-width: 600px; } }
 .checkin-done { font-size: 12px; color: var(--green); font-weight: 700; }
 .checkin-partial { font-size: 12px; color: #92400e; font-weight: 500; }
 .checkin-none { font-size: 12px; color: var(--muted); font-weight: 500; }

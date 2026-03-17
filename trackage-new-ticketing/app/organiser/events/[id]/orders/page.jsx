@@ -32,7 +32,7 @@ const CSS = `
 .page-header { margin-bottom: 24px; }
 .page-title { font-size: 24px; font-weight: 800; color: var(--black); margin-bottom: 4px; letter-spacing: -0.02em; }
 .page-sub { font-size: 14px; color: var(--muted); font-weight: 500; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.stats-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 24px; }
 .stat-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 16px 18px; }
 .stat-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
 .stat-val { font-size: 22px; font-weight: 700; color: var(--black); }
@@ -82,8 +82,10 @@ tbody tr { cursor: pointer; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .msg-ok  { background: var(--green-dim); color: var(--green); border-radius: 8px; padding: 9px 12px; font-size: 13px; font-weight: 700; margin-bottom: 14px; }
 .msg-err { background: rgba(239,68,68,0.1); color: #ef4444; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+@media(min-width:700px) {
+  .stats-row { grid-template-columns: repeat(4, 1fr); }
+}
 @media(max-width:700px) {
-  .stats-row { grid-template-columns: 1fr 1fr; }
   .stat-val { font-size: 18px; }
   .search-wrap { min-width: 0; }
   .ticket-row { flex-direction: column; align-items: flex-start; gap: 4px; }

@@ -21,7 +21,7 @@ const CSS = `
 .search-bar input:focus { border-color: var(--black); }
 .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
 .events-grid { display: flex; flex-direction: column; gap: 12px; }
-.ev-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 18px 20px; display: flex; align-items: center; gap: 16px; transition: border-color 0.15s; cursor: pointer; text-decoration: none; }
+.ev-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 18px 20px; display: flex; align-items: center; gap: 16px; transition: border-color 0.15s; cursor: pointer; text-decoration: none; overflow: hidden; }
 .ev-card:hover { border-color: var(--black); }
 .ev-thumb { width: 56px; height: 56px; border-radius: 8px; background: var(--bg); object-fit: cover; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
 .ev-info { flex: 1; min-width: 0; }

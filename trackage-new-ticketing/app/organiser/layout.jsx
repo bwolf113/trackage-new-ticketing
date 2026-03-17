@@ -112,7 +112,7 @@ export default function OrganiserLayout({ children }) {
         .ol-sidebar.open { transform: translateX(0); }
 
         /* ── Main — mobile-first: full width, no margin ─────────────── */
-        .ol-main { margin-left: 0; flex: 1; min-height: 100vh; background: var(--bg); display: flex; flex-direction: column; }
+        .ol-main { margin-left: 0; flex: 1; min-height: 100vh; background: var(--bg); display: flex; flex-direction: column; min-width: 0; overflow-x: hidden; }
 
         /* ── Desktop: sidebar visible, content pushed right ─────────── */
         @media (min-width: 769px) {
