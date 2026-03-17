@@ -1,25 +1,47 @@
 /* lib/sendEmail.js */
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { generateQRPublicURL, getLogoURL } from './qrcode.js';
 
-const transporter = nodemailer.createTransport({
-  host:   'smtp.sendgrid.net',
-  port:   587,
-  secure: false,
-  auth: {
-    user: 'apikey',
-    pass: process.env.SENDGRID_API_KEY,
-  },
-});
+/* ── providers ─────────────────────────────────────────────────── */
+const useResend = process.env.EMAIL_PROVIDER !== 'sendgrid' && !!process.env.RESEND_API_KEY;
+
+const resend = useResend ? new Resend(process.env.RESEND_API_KEY) : null;
+
+const transporter = !useResend
+  ? nodemailer.createTransport({
+      host:   'smtp.sendgrid.net',
+      port:   587,
+      secure: false,
+      auth: { user: 'apikey', pass: process.env.SENDGRID_API_KEY },
+    })
+  : null;
 
 export async function sendEmail({ to, subject, html, attachments = [], headers = {} }) {
-  const mailOptions = {
-    from: `"${process.env.EMAIL_FROM_NAME || 'Trackage Scheme'}" <${process.env.EMAIL_FROM || 'team@trackagescheme.com'}>`,
-    to, subject, html, attachments, headers,
-  };
+  const from = `${process.env.EMAIL_FROM_NAME || 'Trackage Scheme'} <${process.env.EMAIL_FROM || 'team@trackagescheme.com'}>`;
+
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent:', info.messageId, 'to', to);
+    if (resend) {
+      const { data, error } = await resend.emails.send({
+        from, to, subject, html,
+        ...(attachments.length > 0 && {
+          attachments: attachments.map(a => ({
+            filename: a.filename,
+            content: a.content,          // Buffer or base64 string
+            ...(a.contentType && { contentType: a.contentType }),
+          })),
+        }),
+        ...(Object.keys(headers).length > 0 && { headers }),
+      });
+      if (error) throw new Error(error.message);
+      console.log('Email sent (Resend):', data.id, 'to', to);
+      return { success: true, messageId: data.id };
+    }
+
+    const info = await transporter.sendMail({
+      from, to, subject, html, attachments, headers,
+    });
+    console.log('Email sent (SendGrid):', info.messageId, 'to', to);
     return { success: true, messageId: info.messageId };
   } catch (err) {
     console.error('Email send failed:', err.message);
