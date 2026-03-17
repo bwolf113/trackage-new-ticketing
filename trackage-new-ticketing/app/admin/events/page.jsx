@@ -1,6 +1,6 @@
 /* app/admin/events/page.jsx */
 'use client';
-export const dynamic = 'force-dynamic';
+import { Suspense } from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
@@ -1355,7 +1355,7 @@ function Toast({ message, type = 'success' }) {
 }
 
 /* ─── Main page ──────────────────────────────────────────────────── */
-export default function EventsPage() {
+function EventsPageInner() {
   const [events, setEvents]         = useState([]);
   const [organisers, setOrganisers] = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -1613,5 +1613,13 @@ export default function EventsPage() {
       {/* ── Toast ── */}
       {toast && <Toast message={toast.msg} type={toast.type} />}
     </div>
+  );
+}
+
+export default function EventsPage() {
+  return (
+    <Suspense>
+      <EventsPageInner />
+    </Suspense>
   );
 }
