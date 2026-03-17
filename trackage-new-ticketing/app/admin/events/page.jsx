@@ -1,6 +1,7 @@
 /* app/admin/events/page.jsx */
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 import { adminFetch } from '../../../lib/adminFetch';
 
@@ -1365,8 +1366,21 @@ export default function EventsPage() {
   const [previewEvent, setPreviewEvent] = useState(null);
   const [toast, setToast]           = useState(null);
   const [copiedId, setCopiedId]     = useState(null);
+  const searchParams = useSearchParams();
+  const autoEditRef = useRef(false);
 
   useEffect(() => { load(); }, []);
+
+  // Auto-open edit form when ?edit=<eventId> is in the URL
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || autoEditRef.current || !events.length) return;
+    const ev = events.find(e => e.id === editId);
+    if (ev) {
+      autoEditRef.current = true;
+      openEdit(ev);
+    }
+  }, [events, searchParams]);
 
   async function load() {
     setLoading(true);
