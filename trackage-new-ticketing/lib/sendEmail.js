@@ -278,7 +278,17 @@ export async function ticketConfirmationEmail({ order, event, orderItems, organi
             <th align="right" style="padding:9px 14px;font-size:10px;font-weight:700;text-transform:uppercase;color:#999;letter-spacing:0.06em">Total</th>
           </tr>
         </thead>
-        <tbody>${itemRows}</tbody>
+        <tbody>${itemRows}${(order.booking_fee || 0) > 0 ? `
+          <tr>
+            <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#1a1a1a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">Booking fee</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#555;text-align:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif"></td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;font-weight:700;color:#0a9e7f;text-align:right;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">${fmt(order.booking_fee)}</td>
+          </tr>` : ''}${(order.discount || 0) > 0 ? `
+          <tr>
+            <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#1a1a1a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">Discount${order.coupon_code ? ` (${order.coupon_code})` : ''}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#555;text-align:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif"></td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;font-weight:700;color:#0a9e7f;text-align:right;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">−${fmt(order.discount)}</td>
+          </tr>` : ''}</tbody>
       </table>
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;border-radius:0 0 8px 8px;margin-bottom:24px">
         <tr>
