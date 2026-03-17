@@ -49,7 +49,7 @@ create table if not exists events (
   organiser_vat    text,
   platform_vat     text,
   vat_permit       text,
-  booking_fee_pct  numeric(5,4) not null default 0,  -- e.g. 0.05 for 5%
+  booking_fee_pct  numeric(5,2) not null default 0,  -- e.g. 10 for 10%
   is_featured      boolean not null default false,
   featured_order   integer not null default 0,
   status           text not null default 'draft'
@@ -90,7 +90,7 @@ create table if not exists tickets (
   event_day_id     uuid references event_days(id) on delete set null,
   name             text not null default 'General Admission',
   price            numeric(10,2) not null default 0,
-  booking_fee_pct  numeric(5,4) not null default 0,
+  booking_fee_pct  numeric(5,2) not null default 0,
   inventory        integer,                        -- null = unlimited
   sold             integer not null default 0,
   sale_start       timestamptz,

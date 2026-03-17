@@ -348,7 +348,7 @@ function SuccessPageInner() {
                   <div className="next-item-icon">❓</div>
                   <div>
                     <div className="next-item-title">Need help?</div>
-                    <div className="next-item-sub">Email us at <a href="mailto:info@trackagescheme.com" style={{color:'var(--accent)'}}>info@trackagescheme.com</a> with your order reference.</div>
+                    <div className="next-item-sub">Reply to this email and we'll sort you out!</div>
                   </div>
                 </div>
               </div>
