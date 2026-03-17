@@ -1,6 +1,6 @@
 /* app/(public)/page.jsx — Trackage Scheme Homepage */
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 
@@ -535,6 +535,94 @@ const FILTERS = [
   { key: 'free',         label: 'Free' },
 ];
 
+/* ── EVENT CARD (stable across re-renders) ────────────────────────── */
+const EventCard = memo(function EventCard({ event }) {
+  const price     = lowestPrice(event.tickets) ?? event.price;
+  const soldOut   = isSoldOut(event.tickets || []);
+  const org       = event.organisers?.name || event.organiser || '';
+  const dateStr   = event.start_time || event.date;
+  const venue     = event.venue_name || event.venue || '';
+  const image     = event.thumbnail_url || event.poster_url || event.image_url || event.image;
+  const href      = event._fallback ? '#' : `/events/${event.slug || event.id}`;
+
+  return (
+    <Link href={href} className="event-card">
+      <div className="event-img-wrap">
+        {image
+          ? <img src={image} alt={event.name} />
+          : <div className="event-img-placeholder">🎵</div>
+        }
+        <div className="event-img-date">
+          <div className="event-img-date-month">{fmtMonth(dateStr)}</div>
+          <div className="event-img-date-day">{fmtDay(dateStr)}</div>
+        </div>
+        {soldOut && <span className="event-img-badge badge-soldout">Sold out</span>}
+        {!soldOut && price === 0 && <span className="event-img-badge badge-free">Free</span>}
+      </div>
+      <div className="event-body">
+        {org && <div className="event-organiser">{org}</div>}
+        <div className="event-name">{event.name}</div>
+        <div className="event-details">
+          <div className="event-detail-row">
+            <span className="event-detail-icon">📅</span>
+            <span>{fmtDate(dateStr)}</span>
+          </div>
+          {venue && (
+            <div className="event-detail-row">
+              <span className="event-detail-icon">📍</span>
+              <span>{venue}</span>
+            </div>
+          )}
+          {event.start_time && (
+            <div className="event-detail-row">
+              <span className="event-detail-icon">🕐</span>
+              <span>{fmtTime(event.start_time)}</span>
+            </div>
+          )}
+        </div>
+        <div className="event-footer">
+          <div className="event-price">
+            {soldOut ? (
+              <span style={{ color: '#999', fontSize: 13 }}>Sold out</span>
+            ) : price === 0 || price === null ? (
+              <span className="free">Free</span>
+            ) : (
+              <>
+                <span className="event-price-from">from</span>
+                {fmt(price)}
+              </>
+            )}
+          </div>
+          <Link
+            href={href}
+            className={`btn-tickets ${soldOut ? 'sold-out' : ''}`}
+            onClick={e => e.stopPropagation()}
+          >
+            {soldOut ? 'Sold out' : 'Get tickets →'}
+          </Link>
+        </div>
+      </div>
+    </Link>
+  );
+});
+
+function EventCardSkeleton() {
+  return (
+    <div className="skel-card">
+      <div className="skel skel-img" />
+      <div className="skel-body">
+        <div className="skel" style={{ height: 12, width: '40%' }} />
+        <div className="skel" style={{ height: 20, width: '80%' }} />
+        <div className="skel" style={{ height: 12, width: '60%' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+          <div className="skel" style={{ height: 20, width: '25%' }} />
+          <div className="skel" style={{ height: 34, width: '30%', borderRadius: 8 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── COMPONENT ────────────────────────────────────────────────────── */
 export default function HomePage() {
   const [events,      setEvents]      = useState([]);
@@ -677,100 +765,13 @@ export default function HomePage() {
     });
   }
 
-  const filtered = filterEvents(events);
+  const filtered = useMemo(() => filterEvents(events), [events, filter, search]);
   const heroEvent   = heroEvents[heroIdx] || null;
   const heroPrice   = heroEvent ? (lowestPrice(heroEvent.tickets) ?? heroEvent.price) : null;
   const heroOrg     = heroEvent?.organisers?.name || heroEvent?.organiser || '';
   const heroVenue   = heroEvent?.venue_name || heroEvent?.venue || '';
   const heroImage   = heroEvent?.poster_url || heroEvent?.thumbnail_url || heroEvent?.image_url;
   const heroSoldOut = heroEvent ? isSoldOut(heroEvent.tickets || []) : false;
-
-  function EventCardSkeleton() {
-    return (
-      <div className="skel-card">
-        <div className="skel skel-img" />
-        <div className="skel-body">
-          <div className="skel" style={{ height: 12, width: '40%' }} />
-          <div className="skel" style={{ height: 20, width: '80%' }} />
-          <div className="skel" style={{ height: 12, width: '60%' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-            <div className="skel" style={{ height: 20, width: '25%' }} />
-            <div className="skel" style={{ height: 34, width: '30%', borderRadius: 8 }} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function EventCard({ event }) {
-    const price     = lowestPrice(event.tickets) ?? event.price;
-    const soldOut   = isSoldOut(event.tickets || []);
-    const org       = event.organisers?.name || event.organiser || '';
-    const dateStr   = event.start_time || event.date;
-    const venue     = event.venue_name || event.venue || '';
-    const image     = event.thumbnail_url || event.poster_url || event.image_url || event.image;
-    const href      = event._fallback ? '#' : `/events/${event.slug || event.id}`;
-
-    return (
-      <Link href={href} className="event-card">
-        <div className="event-img-wrap">
-          {image
-            ? <img src={image} alt={event.name} />
-            : <div className="event-img-placeholder">🎵</div>
-          }
-          <div className="event-img-date">
-            <div className="event-img-date-month">{fmtMonth(dateStr)}</div>
-            <div className="event-img-date-day">{fmtDay(dateStr)}</div>
-          </div>
-          {soldOut && <span className="event-img-badge badge-soldout">Sold out</span>}
-          {!soldOut && price === 0 && <span className="event-img-badge badge-free">Free</span>}
-        </div>
-        <div className="event-body">
-          {org && <div className="event-organiser">{org}</div>}
-          <div className="event-name">{event.name}</div>
-          <div className="event-details">
-            <div className="event-detail-row">
-              <span className="event-detail-icon">📅</span>
-              <span>{fmtDate(dateStr)}</span>
-            </div>
-            {venue && (
-              <div className="event-detail-row">
-                <span className="event-detail-icon">📍</span>
-                <span>{venue}</span>
-              </div>
-            )}
-            {event.start_time && (
-              <div className="event-detail-row">
-                <span className="event-detail-icon">🕐</span>
-                <span>{fmtTime(event.start_time)}</span>
-              </div>
-            )}
-          </div>
-          <div className="event-footer">
-            <div className="event-price">
-              {soldOut ? (
-                <span style={{ color: '#999', fontSize: 13 }}>Sold out</span>
-              ) : price === 0 || price === null ? (
-                <span className="free">Free</span>
-              ) : (
-                <>
-                  <span className="event-price-from">from</span>
-                  {fmt(price)}
-                </>
-              )}
-            </div>
-            <Link
-              href={href}
-              className={`btn-tickets ${soldOut ? 'sold-out' : ''}`}
-              onClick={e => e.stopPropagation()}
-            >
-              {soldOut ? 'Sold out' : 'Get tickets →'}
-            </Link>
-          </div>
-        </div>
-      </Link>
-    );
-  }
 
   return (
     <div>
