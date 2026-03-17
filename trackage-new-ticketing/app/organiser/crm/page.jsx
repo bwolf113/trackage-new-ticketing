@@ -220,7 +220,7 @@ export default function CRMPage() {
   const [campLoading,  setCampLoad]    = useState(false);
 
   const loadReports = useCallback(async (p, cf, ct) => {
-    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
+    if (!(localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'))) { router.push('/organiser/login'); return; }
     setRLoading(true);
     const { from, to } = getPeriodDates(p ?? 'month', cf ?? '', ct ?? '');
     const params = new URLSearchParams();
@@ -233,7 +233,7 @@ export default function CRMPage() {
   }, [router]);
 
   const loadSegments = useCallback(async () => {
-    if (!localStorage.getItem('organiser_id')) return;
+    if (!(localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'))) return;
     setSegLoad(true);
     const res  = await orgFetch('/api/organiser/crm/segments').catch(() => null);
     const json = res ? await res.json() : {};
@@ -243,7 +243,7 @@ export default function CRMPage() {
   }, []);
 
   const loadCampaigns = useCallback(async () => {
-    if (!localStorage.getItem('organiser_id')) return;
+    if (!(localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'))) return;
     setCampLoad(true);
     const res  = await orgFetch('/api/organiser/crm/campaigns').catch(() => null);
     const json = res ? await res.json() : {};
@@ -252,7 +252,7 @@ export default function CRMPage() {
   }, []);
 
   useEffect(() => {
-    const orgId = localStorage.getItem('organiser_id');
+    const orgId = (localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'));
     if (!orgId) { router.push('/organiser/login'); return; }
     loadReports(period, customFrom, customTo);
   }, []);

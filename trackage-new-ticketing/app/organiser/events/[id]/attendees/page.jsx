@@ -67,7 +67,7 @@ export default function OrgAttendeesPage() {
   const [undoing,    setUndoing]    = useState({}); // order_id → 'loading' | 'done'
 
   useEffect(() => {
-    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
+    if (!(localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'))) { router.push('/organiser/login'); return; }
 
     orgFetch(`/api/organiser/events/${eventId}/attendees`)
       .then(r => r.json())

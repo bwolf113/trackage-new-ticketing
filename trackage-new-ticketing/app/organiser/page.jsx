@@ -57,8 +57,8 @@ export default function OrganiserDashboard() {
   const [name,    setName]    = useState('');
 
   useEffect(() => {
-    const organiser_id = localStorage.getItem('organiser_id');
-    const organiserName = localStorage.getItem('organiser_name') || '';
+    const organiser_id = (localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'));
+    const organiserName = (localStorage.getItem('organiser_name') || sessionStorage.getItem('organiser_name')) || '';
     setName(organiserName.split(' ')[0] || 'there');
 
     if (!organiser_id) { router.push('/organiser/login'); return; }

@@ -68,8 +68,12 @@ function AuthCallbackPageInner() {
       });
       const json = await res.json();
       if (json.organiser) {
+        // OAuth flow — default to persistent (localStorage); the user can
+        // switch to session-only by logging in with email + unchecking "Remember me"
         localStorage.setItem('organiser_id',   json.organiser.id);
         localStorage.setItem('organiser_name', json.organiser.name);
+        sessionStorage.removeItem('organiser_id');
+        sessionStorage.removeItem('organiser_name');
         router.push('/organiser');
       } else {
         setStatus('Profile setup failed. Redirecting…');

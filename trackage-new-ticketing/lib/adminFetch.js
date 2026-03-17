@@ -8,7 +8,9 @@
 'use client';
 
 export function adminFetch(url, options = {}) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : '';
+  const token = typeof window !== 'undefined'
+    ? (localStorage.getItem('admin_token') || sessionStorage.getItem('admin_token'))
+    : '';
   return fetch(url, {
     ...options,
     headers: {

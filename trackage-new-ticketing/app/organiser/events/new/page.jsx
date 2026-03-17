@@ -12,7 +12,7 @@ export default function NewEventPage() {
   const [error,  setError]  = useState('');
 
   async function handleSave({ event, tickets, days }) {
-    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
+    if (!(localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'))) { router.push('/organiser/login'); return; }
 
     setSaving(true);
     setError('');

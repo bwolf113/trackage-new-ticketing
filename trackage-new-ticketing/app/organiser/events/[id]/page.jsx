@@ -14,7 +14,7 @@ export default function EditEventPage() {
   const [error,   setError]   = useState('');
 
   useEffect(() => {
-    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
+    if (!(localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'))) { router.push('/organiser/login'); return; }
 
     orgFetch(`/api/organiser/events/${id}`)
       .then(r => r.json())

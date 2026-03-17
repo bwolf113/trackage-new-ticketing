@@ -27,6 +27,9 @@ input:focus{border-color:var(--black)}
 .btn-primary:hover{opacity:0.85}
 .btn-primary:disabled{opacity:0.5;cursor:not-allowed}
 .error{background:#fef2f2;border:1px solid #fecaca;color:var(--danger);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px}
+.remember{display:flex;align-items:center;gap:8px;margin-bottom:18px;cursor:pointer;user-select:none}
+.remember input[type=checkbox]{width:16px;height:16px;accent-color:var(--black);cursor:pointer;margin:0}
+.remember span{font-size:13px;color:var(--muted);font-weight:500}
 `;
 
 export default function AdminLogin() {
@@ -34,6 +37,7 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
+  const [remember, setRemember] = useState(true);
   const router = useRouter();
 
   async function handleLogin(e) {
@@ -48,8 +52,12 @@ export default function AdminLogin() {
       });
       const data = await res.json();
       if (res.ok && data.token) {
-        localStorage.setItem('admin_authenticated', 'true');
-        localStorage.setItem('admin_token', data.token);
+        const store = remember ? localStorage : sessionStorage;
+        // Clear the other storage to avoid stale tokens
+        (remember ? sessionStorage : localStorage).removeItem('admin_authenticated');
+        (remember ? sessionStorage : localStorage).removeItem('admin_token');
+        store.setItem('admin_authenticated', 'true');
+        store.setItem('admin_token', data.token);
         router.push('/admin');
       } else {
         setError(data.error || 'Invalid email or password. Please try again.');
@@ -93,6 +101,10 @@ export default function AdminLogin() {
                   placeholder="••••••••"
                 />
               </div>
+              <label className="remember">
+                <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
+                <span>Remember me</span>
+              </label>
               <button type="submit" className="btn btn-primary" disabled={loading}>
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>

@@ -34,7 +34,7 @@ export default function OrganiserLayout({ children }) {
 
   async function checkAuth() {
     const { data: { session } } = await supabase.auth.getSession();
-    const organiserId = localStorage.getItem('organiser_id');
+    const organiserId = localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id');
 
     if (!session || !organiserId) {
       // Try to restore from session
@@ -46,8 +46,9 @@ export default function OrganiserLayout({ children }) {
         });
         const json = await res.json();
         if (json.organiser) {
-          localStorage.setItem('organiser_id',   json.organiser.id);
-          localStorage.setItem('organiser_name', json.organiser.name);
+          const store = localStorage.getItem('organiser_id') ? localStorage : sessionStorage;
+          store.setItem('organiser_id',   json.organiser.id);
+          store.setItem('organiser_name', json.organiser.name);
           setOrganiserName(json.organiser.name);
           return;
         }
@@ -56,13 +57,15 @@ export default function OrganiserLayout({ children }) {
       return;
     }
 
-    setOrganiserName(localStorage.getItem('organiser_name') || 'Organiser');
+    setOrganiserName(localStorage.getItem('organiser_name') || sessionStorage.getItem('organiser_name') || 'Organiser');
   }
 
   async function handleLogout() {
     await supabase.auth.signOut();
     localStorage.removeItem('organiser_id');
     localStorage.removeItem('organiser_name');
+    sessionStorage.removeItem('organiser_id');
+    sessionStorage.removeItem('organiser_name');
     router.push('/organiser/login');
   }
 

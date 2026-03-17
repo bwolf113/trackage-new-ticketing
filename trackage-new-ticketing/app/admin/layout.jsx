@@ -27,8 +27,8 @@ export default function AdminLayout({ children }) {
   }, []);
 
   useEffect(() => {
-    const isAdmin = localStorage.getItem('admin_authenticated');
-    const hasToken = localStorage.getItem('admin_token');
+    const isAdmin = localStorage.getItem('admin_authenticated') || sessionStorage.getItem('admin_authenticated');
+    const hasToken = localStorage.getItem('admin_token') || sessionStorage.getItem('admin_token');
     if ((!isAdmin || !hasToken) && pathname !== '/admin/login') router.push('/admin/login');
   }, [pathname]);
 
@@ -42,6 +42,8 @@ export default function AdminLayout({ children }) {
   function handleLogout() {
     localStorage.removeItem('admin_authenticated');
     localStorage.removeItem('admin_token');
+    sessionStorage.removeItem('admin_authenticated');
+    sessionStorage.removeItem('admin_token');
     router.push('/admin/login');
   }
 

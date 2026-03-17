@@ -182,7 +182,7 @@ export default function EventStatsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
+    if (!(localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'))) { router.push('/organiser/login'); return; }
 
     orgFetch(`/api/organiser/events/${eventId}/stats`)
       .then(r => r.json())

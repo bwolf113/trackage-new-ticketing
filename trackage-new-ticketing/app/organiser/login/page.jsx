@@ -33,6 +33,9 @@ input:focus{border-color:var(--black)}
 .divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted);font-size:12px}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
 .error{background:#fef2f2;border:1px solid #fecaca;color:var(--danger);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px}
+.remember{display:flex;align-items:center;gap:8px;margin-bottom:18px;cursor:pointer;user-select:none}
+.remember input[type=checkbox]{width:16px;height:16px;accent-color:var(--black);cursor:pointer;margin:0}
+.remember span{font-size:13px;color:var(--muted);font-weight:500}
 .footer{text-align:center;margin-top:20px;font-size:13px;color:var(--muted)}
 .footer a{color:var(--black);text-decoration:none;font-weight:600}
 .footer a:hover{text-decoration:underline}
@@ -44,6 +47,7 @@ export default function OrganiserLoginPage() {
   const [password, setPassword] = useState('');
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
+  const [remember, setRemember] = useState(true);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -77,8 +81,12 @@ export default function OrganiserLoginPage() {
     });
     const json = await res.json();
     if (json.organiser) {
-      localStorage.setItem('organiser_id',   json.organiser.id);
-      localStorage.setItem('organiser_name', json.organiser.name);
+      const store = remember ? localStorage : sessionStorage;
+      // Clear the other storage to avoid stale data
+      (remember ? sessionStorage : localStorage).removeItem('organiser_id');
+      (remember ? sessionStorage : localStorage).removeItem('organiser_name');
+      store.setItem('organiser_id',   json.organiser.id);
+      store.setItem('organiser_name', json.organiser.name);
       router.push('/organiser');
     } else {
       setError(json.error || 'Could not load organiser profile');
@@ -124,6 +132,10 @@ export default function OrganiserLoginPage() {
                   placeholder="••••••••"
                 />
               </div>
+              <label className="remember">
+                <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
+                <span>Remember me</span>
+              </label>
               <button type="submit" className="btn btn-primary" disabled={loading}>
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>

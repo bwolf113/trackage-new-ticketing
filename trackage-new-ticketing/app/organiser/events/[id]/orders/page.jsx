@@ -215,7 +215,7 @@ export default function OrgEventOrdersPage() {
   const [search,        setSearch]        = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   useEffect(() => {
-    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
+    if (!(localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'))) { router.push('/organiser/login'); return; }
 
     orgFetch(`/api/organiser/events/${eventId}/orders`)
       .then(r => r.json())

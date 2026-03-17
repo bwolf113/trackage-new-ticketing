@@ -69,7 +69,7 @@ export default function IssueCompsPage() {
   const [rowStatus, setRowStatus] = useState({}); // _id -> 'sent' | 'failed'
 
   useEffect(() => {
-    if (!localStorage.getItem('organiser_id')) { router.push('/organiser/login'); return; }
+    if (!(localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'))) { router.push('/organiser/login'); return; }
 
     orgFetch(`/api/organiser/events/${eventId}`)
       .then(r => r.json())
