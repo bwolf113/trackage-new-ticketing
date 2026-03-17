@@ -591,7 +591,7 @@ export default function HomePage() {
       const { data: eventsData, error } = await supabase
         .from('events')
         .select(`
-          id, name, description, venue_name, start_time, end_time,
+          id, name, slug, description, venue_name, start_time, end_time,
           thumbnail_url, poster_url, status, organiser_id, is_featured,
           tickets ( id, name, price, inventory, sold )
         `)
@@ -709,7 +709,7 @@ export default function HomePage() {
     const dateStr   = event.start_time || event.date;
     const venue     = event.venue_name || event.venue || '';
     const image     = event.thumbnail_url || event.poster_url || event.image_url || event.image;
-    const href      = event._fallback ? '#' : `/events/${event.id}`;
+    const href      = event._fallback ? '#' : `/events/${event.slug || event.id}`;
 
     return (
       <Link href={href} className="event-card">
@@ -869,7 +869,7 @@ export default function HomePage() {
               {heroSoldOut ? (
                 <span style={{ background: '#ef4444', color: 'white', padding: '14px 28px', borderRadius: 10, fontSize: 15, fontWeight: 600 }}>Sold out</span>
               ) : (
-                <Link href={heroEvent._fallback ? '#' : `/events/${heroEvent.id}`} className="btn-hero-primary">
+                <Link href={heroEvent._fallback ? '#' : `/events/${heroEvent.slug || heroEvent.id}`} className="btn-hero-primary">
                   Get tickets →
                 </Link>
               )}

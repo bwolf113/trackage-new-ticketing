@@ -282,7 +282,7 @@ export default function EventsPage() {
       const { data: eventsData, error } = await supabase
         .from('events')
         .select(`
-          id, name, description, venue_name, start_time, end_time,
+          id, name, slug, description, venue_name, start_time, end_time,
           thumbnail_url, poster_url, status, organiser_id,
           tickets ( id, name, price, inventory, sold )
         `)
@@ -365,7 +365,7 @@ export default function EventsPage() {
     const image   = event.thumbnail_url || event.poster_url;
 
     return (
-      <Link href={`/events/${event.id}`} className="ev-card">
+      <Link href={`/events/${event.slug || event.id}`} className="ev-card">
         <div className="ev-img-wrap">
           {image
             ? <img src={image} alt={event.name} />
@@ -413,7 +413,7 @@ export default function EventsPage() {
               )}
             </div>
             <Link
-              href={`/events/${event.id}`}
+              href={`/events/${event.slug || event.id}`}
               className={`btn-ev-tickets${soldOut ? ' sold-out' : ''}`}
               onClick={e => e.stopPropagation()}
             >

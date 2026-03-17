@@ -1,4 +1,4 @@
-/* app/(public)/events/[id]/page.jsx */
+/* app/(public)/events/[slug]/page.jsx */
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -265,8 +265,9 @@ body{font-family:var(--sans);background:var(--white);color:var(--text);-webkit-f
 
 /* ── COMPONENT ────────────────────────────────────────────────────── */
 export default function EventPage() {
-  const { id } = useParams();
+  const { slug: slugParam } = useParams();
   const router  = useRouter();
+  const [id, setId] = useState(null); // resolved event UUID
 
   const [scrolled,    setScrolled]    = useState(false);
   const [event,       setEvent]       = useState(null);
@@ -300,7 +301,7 @@ export default function EventPage() {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
-  }, [id]);
+  }, [slugParam]);
 
   async function checkUser() {
     try {
@@ -312,25 +313,36 @@ export default function EventPage() {
   async function loadEvent() {
     setLoading(true);
     try {
-      const [eventRes, daysRes] = await Promise.all([
-        supabase
-          .from('events')
-          .select(`
-            id, name, description, venue_name, venue_maps_url, start_time, end_time,
+      // Try slug first, then fall back to ID (for old bookmarked links)
+      const eventFields = `
+            id, name, slug, description, venue_name, venue_maps_url, start_time, end_time,
             thumbnail_url, poster_url, status, booking_fee_pct,
             organisers ( id, name ),
             tickets ( id, name, price, inventory, sold, event_day_id, sale_start, sale_end, status )
-          `)
-          .eq('id', id)
-          .single(),
-        supabase
-          .from('event_days')
-          .select('id, name, date, capacity, sort_order')
-          .eq('event_id', id)
-          .order('sort_order'),
-      ]);
+          `;
+      let eventRes = await supabase.from('events').select(eventFields).eq('slug', slugParam).single();
+      if (eventRes.error || !eventRes.data) {
+        // Fall back to querying by ID (supports old UUID-based links)
+        eventRes = await supabase.from('events').select(eventFields).eq('id', slugParam).single();
+      }
 
       if (eventRes.error || !eventRes.data) { setNotFound(true); setLoading(false); return; }
+
+      const eventId = eventRes.data.id;
+      setId(eventId);
+
+      // Redirect old UUID URLs to the slug-based URL
+      if (eventRes.data.slug && slugParam !== eventRes.data.slug) {
+        router.replace(`/events/${eventRes.data.slug}`);
+      }
+
+      const daysRes = await supabase
+          .from('event_days')
+          .select('id, name, date, capacity, sort_order')
+          .eq('event_id', eventId)
+          .order('sort_order');
+
+      if (!eventRes.data) { setNotFound(true); setLoading(false); return; }
 
       const data = eventRes.data;
       const days = daysRes.data || [];
@@ -348,7 +360,7 @@ export default function EventPage() {
         .from('coupons')
         .select('id')
         .eq('status', 'active')
-        .contains('event_ids', [id])
+        .contains('event_ids', [eventId])
         .limit(1);
       setHasCoupons((couponRows?.length || 0) > 0);
 

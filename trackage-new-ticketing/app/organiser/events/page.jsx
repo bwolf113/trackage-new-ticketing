@@ -60,7 +60,7 @@ export default function OrganiserEventsPage() {
   function copyEventLink(ev, e) {
     e.preventDefault();
     e.stopPropagation();
-    const url = `${window.location.origin}/events/${ev.id}`;
+    const url = `${window.location.origin}/events/${ev.slug || ev.id}`;
     navigator.clipboard.writeText(url);
     setCopiedId(ev.id);
     setTimeout(() => setCopiedId(prev => prev === ev.id ? null : prev), 2000);

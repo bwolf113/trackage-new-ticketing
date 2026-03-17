@@ -179,7 +179,7 @@ export async function POST(req) {
           <div style="margin-top:20px;text-align:center">
             <a href="${siteUrl}/admin/events/${event.id}" style="display:inline-block;background:#0a0a0a;color:#fff;padding:11px 24px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700">View event →</a>
             <span style="margin:0 8px;color:#999">·</span>
-            <a href="${siteUrl}/events/${event.id}" style="display:inline-block;background:#48C16E;color:#fff;padding:11px 24px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700">Public page →</a>
+            <a href="${siteUrl}/events/${finalSlug || event.id}" style="display:inline-block;background:#48C16E;color:#fff;padding:11px 24px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700">Public page →</a>
           </div>
         </div>
       `,

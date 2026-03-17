@@ -896,7 +896,7 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
                   value={form.slug}
                   onChange={e => setField('slug', slug(e.target.value))}
                 />
-                <span className="hint">shop.trackagescheme.com/event/{form.slug || '…'}</span>
+                <span className="hint">tickets.trackagescheme.com/events/{form.slug || '…'}</span>
               </div>
             </div>
 
@@ -1364,6 +1364,7 @@ export default function EventsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [previewEvent, setPreviewEvent] = useState(null);
   const [toast, setToast]           = useState(null);
+  const [copiedId, setCopiedId]     = useState(null);
 
   useEffect(() => { load(); }, []);
 
@@ -1540,6 +1541,12 @@ export default function EventsPage() {
                       </button>
                       <a className="btn btn-ghost btn-sm" href={`/admin/events/${ev.id}/attendees`} style={{ textDecoration: 'none' }}>👥 Attendees</a>
                       <a className="btn btn-ghost btn-sm" href={`/admin/events/${ev.id}/orders`} style={{ textDecoration: 'none' }}>📋 Orders</a>
+                      <button className="btn btn-ghost btn-sm" onClick={() => {
+                        const url = `${window.location.origin}/events/${ev.slug || ev.id}`;
+                        navigator.clipboard.writeText(url);
+                        setCopiedId(ev.id);
+                        setTimeout(() => setCopiedId(prev => prev === ev.id ? null : prev), 2000);
+                      }}>{copiedId === ev.id ? '✓ Copied!' : '🔗 Copy link'}</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => setPreviewEvent(ev)}>👁 Preview</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => openEdit(ev)}>✏️ Edit</button>
                       <button
