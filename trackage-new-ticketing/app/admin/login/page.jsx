@@ -38,6 +38,7 @@ export default function AdminLogin() {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
   const [remember, setRemember] = useState(true);
+  const [showPw, setShowPw]     = useState(false);
   const router = useRouter();
 
   async function handleLogin(e) {
@@ -95,11 +96,19 @@ export default function AdminLogin() {
               </div>
               <div className="form-group">
                 <label>Password</label>
-                <input
-                  type="password" value={password} required autoComplete="current-password"
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPw ? 'text' : 'password'} value={password} required autoComplete="current-password"
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    style={{ paddingRight: 40 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(p => !p)}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--muted)', padding: 4 }}
+                  >{showPw ? '🙈' : '👁'}</button>
+                </div>
               </div>
               <label className="remember">
                 <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
