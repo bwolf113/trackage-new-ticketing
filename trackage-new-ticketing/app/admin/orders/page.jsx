@@ -1,7 +1,6 @@
 /* app/admin/orders/page.jsx */
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
 import { isSampleMode, setSampleMode, getSampleOrders, getSampleEvents } from '../../../lib/sampleData';
 import { adminFetch } from '../../../lib/adminFetch';
 
@@ -794,8 +793,6 @@ export default function OrdersPage() {
 
   useEffect(() => {
     setSampleModeState(isSampleMode());
-    loadEvents();
-    loadCounts();
   }, []);
   useEffect(() => { loadOrdersWithMode(sampleMode, activeTab, search, eventFilter, page); }, [activeTab, search, eventFilter, page, sampleMode]);
 
@@ -804,38 +801,7 @@ export default function OrdersPage() {
     setSampleMode(next);
     setSampleModeState(next);
     setPage(1); setSearch(''); setEventFilter('all'); setActiveTab('all');
-    // Call load functions immediately with the new value, don't wait for re-render
-    loadCountsWithMode(next);
     loadOrdersWithMode(next, 'all', '', 'all', 1);
-  }
-
-  async function loadEvents() {
-    const { data } = await supabase.from('events').select('id, name').order('name');
-    setEvents(data || []);
-  }
-
-  async function loadCounts() {
-    loadCountsWithMode(sampleMode);
-  }
-
-  async function loadCountsWithMode(useSample) {
-    if (useSample) {
-      const all = getSampleOrders();
-      const c = { all: all.length };
-      ['completed','pending_payment','cancelled','refunded','failed'].forEach(s => {
-        c[s] = all.filter(o => o.status === s).length;
-      });
-      setCounts(c); return;
-    }
-    const statuses = ['completed', 'pending_payment', 'cancelled', 'refunded', 'failed'];
-    const results  = await Promise.all(
-      statuses.map(s =>
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', s)
-      )
-    );
-    const c = { all: 0 };
-    statuses.forEach((s, i) => { c[s] = results[i].count || 0; c.all += c[s]; });
-    setCounts(c);
   }
 
   async function loadOrders() {
@@ -864,34 +830,20 @@ export default function OrdersPage() {
         const c = { all: base.length };
         ['completed','pending_payment','cancelled','refunded','failed'].forEach(s => { c[s] = base.filter(o => o.status === s).length; });
         setCounts(c);
+        setEvents(getSampleEvents?.() || []);
         setLoading(false); return;
       }
 
-      let q = supabase
-        .from('orders')
-        .select(`
-          id, status, total, customer_name, customer_email, customer_phone,
-          created_at, event_id, booking_fee, discount, coupon_code,
-          stripe_session_id,
-          events ( name ),
-          order_items (
-            id, quantity, unit_price, ticket_name
-          )
-        `, { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range((pg - 1) * PAGE_SIZE, pg * PAGE_SIZE - 1);
-
-      if (tab !== 'all') q = q.eq('status', tab);
-      if (evtFilter !== 'all') q = q.eq('event_id', evtFilter);
-      if (srch) {
-        q = q.or(`customer_name.ilike.%${srch}%,customer_email.ilike.%${srch}%,id.ilike.%${srch}%`);
-      }
-
-      const { data, count, error } = await q;
-      console.log('Orders query result:', { data, count, error });
-      if (error) throw error;
-      setOrders(data || []);
-      setTotal(count || 0);
+      const params = new URLSearchParams({
+        tab, search: srch, event_id: evtFilter, page: pg, page_size: PAGE_SIZE,
+      });
+      const res = await adminFetch(`/api/admin/orders?${params}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load orders');
+      setOrders(json.orders || []);
+      setTotal(json.total || 0);
+      setCounts(json.counts || {});
+      setEvents(json.events || []);
     } catch (err) {
       console.error(err);
     }

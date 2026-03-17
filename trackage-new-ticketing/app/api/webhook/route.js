@@ -141,7 +141,7 @@ export async function POST(req) {
           .single();
 
         const { data: eventData } = order?.event_id
-          ? await supabase.from('events').select('id, name, start_time, venue_name').eq('id', order.event_id).single()
+          ? await supabase.from('events').select('id, name, start_time, venue_name, organiser_id').eq('id', order.event_id).single()
           : { data: null };
 
         const items = order?.order_items || [];

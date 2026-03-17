@@ -180,7 +180,7 @@ gmp-place-autocomplete { --gmp-input-padding: 9px 13px; --gmp-input-border: 1.5p
 `;
 
 /* ── ImageUpload sub-component ────────────────────────────────── */
-function ImageUpload({ value, onChange, type, spec, tooltip }) {
+function ImageUpload({ value, onChange, type, spec, tooltip, label }) {
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState('');
 
@@ -208,7 +208,7 @@ function ImageUpload({ value, onChange, type, spec, tooltip }) {
   return (
     <div>
       <div className="label-row">
-        <label style={{ marginBottom: 0 }}>{type === 'thumbnail' ? 'Thumbnail' : 'Poster'}</label>
+        <label style={{ marginBottom: 0 }}>{label || (type === 'thumbnail' ? 'Thumbnail' : 'Poster')}</label>
         <span className="tip-wrap">
           <span className="tip-icon">?</span>
           <span className="tip-box">{tooltip}</span>
@@ -673,10 +673,14 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
               <div className="form-group">
                 <div className="status-toggle">
                   <button type="button" className={`status-btn ${event.status === 'draft' ? 'active-draft' : ''}`} onClick={() => setEv('status', 'draft')}>Draft</button>
-                  <button type="button" className={`status-btn ${event.status === 'published' ? 'active-pub' : ''}`} onClick={() => setEv('status', 'published')}>Published</button>
                   <button type="button" className={`status-btn ${event.status === 'sold_out' ? 'active-soldout' : ''}`} onClick={() => setEv('status', 'sold_out')}>Sold Out</button>
                 </div>
-                <div className="hint">Published events are visible to the public.</div>
+                {event.status === 'published' && (
+                  <div className="hint" style={{ color: 'var(--green)', fontWeight: 600 }}>This event is live — published by admin.</div>
+                )}
+                {event.status !== 'published' && (
+                  <div className="hint">Submit as draft for review. Once approved by our team, your event will be published and visible to the public.</div>
+                )}
               </div>
             </div>
 
@@ -684,13 +688,15 @@ export default function EventForm({ initial, onSave, onDelete, saving, error, is
               <div className="section-title">Media</div>
               <div className="form-group">
                 <ImageUpload type="thumbnail" value={event.thumbnail_url} onChange={url => setEv('thumbnail_url', url)}
+                  label="Event Card Image"
                   spec={"JPG · PNG · WebP · Max 500 KB\nRecommended: 16:9, min 800×450 px"}
-                  tooltip="The thumbnail appears on the event listing card — a wide landscape image works best." />
+                  tooltip="Shown on the event cards on the homepage and events listing. A wide landscape image works best." />
               </div>
               <div className="form-group">
                 <ImageUpload type="poster" value={event.poster_url} onChange={url => setEv('poster_url', url)}
-                  spec={"JPG · PNG · WebP · Max 500 KB\nRecommended: 2:3 portrait, min 600×900 px"}
-                  tooltip="The poster is displayed on the event detail page, like a full event flyer." />
+                  label="Event Banner"
+                  spec={"JPG · PNG · WebP · Max 500 KB\nRecommended: 16:9, min 1920×1080 px"}
+                  tooltip="Displayed as the full-width banner on your event's ticket page. Use a high-res landscape image." />
               </div>
             </div>
 

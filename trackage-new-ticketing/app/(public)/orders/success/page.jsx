@@ -135,14 +135,27 @@ function SuccessPageInner() {
   async function confirmOrder() {
     setLoading(true);
     try {
+      // Trigger server-side confirmation (verifies payment with Stripe,
+      // processes order if webhook hasn't already: sold counts, attendees, emails)
+      try {
+        await fetch('/api/confirm-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId }),
+        });
+      } catch (confirmErr) {
+        console.warn('confirm-order call failed (webhook may handle it):', confirmErr);
+      }
+
+      // Now fetch the order details
       let attempts = 0;
       let found = null;
-
-      while (attempts < 8 && !found) {
-        await new Promise(r => setTimeout(r, 1000));
+      while (attempts < 6 && !found) {
+        await new Promise(r => setTimeout(r, 800));
         const res  = await fetch(`/api/order-by-session/${sessionId}`);
         const json = await res.json();
-        if (json.order) { found = json.order; break; }
+        if (json.order && json.order.status === 'completed') { found = json.order; break; }
+        if (json.order && attempts >= 3) { found = json.order; break; } // show anyway after 3 tries
         attempts++;
       }
 

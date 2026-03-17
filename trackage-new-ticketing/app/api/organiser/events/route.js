@@ -69,6 +69,12 @@ export async function POST(req) {
 
     if (!eventData?.name) return Response.json({ error: 'Event name required' }, { status: 400 });
 
+    // Organisers can only create events as draft or sold_out — publishing requires admin approval
+    const allowedStatuses = ['draft', 'sold_out'];
+    if (eventData.status && !allowedStatuses.includes(eventData.status)) {
+      eventData.status = 'draft';
+    }
+
     const supabase = adminSupabase();
 
     // Generate unique slug

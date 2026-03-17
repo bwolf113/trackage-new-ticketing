@@ -212,6 +212,30 @@ body { font-family: var(--sans); background: var(--white); color: var(--text); -
 .hero-price-val { font-size: 26px; font-weight: 700; color: var(--accent); line-height: 1.1; margin: 2px 0; font-family: var(--serif); }
 .hero-price-note { font-size: 11px; color: var(--text-light); }
 
+/* ── HERO CAROUSEL ── */
+.hero-dots {
+  display: flex; gap: 8px; margin-top: 28px;
+}
+.hero-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: rgba(255,255,255,0.35); border: none;
+  cursor: pointer; padding: 0; transition: all 0.3s;
+}
+.hero-dot.active {
+  background: var(--accent); width: 28px; border-radius: 5px;
+}
+.hero-arrow {
+  position: absolute; top: 50%; z-index: 3;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.15);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, transform 0.1s;
+}
+.hero-arrow:hover { background: rgba(0,0,0,0.6); transform: translateY(-50%) scale(1.05); }
+.hero-arrow-left  { left: 24px; transform: translateY(-50%); }
+.hero-arrow-right { right: 24px; transform: translateY(-50%); }
+
 /* ── SECTION ── */
 .section { padding: 72px 40px; }
 .section-alt { background: var(--off-white); }
@@ -470,6 +494,9 @@ body { font-family: var(--sans); background: var(--white); color: var(--text); -
   .nav-hamburger { display: block; }
   .hero-content { padding: 40px 20px 44px; }
   .hero-price-tag { display: none; }
+  .hero-arrow { width: 36px; height: 36px; }
+  .hero-arrow-left  { left: 12px; }
+  .hero-arrow-right { right: 12px; }
   .section { padding: 48px 20px; }
   .stats-bar { padding: 32px 20px; }
   .footer-top { grid-template-columns: 1fr; gap: 32px; }
@@ -511,7 +538,8 @@ const FILTERS = [
 /* ── COMPONENT ────────────────────────────────────────────────────── */
 export default function HomePage() {
   const [events,      setEvents]      = useState([]);
-  const [heroEvent,   setHeroEvent]   = useState(null);
+  const [heroEvents,  setHeroEvents]  = useState([]);
+  const [heroIdx,     setHeroIdx]     = useState(0);
   const [loading,     setLoading]     = useState(true);
   const [filter,      setFilter]      = useState('all');
   const [search,      setSearch]      = useState('');
@@ -520,6 +548,7 @@ export default function HomePage() {
   const [user,        setUser]        = useState(null);
   const [email,       setEmail]       = useState('');
   const [subDone,     setSubDone]     = useState(false);
+  const heroTimerRef  = useRef(null);
 
   useEffect(() => {
     loadEvents();
@@ -528,6 +557,26 @@ export default function HomePage() {
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // Auto-rotate hero carousel every 6 seconds
+  useEffect(() => {
+    if (heroEvents.length <= 1) return;
+    heroTimerRef.current = setInterval(() => {
+      setHeroIdx(prev => (prev + 1) % heroEvents.length);
+    }, 6000);
+    return () => clearInterval(heroTimerRef.current);
+  }, [heroEvents.length]);
+
+  function goToHero(idx) {
+    setHeroIdx(idx);
+    // Reset auto-rotate timer on manual nav
+    if (heroTimerRef.current) clearInterval(heroTimerRef.current);
+    if (heroEvents.length > 1) {
+      heroTimerRef.current = setInterval(() => {
+        setHeroIdx(prev => (prev + 1) % heroEvents.length);
+      }, 6000);
+    }
+  }
 
   async function checkUser() {
     try {
@@ -543,7 +592,7 @@ export default function HomePage() {
         .from('events')
         .select(`
           id, name, description, venue_name, start_time, end_time,
-          thumbnail_url, poster_url, status, organiser_id,
+          thumbnail_url, poster_url, status, organiser_id, is_featured,
           tickets ( id, name, price, inventory, sold )
         `)
         .eq('status', 'published')
@@ -564,15 +613,19 @@ export default function HomePage() {
           orgMap = Object.fromEntries((orgs || []).map(o => [o.id, o.name]));
         }
         const enriched = evts.map(e => ({ ...e, organisers: { name: orgMap[e.organiser_id] || '' } }));
-        setHeroEvent(enriched[0]);
+
+        // Featured events for hero carousel; fall back to first event
+        const featured = enriched.filter(e => e.is_featured);
+        setHeroEvents(featured.length > 0 ? featured : enriched.slice(0, 1));
+        setHeroIdx(0);
         setEvents(enriched);
       } else {
-        setHeroEvent({ ...FALLBACK_EVENTS[0], _fallback: true });
+        setHeroEvents([{ ...FALLBACK_EVENTS[0], _fallback: true }]);
         setEvents(FALLBACK_EVENTS.map(e => ({ ...e, _fallback: true })));
       }
     } catch (err) {
       console.error('loadEvents error:', err);
-      setHeroEvent({ ...FALLBACK_EVENTS[0], _fallback: true });
+      setHeroEvents([{ ...FALLBACK_EVENTS[0], _fallback: true }]);
       setEvents(FALLBACK_EVENTS.slice(1).map(e => ({ ...e, _fallback: true })));
     }
     setLoading(false);
@@ -625,6 +678,7 @@ export default function HomePage() {
   }
 
   const filtered = filterEvents(events);
+  const heroEvent   = heroEvents[heroIdx] || null;
   const heroPrice   = heroEvent ? (lowestPrice(heroEvent.tickets) ?? heroEvent.price) : null;
   const heroOrg     = heroEvent?.organisers?.name || heroEvent?.organiser || '';
   const heroVenue   = heroEvent?.venue_name || heroEvent?.venue || '';
@@ -770,18 +824,30 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ── HERO ── */}
+      {/* ── HERO CAROUSEL ── */}
       {!loading && heroEvent && (
         <section className="hero">
-          {heroImage
-            ? <div className="hero-bg" style={{ backgroundImage: `url(${heroImage})` }} />
-            : <><div className="hero-placeholder-bg" /><div className="hero-noise" /></>
-          }
+          {/* Background layers for each hero event */}
+          {heroEvents.map((ev, i) => {
+            const img = ev.poster_url || ev.thumbnail_url || ev.image_url;
+            return img ? (
+              <div key={ev.id || i} className="hero-bg" style={{
+                backgroundImage: `url(${img})`,
+                opacity: i === heroIdx ? 1 : 0,
+                zIndex: i === heroIdx ? 1 : 0,
+              }} />
+            ) : (
+              <div key={ev.id || i} style={{ opacity: i === heroIdx ? 1 : 0, zIndex: i === heroIdx ? 1 : 0 }}>
+                <div className="hero-placeholder-bg" />
+                <div className="hero-noise" />
+              </div>
+            );
+          })}
 
           <div className="hero-content">
             <div className="hero-tag">
               <div className="hero-pulse" />
-              Next event
+              {heroEvents.length > 1 ? 'Featured event' : 'Next event'}
             </div>
             <h1 className="hero-title">{heroEvent.name}</h1>
             <div className="hero-meta">
@@ -809,6 +875,20 @@ export default function HomePage() {
               )}
               <Link href="#events" className="btn-hero-ghost">See all events</Link>
             </div>
+
+            {/* Carousel dots */}
+            {heroEvents.length > 1 && (
+              <div className="hero-dots">
+                {heroEvents.map((_, i) => (
+                  <button
+                    key={i}
+                    className={`hero-dot ${i === heroIdx ? 'active' : ''}`}
+                    onClick={() => goToHero(i)}
+                    aria-label={`Go to event ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {heroPrice !== null && !heroSoldOut && (
@@ -817,6 +897,18 @@ export default function HomePage() {
               <div className="hero-price-val">{heroPrice === 0 ? 'Free' : fmt(heroPrice)}</div>
               <div className="hero-price-note">booking fees may apply</div>
             </div>
+          )}
+
+          {/* Carousel arrows */}
+          {heroEvents.length > 1 && (
+            <>
+              <button className="hero-arrow hero-arrow-left" onClick={() => goToHero((heroIdx - 1 + heroEvents.length) % heroEvents.length)} aria-label="Previous event">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4L6 10L12 16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <button className="hero-arrow hero-arrow-right" onClick={() => goToHero((heroIdx + 1) % heroEvents.length)} aria-label="Next event">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M8 4L14 10L8 16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+            </>
           )}
         </section>
       )}

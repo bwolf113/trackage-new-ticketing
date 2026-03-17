@@ -71,6 +71,15 @@ export async function PUT(req, { params }) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Organisers can only set status to draft or sold_out — publishing requires admin approval
+    const allowedStatuses = ['draft', 'sold_out'];
+    let safeStatus = eventData.status || 'draft';
+    if (!allowedStatuses.includes(safeStatus)) {
+      // If event is currently published (set by admin), preserve that status
+      const { data: current } = await supabase.from('events').select('status').eq('id', id).single();
+      safeStatus = current?.status === 'published' ? 'published' : 'draft';
+    }
+
     // Update event
     const { error: eventError } = await supabase
       .from('events')
@@ -87,7 +96,7 @@ export async function PUT(req, { params }) {
         booking_fee_pct: eventData.booking_fee_pct  || 0,
         thumbnail_url:   eventData.thumbnail_url    || null,
         poster_url:      eventData.poster_url       || null,
-        status:          eventData.status           || 'draft',
+        status:          safeStatus,
       })
       .eq('id', id);
 
@@ -195,6 +204,11 @@ export async function PATCH(req, { params }) {
       const { error } = await supabase.from('tickets').update({ status: ticket_status }).eq('id', ticket_id);
       if (error) return Response.json({ error: error.message }, { status: 500 });
     } else {
+      // Organisers can only set event status to draft or sold_out
+      const allowedStatuses = ['draft', 'sold_out'];
+      if (status && !allowedStatuses.includes(status)) {
+        return Response.json({ error: 'Organisers cannot set this status. Contact admin to publish.' }, { status: 403 });
+      }
       const { error } = await supabase.from('events').update({ status }).eq('id', id);
       if (error) return Response.json({ error: error.message }, { status: 500 });
     }

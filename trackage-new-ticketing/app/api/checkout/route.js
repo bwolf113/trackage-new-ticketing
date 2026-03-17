@@ -74,9 +74,18 @@ export async function POST(req) {
     }
     const { data: dbTickets } = await supabase
       .from('tickets')
-      .select('id, name, price, booking_fee_pct, status, inventory, sold')
+      .select('id, name, price, status, inventory, sold')
       .in('id', ticketIds);
     const ticketMap = Object.fromEntries((dbTickets || []).map(t => [t.id, t]));
+
+    // Fetch event-level settings (booking fee + organiser_id used later)
+    let eventBookingFeePct = 0;
+    let organiser_id = null;
+    if (event_id) {
+      const { data: ev } = await supabase.from('events').select('booking_fee_pct, organiser_id').eq('id', event_id).single();
+      eventBookingFeePct = ev?.booking_fee_pct != null ? Number(ev.booking_fee_pct) : 0;
+      organiser_id = ev?.organiser_id || null;
+    }
 
     const validatedItems = [];
     for (const item of line_items) {
@@ -96,13 +105,11 @@ export async function POST(req) {
         ...item,
         ticket_name: dbTicket.name,
         unit_price:  dbTicket.price,
-        booking_fee_pct: dbTicket.booking_fee_pct || 0,
       });
     }
 
     const serverSubtotal = validatedItems.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
-    const serverBookingFee = +validatedItems.reduce((sum, i) =>
-      sum + i.unit_price * i.quantity * (i.booking_fee_pct / 100), 0).toFixed(2);
+    const serverBookingFee = +(serverSubtotal * eventBookingFeePct / 100).toFixed(2);
 
     // ── Re-validate coupon server-side ────────────────────────────
     let serverDiscount = 0;
@@ -210,6 +217,7 @@ export async function POST(req) {
       .from('orders')
       .insert({
         event_id,
+        organiser_id,
         status:         'pending_payment',
         total:          serverTotal,
         booking_fee:    serverBookingFee,

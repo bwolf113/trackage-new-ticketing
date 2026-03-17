@@ -117,11 +117,14 @@ export async function PATCH(req, { params }) {
   const { id: eventId } = await params;
   try {
     const body = await req.json();
-    const { status, ticket_id, ticket_status } = body;
+    const { status, ticket_id, ticket_status, is_featured } = body;
     const supabase = adminSupabase();
 
     if (ticket_id) {
       const { error } = await supabase.from('tickets').update({ status: ticket_status }).eq('id', ticket_id);
+      if (error) return Response.json({ error: error.message }, { status: 500 });
+    } else if (typeof is_featured === 'boolean') {
+      const { error } = await supabase.from('events').update({ is_featured }).eq('id', eventId);
       if (error) return Response.json({ error: error.message }, { status: 500 });
     } else {
       const { error } = await supabase.from('events').update({ status }).eq('id', eventId);

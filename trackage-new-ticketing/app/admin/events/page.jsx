@@ -50,6 +50,7 @@ const BLANK_EVENT = () => ({
   vat_permit: '',
   thumbnail_url: '',
   poster_url: '',
+  is_featured: false,
   status: 'draft',
   tickets: [BLANK_TICKET()],
 });
@@ -837,6 +838,7 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
         vat_permit:       form.vat_permit        || null,
         thumbnail_url:    form.thumbnail_url     || null,
         poster_url:       form.poster_url        || null,
+        is_featured:      form.is_featured       || false,
         status:           form.status            || 'draft',
       };
 
@@ -950,6 +952,21 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
                   <option value="ended">Ended</option>
                 </select>
               </div>
+              <div className="field">
+                <label>Homepage Hero</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', textTransform: 'none', letterSpacing: 0, fontSize: 14, fontWeight: 500, color: 'var(--black)' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.is_featured || false}
+                    onChange={e => setField('is_featured', e.target.checked)}
+                    style={{ width: 18, height: 18, accentColor: '#f59e0b', cursor: 'pointer' }}
+                  />
+                  Feature in homepage hero carousel
+                </label>
+                <span className="hint">Featured events rotate in the main hero banner on the public homepage</span>
+              </div>
+            </div>
+            <div className="form-grid grid-2">
               <div className="field">
                 <label>Platform booking fee %</label>
                 <input
@@ -1065,15 +1082,15 @@ function EventForm({ event: initial, organisers, onSave, onClose }) {
             <div className="section-label"><span className="dot" /> Images</div>
             <div className="form-grid grid-2">
               <ImageUpload
-                label="Thumbnail (homepage listing)"
-                hint="Mobile-first: portrait 3:4 or square 1:1 recommended"
+                label="Event Card Image"
+                hint="Shown on homepage event cards. 16:9 landscape, min 800×450 px"
                 value={form.thumbnail_url}
                 onChange={v => setField('thumbnail_url', v)}
                 bucket="event-images"
               />
               <ImageUpload
-                label="Poster (event landing page)"
-                hint="Mobile-first: portrait recommended"
+                label="Event Banner"
+                hint="Full-width banner on event ticket page. 16:9 landscape, min 1920×1080 px"
                 value={form.poster_url}
                 onChange={v => setField('poster_url', v)}
                 bucket="event-images"
@@ -1403,6 +1420,17 @@ export default function EventsPage() {
     else showToast(newStatus === 'sold_out' ? 'Event marked as sold out.' : 'Event reactivated.');
   }
 
+  async function toggleFeatured(ev) {
+    const newVal = !ev.is_featured;
+    setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, is_featured: newVal } : x));
+    const res = await adminFetch(`/api/admin/events/${ev.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_featured: newVal }),
+    });
+    if (!res.ok) { showToast('Failed to update featured status', 'error'); load(); }
+    else showToast(newVal ? 'Event added to homepage hero.' : 'Event removed from homepage hero.');
+  }
+
   /* filtering */
   const filtered = events.filter(ev => {
     const matchSearch = !search || ev.name.toLowerCase().includes(search.toLowerCase());
@@ -1500,6 +1528,16 @@ export default function EventsPage() {
                   </td>
                   <td>
                     <div className="actions">
+                      <button
+                        className="btn btn-sm"
+                        style={ev.is_featured
+                          ? { background: '#fef3c7', color: '#92400e', border: '1.5px solid #f59e0b' }
+                          : { background: 'var(--surface)', color: 'var(--muted)', border: '1.5px solid var(--border)' }}
+                        onClick={() => toggleFeatured(ev)}
+                        title={ev.is_featured ? 'Remove from homepage hero' : 'Feature on homepage hero'}
+                      >
+                        {ev.is_featured ? '★ Featured' : '☆ Feature'}
+                      </button>
                       <a className="btn btn-ghost btn-sm" href={`/admin/events/${ev.id}/attendees`} style={{ textDecoration: 'none' }}>👥 Attendees</a>
                       <a className="btn btn-ghost btn-sm" href={`/admin/events/${ev.id}/orders`} style={{ textDecoration: 'none' }}>📋 Orders</a>
                       <button className="btn btn-ghost btn-sm" onClick={() => setPreviewEvent(ev)}>👁 Preview</button>
