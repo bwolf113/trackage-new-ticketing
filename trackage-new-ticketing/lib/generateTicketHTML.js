@@ -7,15 +7,16 @@
 */
 
 export function generateTicketHTML({ order, event, tickets, orderItems, siteUrl }) {
+  const MT = { timeZone: 'Europe/Malta' };
   const fmtDate = (dt) => {
     if (!dt) return '';
     return new Date(dt).toLocaleDateString('en-MT', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', ...MT,
     });
   };
   const fmtTime = (dt) => {
     if (!dt) return '';
-    return new Date(dt).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit' });
+    return new Date(dt).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit', ...MT });
   };
   const fmt = (n) => new Intl.NumberFormat('en-MT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 
