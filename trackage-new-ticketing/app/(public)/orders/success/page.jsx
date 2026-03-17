@@ -252,8 +252,6 @@ function SuccessPageInner() {
                 </div>
               ))}
 
-              <div className="divider" />
-
               {/* Totals */}
               {order.booking_fee > 0 && (
                 <div className="detail-row">
