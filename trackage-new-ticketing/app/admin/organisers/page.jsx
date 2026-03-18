@@ -247,7 +247,6 @@ export default function OrganisersPage() {
     setFormError('');
     if (!form.name.trim())  return setFormError('Name is required.');
     if (!form.email.trim()) return setFormError('Email is required.');
-    if (modal === 'add' && !form.password.trim()) return setFormError('Password is required for new organisers.');
     if (form.vat_number.trim() && !MT_VAT_RE.test(form.vat_number.trim())) {
       return setFormError('Invalid VAT number. Must be in the format MT12345678 (MT + 8 digits).');
     }
@@ -266,7 +265,7 @@ export default function OrganisersPage() {
       if (modal === 'add') {
         const res  = await adminFetch('/api/admin/create-organiser', {
           method: 'POST',
-          body: JSON.stringify({ ...payload, password: form.password.trim() }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create organiser');
@@ -522,16 +521,18 @@ export default function OrganisersPage() {
               </div>
 
               <div className="field-section">Account Security</div>
-              <div className="field">
-                <label>{modal === 'add' ? 'Password' : 'New Password'} {modal === 'add' && <span className="req">*</span>}</label>
-                <input
-                  type="password"
-                  placeholder={modal === 'edit' ? 'Leave blank to keep current password' : 'Set a secure password'}
-                  value={form.password}
-                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                />
-                {modal === 'edit' && <div className="field-hint">Leave blank to keep the existing password unchanged.</div>}
-              </div>
+              {modal === 'edit' && (
+                <div className="field">
+                  <label>New Password</label>
+                  <input
+                    type="password"
+                    placeholder="Leave blank to keep current password"
+                    value={form.password}
+                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  />
+                  <div className="field-hint">Leave blank to keep the existing password unchanged.</div>
+                </div>
+              )}
 
               <div className="field-section">VAT Details</div>
               <div className="field-grid">

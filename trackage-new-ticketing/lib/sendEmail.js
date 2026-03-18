@@ -527,11 +527,9 @@ export async function adminNewOrderEmail({ order, event, orderItems }) {
 /* ═══════════════════════════════════════════════════════════════════
    4. ORGANISER WELCOME EMAIL
    ═══════════════════════════════════════════════════════════════════ */
-export async function organiserWelcomeEmail({ name, email, password }) {
-  const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  const loginUrl = `${siteUrl}/organiser/login`;
-  const logoUrl  = await getLogoURL();
-  const header   = makeHeader(logoUrl);
+export async function organiserWelcomeEmail({ name, email, inviteUrl }) {
+  const logoUrl = await getLogoURL();
+  const header  = makeHeader(logoUrl);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -555,44 +553,22 @@ export async function organiserWelcomeEmail({ name, email, password }) {
   <!-- BODY -->
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:28px 32px">
 
-    <p style="margin:0 0 20px;font-size:14px;color:#555;line-height:1.6">
-      Your Trackage Scheme organiser account has been created. You can now log in to the organiser portal to create events, manage orders, and issue tickets.
+    <p style="margin:0 0 8px;font-size:14px;color:#555;line-height:1.6">
+      Your Trackage Scheme organiser account has been created. Click the button below to set your password and access the organiser portal.
     </p>
-
-    <!-- CREDENTIALS BOX -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="border:1.5px solid #e8e8e6;border-radius:10px;overflow:hidden;margin-bottom:24px">
-      <tr style="background:#f9f9f9">
-        <td colspan="2" style="padding:10px 16px;border-bottom:1px solid #e8e8e6">
-          <p style="margin:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#999">Your login credentials</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;width:100px">
-          <p style="margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#999">Email</p>
-        </td>
-        <td style="padding:12px 16px;border-bottom:1px solid #f0f0f0">
-          <p style="margin:0;font-size:14px;font-weight:600;color:#1a1a1a;font-family:monospace">${email}</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:12px 16px">
-          <p style="margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#999">Password</p>
-        </td>
-        <td style="padding:12px 16px">
-          <p style="margin:0;font-size:14px;font-weight:600;color:#1a1a1a;font-family:monospace">${password}</p>
-        </td>
-      </tr>
-    </table>
+    <p style="margin:0 0 24px;font-size:13px;color:#999;line-height:1.5">
+      Your email address is: <strong style="color:#1a1a1a">${email}</strong>
+    </p>
 
     <!-- CTA -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
       <tr><td align="center">
-        <a href="${loginUrl}" style="display:inline-block;background:#0a0a0a;color:#ffffff;padding:13px 32px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:0.01em">Log in to your portal →</a>
+        <a href="${inviteUrl}" style="display:inline-block;background:#0a0a0a;color:#ffffff;padding:13px 32px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:0.01em">Set your password →</a>
       </td></tr>
     </table>
 
     <p style="margin:0 0 6px;font-size:13px;color:#999;text-align:center">Or copy this link:</p>
-    <p style="margin:0;font-size:12px;color:#0a9e7f;text-align:center;word-break:break-all"><a href="${loginUrl}" style="color:#0a9e7f">${loginUrl}</a></p>
+    <p style="margin:0;font-size:12px;color:#0a9e7f;text-align:center;word-break:break-all"><a href="${inviteUrl}" style="color:#0a9e7f">${inviteUrl}</a></p>
 
     <!-- DIVIDER -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0">
@@ -600,7 +576,7 @@ export async function organiserWelcomeEmail({ name, email, password }) {
     </table>
 
     <p style="margin:0 0 12px;font-size:12px;color:#999;line-height:1.6">
-      We recommend changing your password after your first login. If you have any questions, reply to this email or contact <a href="mailto:team@trackagescheme.com" style="color:#0a9e7f">team@trackagescheme.com</a>.
+      This link expires after 24 hours. If you have any questions, contact <a href="mailto:team@trackagescheme.com" style="color:#0a9e7f">team@trackagescheme.com</a>.
     </p>
 
   </td></tr></table>
