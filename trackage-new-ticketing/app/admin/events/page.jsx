@@ -141,7 +141,8 @@ const CSS = `
   background: var(--surface); border: 1.5px solid var(--border);
   border-radius: 16px; overflow: hidden;
 }
-.ev-table { width: 100%; border-collapse: collapse; }
+.table-card-inner { overflow-x: auto; }
+.ev-table { width: 100%; border-collapse: collapse; min-width: 700px; }
 .ev-table th {
   background: var(--bg); padding: 11px 16px;
   text-align: left; font-size: 11px; font-weight: 700;
@@ -1499,6 +1500,7 @@ function EventsPageInner() {
         {loading ? (
           <div style={{ padding: 56, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>Loading events…</div>
         ) : (
+          <div className="table-card-inner">
           <table className="ev-table">
             <thead>
               <tr>
@@ -1580,6 +1582,7 @@ function EventsPageInner() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

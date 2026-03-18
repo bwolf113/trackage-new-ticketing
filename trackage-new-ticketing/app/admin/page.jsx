@@ -58,7 +58,8 @@ export default function AdminDashboard() {
           --black: #000000; --white: #ffffff; --bg: #F5F6FA; --surface: #ffffff;
           --border: #EBEDF0; --muted: #767C8C; --green: #48C16E; --green-dim: rgba(72,193,110,0.12);
         }
-        .dash { font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black); background: var(--bg); margin: -24px; padding: 32px; min-height: 100vh; }
+        .dash { font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black); background: var(--bg); min-height: 100vh; }
+        @media (max-width: 768px) { .dash { margin: 0; padding: 0; } }
         .dash-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
         .dash-heading { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 3px; }
         .dash-sub { font-size: 14px; color: var(--muted); font-weight: 500; }

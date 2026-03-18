@@ -108,7 +108,7 @@ export default function AdminLayout({ children }) {
           cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.15s; white-space: nowrap; overflow: hidden;
         }
         .al-logout:hover { background: rgba(239,68,68,0.15); color: #f87171; }
-        .al-main { margin-left: 0; flex: 1; min-height: 100vh; background: var(--bg); display: flex; flex-direction: column; }
+        .al-main { margin-left: 0; flex: 1; min-width: 0; min-height: 100vh; background: var(--bg); display: flex; flex-direction: column; overflow-x: hidden; }
         .al-topbar { background: var(--surface); border-bottom: 1.5px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
         .al-topbar-l { display: flex; align-items: center; gap: 12px; }
         .al-menu-btn { display: block; background: none; border: 1.5px solid var(--border); color: var(--muted); padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 16px; line-height: 1; }
@@ -116,7 +116,7 @@ export default function AdminLayout({ children }) {
         .al-topbar-r { display: flex; align-items: center; gap: 10px; }
         .al-avatar { width: 30px; height: 30px; background: var(--black); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700; }
         .al-username { font-size: 13px; color: var(--muted); font-weight: 500; font-family: 'Plus Jakarta Sans', sans-serif; }
-        .al-content { flex: 1; }
+        .al-content { flex: 1; max-width: 100%; overflow-x: auto; }
         .al-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
         @media (min-width: 769px) {
           .al-sidebar { width: ${sidebarW}; transform: translateX(0); transition: width 0.2s ease; }
