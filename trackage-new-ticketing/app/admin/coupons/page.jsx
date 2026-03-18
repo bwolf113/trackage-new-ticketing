@@ -1,7 +1,7 @@
 /* app/admin/coupons/page.jsx */
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
+import { adminFetch } from '../../../lib/adminFetch';
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
 function fmt(n) {
@@ -271,12 +271,12 @@ export default function CouponsPage() {
 
   async function loadData() {
     setLoading(true);
-    const [{ data: c }, { data: e }] = await Promise.all([
-      supabase.from('coupons').select('*').order('created_at', { ascending: false }),
-      supabase.from('events').select('id, name, start_time').order('start_time', { ascending: false }),
-    ]);
-    setCoupons(c || []);
-    setEvents(e  || []);
+    try {
+      const res = await adminFetch('/api/admin/coupons');
+      const data = await res.json();
+      setCoupons(data.coupons || []);
+      setEvents(data.events || []);
+    } catch (err) { console.error(err); }
     setLoading(false);
   }
 
@@ -359,12 +359,14 @@ export default function CouponsPage() {
 
       if (modal === 'add') {
         payload.usage_count = 0;
-        const { error } = await supabase.from('coupons').insert([payload]);
-        if (error) throw error;
+        const res = await adminFetch('/api/admin/coupons', { method: 'POST', body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
         showToast('✓ Coupon created successfully');
       } else {
-        const { error } = await supabase.from('coupons').update(payload).eq('id', selected.id);
-        if (error) throw error;
+        const res = await adminFetch('/api/admin/coupons', { method: 'PUT', body: JSON.stringify({ id: selected.id, ...payload }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
         showToast('✓ Coupon updated successfully');
       }
       closeModal();
@@ -379,8 +381,9 @@ export default function CouponsPage() {
   async function handleDelete() {
     setSaving(true);
     try {
-      const { error } = await supabase.from('coupons').delete().eq('id', selected.id);
-      if (error) throw error;
+      const res = await adminFetch(`/api/admin/coupons?id=${selected.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
       showToast('Coupon deleted');
       closeModal();
       loadData();
@@ -391,7 +394,7 @@ export default function CouponsPage() {
   /* ── toggle status ── */
   async function toggleStatus(c) {
     const next = c.status === 'active' ? 'inactive' : 'active';
-    await supabase.from('coupons').update({ status: next }).eq('id', c.id);
+    await adminFetch('/api/admin/coupons', { method: 'PUT', body: JSON.stringify({ id: c.id, status: next }) });
     showToast(`Coupon marked as ${next}`);
     loadData();
   }
