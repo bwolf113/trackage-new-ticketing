@@ -1,7 +1,6 @@
 /* app/admin/organisers/page.jsx */
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
 import { adminFetch } from '../../../lib/adminFetch';
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
@@ -197,25 +196,11 @@ export default function OrganisersPage() {
   async function loadOrganisers() {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('organisers')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setOrganisers(data || []);
-
-      // load event counts per organiser
-      if (data && data.length) {
-        const { data: events } = await supabase
-          .from('events')
-          .select('organiser_id');
-        const counts = {};
-        (events || []).forEach(e => {
-          if (e.organiser_id) counts[e.organiser_id] = (counts[e.organiser_id] || 0) + 1;
-        });
-        setEventCounts(counts);
-      }
+      const res  = await adminFetch('/api/admin/organisers');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setOrganisers(json.organisers || []);
+      setEventCounts(json.eventCounts || {});
     } catch (err) {
       console.error(err);
     }
@@ -287,17 +272,21 @@ export default function OrganisersPage() {
         if (!res.ok) throw new Error(data.error || 'Failed to create organiser');
         showToast('✓ Organiser added — welcome email sent');
       } else {
-        const { error } = await supabase.from('organisers').update(payload).eq('id', selected.id);
-        if (error) throw error;
+        const res  = await adminFetch('/api/admin/organisers', {
+          method: 'PUT',
+          body: JSON.stringify({ id: selected.id, ...payload }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update organiser');
 
         // If a new password was provided, update it in Supabase Auth
         if (form.password.trim()) {
-          const res = await adminFetch('/api/admin/set-organiser-password', {
+          const pwRes  = await adminFetch('/api/admin/set-organiser-password', {
             method: 'POST',
             body: JSON.stringify({ organiser_id: selected.id, password: form.password.trim() }),
           });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Failed to update password');
+          const pwData = await pwRes.json();
+          if (!pwRes.ok) throw new Error(pwData.error || 'Failed to update password');
         }
 
         showToast('✓ Organiser updated successfully');
@@ -314,8 +303,9 @@ export default function OrganisersPage() {
   async function handleDelete() {
     setSaving(true);
     try {
-      const { error } = await supabase.from('organisers').delete().eq('id', selected.id);
-      if (error) throw error;
+      const res  = await adminFetch(`/api/admin/organisers?id=${selected.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete organiser');
       showToast('Organiser deleted');
       closeModal();
       loadOrganisers();
@@ -328,7 +318,10 @@ export default function OrganisersPage() {
   /* ── toggle status ── */
   async function toggleStatus(org) {
     const newStatus = org.status === 'active' ? 'inactive' : 'active';
-    await supabase.from('organisers').update({ status: newStatus }).eq('id', org.id);
+    await adminFetch('/api/admin/organisers', {
+      method: 'PUT',
+      body: JSON.stringify({ id: org.id, status: newStatus }),
+    });
     showToast(`Organiser marked as ${newStatus}`);
     loadOrganisers();
   }
