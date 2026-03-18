@@ -44,15 +44,17 @@ export async function POST(req) {
 
     if (insertErr) throw new Error(insertErr.message);
 
-    // Set password in Supabase Auth via set-organiser-password route logic inline
-    // (re-using the same approach: find or create auth user, set password)
-    const { data: { users }, error: listErr } = await supabase.auth.admin.listUsers();
-    if (!listErr) {
+    // Set password in Supabase Auth (best-effort — don't let this block account creation)
+    try {
+      const { data: authData } = await supabase.auth.admin.listUsers();
+      const users = authData?.users || [];
       const match = users.find(u => u.email?.toLowerCase() === email.trim().toLowerCase());
       if (match) {
         await supabase.auth.admin.updateUserById(match.id, { password: password.trim() });
         await supabase.from('organisers').update({ user_id: match.id }).eq('id', organiser.id);
       }
+    } catch (authErr) {
+      console.error('[create-organiser] Auth password setup failed:', authErr.message);
     }
 
     // Send welcome email (non-blocking — don't fail the request if email fails)
