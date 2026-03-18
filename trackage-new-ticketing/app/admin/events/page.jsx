@@ -1528,7 +1528,7 @@ function EventsPageInner() {
                           : '🎵'}
                       </div>
                       <div>
-                        <div className="event-name">{ev.name}</div>
+                        <div className="event-name" style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent', transition: 'text-decoration-color 0.15s' }} onMouseEnter={e => e.currentTarget.style.textDecorationColor = 'currentColor'} onMouseLeave={e => e.currentTarget.style.textDecorationColor = 'transparent'} onClick={() => openEdit(ev)}>{ev.name}</div>
                         <div className="event-slug">{ev.slug}</div>
                       </div>
                     </div>
@@ -1564,8 +1564,7 @@ function EventsPageInner() {
                         setCopiedId(ev.id);
                         setTimeout(() => setCopiedId(prev => prev === ev.id ? null : prev), 2000);
                       }}>{copiedId === ev.id ? '✓ Copied!' : '🔗 Copy link'}</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setPreviewEvent(ev)}>👁 Preview</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(ev)}>✏️ Edit</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => window.open(`/events/${ev.slug}`, '_blank')}>👁 Preview</button>
                       <button
                         className="btn btn-sm"
                         style={ev.status === 'sold_out'
