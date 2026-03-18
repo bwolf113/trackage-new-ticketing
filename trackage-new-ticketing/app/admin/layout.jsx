@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { href: '/admin/orders',      label: 'Orders',       icon: '📋' },
   { href: '/admin/coupons',     label: 'Coupons',      icon: '🏷️' },
   { href: '/admin/reports',     label: 'Reports',      icon: '📊' },
-  { href: '/admin/stripe',      label: 'Stripe',       icon: '💳' },
   { href: '/admin/email-test',  label: 'Email Tester', icon: '✉️' },
 ];
 
