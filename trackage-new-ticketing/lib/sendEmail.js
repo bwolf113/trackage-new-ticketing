@@ -18,34 +18,51 @@ const transporter = !useResend
   : null;
 
 export async function sendEmail({ to, subject, html, attachments = [], headers = {} }) {
-  const from = `${process.env.EMAIL_FROM_NAME || 'Trackage Scheme'} <${process.env.EMAIL_FROM || 'team@trackagescheme.com'}>`;
+  const from     = `${process.env.EMAIL_FROM_NAME || 'Trackage Scheme'} <${process.env.EMAIL_FROM || 'team@trackagescheme.com'}>`;
+  const provider = useResend ? 'resend' : 'sendgrid';
 
   try {
+    let messageId;
     if (resend) {
       const { data, error } = await resend.emails.send({
         from, to, subject, html,
         ...(attachments.length > 0 && {
           attachments: attachments.map(a => ({
             filename: a.filename,
-            content: a.content,          // Buffer or base64 string
+            content: a.content,
             ...(a.contentType && { contentType: a.contentType }),
           })),
         }),
         ...(Object.keys(headers).length > 0 && { headers }),
       });
       if (error) throw new Error(error.message);
-      console.log('Email sent (Resend):', data.id, 'to', to);
-      return { success: true, messageId: data.id };
+      messageId = data.id;
+      console.log('Email sent (Resend):', messageId, 'to', to);
+    } else {
+      const info = await transporter.sendMail({ from, to, subject, html, attachments, headers });
+      messageId = info.messageId;
+      console.log('Email sent (SendGrid):', messageId, 'to', to);
     }
 
-    const info = await transporter.sendMail({
-      from, to, subject, html, attachments, headers,
-    });
-    console.log('Email sent (SendGrid):', info.messageId, 'to', to);
-    return { success: true, messageId: info.messageId };
+    logEmail({ to, subject, status: 'sent', provider, message_id: messageId }).catch(() => {});
+    return { success: true, messageId };
   } catch (err) {
     console.error('Email send failed:', err.message);
+    logEmail({ to, subject, status: 'failed', provider, error: err.message }).catch(() => {});
     return { success: false, error: err.message };
+  }
+}
+
+async function logEmail({ to, subject, status, provider, message_id, error }) {
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    await supabase.from('email_logs').insert([{ to_email: to, subject, status, provider, message_id, error: error || null }]);
+  } catch (logErr) {
+    console.error('Email log failed:', logErr.message);
   }
 }
 
