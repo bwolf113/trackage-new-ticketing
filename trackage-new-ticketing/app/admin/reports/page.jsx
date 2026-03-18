@@ -1,7 +1,7 @@
 /* app/admin/reports/page.jsx */
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
+import { adminFetch } from '../../../lib/adminFetch';
 import { isSampleMode, setSampleMode, getSampleKpis, getSampleOrganisers, getSampleEvents } from '../../../lib/sampleData';
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
@@ -183,29 +183,12 @@ const PERIODS = [
   { key: 'custom',       label: 'Custom' },
 ];
 
-async function fetchKpis(start, end) {
-  const { data: orders } = await supabase
-    .from('orders')
-    .select('id, total, organiser_id, booking_fee, created_at')
-    .eq('status', 'completed')
-    .gte('created_at', start)
-    .lte('created_at', end);
-
-  const orderIds = (orders || []).map(o => o.id);
-  let ticketCount = 0;
-  if (orderIds.length) {
-    const { data: items } = await supabase
-      .from('order_items').select('quantity').in('order_id', orderIds);
-    ticketCount = (items || []).reduce((s, i) => s + (i.quantity || 0), 0);
-  }
-  const totalRevenue     = (orders || []).reduce((s, o) => s + (o.total || 0), 0);
-  const totalBookingFees = (orders || []).reduce((s, o) => s + (o.booking_fee || 0), 0);
-  return {
-    totalRevenue, totalBookingFees,
-    totalStripeFees: totalRevenue * 0.03,
-    ticketCount, orderCount: (orders || []).length,
-    orders,
-  };
+async function fetchReport(start, end, compStart, compEnd) {
+  const res = await adminFetch('/api/admin/reports', {
+    method: 'POST',
+    body: JSON.stringify({ start, end, compStart, compEnd }),
+  });
+  return res.json();
 }
 
 /* ─── component ───────────────────────────────────────────────────── */
@@ -259,43 +242,20 @@ export default function ReportsPage() {
         setLoading(false); return;
       }
 
-      // ── Real data path ──
-      const primary = await fetchKpis(start, end);
-      setKpis(primary);
-      setRevBreak({ grossRevenue: primary.totalRevenue, bookingFees: primary.totalBookingFees, stripeFees: primary.totalStripeFees, netRevenue: primary.totalRevenue - primary.totalStripeFees });
+      // ── Real data path (via admin API) ──
+      const compRange = comparing ? getRange(compPeriod, compCS, compCE) : {};
+      const data = await fetchReport(start, end, compRange.start, compRange.end);
 
-      const byOrg = {};
-      (primary.orders || []).forEach(o => {
-        if (!o.organiser_id) return;
-        if (!byOrg[o.organiser_id]) byOrg[o.organiser_id] = { revenue: 0, orders: 0 };
-        byOrg[o.organiser_id].revenue += o.total || 0;
-        byOrg[o.organiser_id].orders  += 1;
+      setKpis(data.kpis);
+      setRevBreak({
+        grossRevenue: data.kpis.totalRevenue,
+        bookingFees:  data.kpis.totalBookingFees,
+        stripeFees:   data.kpis.totalStripeFees,
+        netRevenue:   data.kpis.totalRevenue - data.kpis.totalStripeFees,
       });
-      const orgIds = Object.keys(byOrg);
-      if (orgIds.length) {
-        const { data: orgs } = await supabase.from('organisers').select('id, name').in('id', orgIds);
-        setOrgRanking((orgs || []).map(o => ({ ...o, ...byOrg[o.id] })).sort((a, b) => b.revenue - a.revenue));
-      } else { setOrgRanking([]); }
-
-      const { data: events } = await supabase.from('events').select('id, name, start_time, end_time, status').order('start_time', { ascending: false }).limit(20);
-      const orderIds = (primary.orders || []).map(o => o.id);
-      if (events?.length && orderIds.length) {
-        const { data: evtItems } = await supabase.from('order_items').select('event_id, quantity, price').in('order_id', orderIds);
-        const evtMap = {};
-        (evtItems || []).forEach(i => {
-          if (!i.event_id) return;
-          if (!evtMap[i.event_id]) evtMap[i.event_id] = { revenue: 0, tickets: 0 };
-          evtMap[i.event_id].revenue += (i.price || 0) * (i.quantity || 0);
-          evtMap[i.event_id].tickets += i.quantity || 0;
-        });
-        setEventPerf((events || []).map(e => ({ ...e, ...(evtMap[e.id] || { revenue: 0, tickets: 0 }) })).sort((a, b) => b.revenue - a.revenue));
-      } else { setEventPerf(events || []); }
-
-      if (comparing) {
-        const comp = getRange(compPeriod, compCS, compCE);
-        const prev = await fetchKpis(comp.start, comp.end);
-        setPrevKpis(prev);
-      } else { setPrevKpis(null); }
+      setOrgRanking(data.orgRanking || []);
+      setEventPerf(data.eventPerf || []);
+      setPrevKpis(data.prevKpis || null);
     } catch (err) { console.error(err); }
     setLoading(false);
   }
