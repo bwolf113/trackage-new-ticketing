@@ -332,7 +332,7 @@ function SuccessPageInner() {
                   <div className="next-item-icon">📧</div>
                   <div>
                     <div className="next-item-title">Check your email</div>
-                    <div className="next-item-sub">Your ticket confirmation and PDF will be sent to {order.customer_email}.</div>
+                    <div className="next-item-sub">Your ticket confirmation and QR code(s) have been sent to {order.customer_email}.</div>
                   </div>
                 </div>
                 <div className="next-item">

@@ -588,5 +588,90 @@ export async function organiserWelcomeEmail({ name, email, inviteUrl }) {
 </body></html>`;
 }
 
+export async function reviewRequestEmail({ name, eventName }) {
+  const reviewUrl = 'https://g.page/r/CTm6bsLP-vDTEBM/review';
+  const [logoUrl, qrUrl] = await Promise.all([
+    getLogoURL(),
+    generateQRPublicURL(reviewUrl, 'google-review'),
+  ]);
+  const header    = makeHeader(logoUrl);
+  const firstName = (name || 'there').split(' ')[0];
+  const eventLine = eventName
+    ? `<p style="margin:0 0 20px;font-size:14px;color:#555;line-height:1.6">We hope you enjoyed <strong style="color:#1a1a1a">${eventName}</strong> and that buying your ticket through Trackage Scheme was quick and easy.</p>`
+    : `<p style="margin:0 0 20px;font-size:14px;color:#555;line-height:1.6">We hope your recent ticket purchase through Trackage Scheme was quick and easy.</p>`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0;padding:0;background:#f5f5f3}table{border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt}img{border:0}</style>
+</head>
+<body style="margin:0;padding:0;background:#f5f5f3;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3"><tr><td align="center" style="padding:24px 16px">
+<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08)">
+<tr><td>
+  ${header}
+
+  <!-- HERO -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a">
+    <tr><td style="padding:28px 32px">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#48C16E">Quick favour</p>
+      <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3">How was your experience,<br>${firstName}?</p>
+    </td></tr>
+  </table>
+
+  <!-- BODY -->
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:28px 32px">
+
+    ${eventLine}
+
+    <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6">
+      If you have a moment, we'd really appreciate it if you could leave us a short review on Google. It helps other event-goers discover us and only takes a minute.
+    </p>
+
+    <!-- STARS + CTA BUTTON -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px">
+      <tr><td align="center">
+        <a href="${reviewUrl}" style="display:inline-block;background:#0a0a0a;color:#ffffff;padding:13px 36px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:0.01em">Leave a Google review →</a>
+      </td></tr>
+    </table>
+
+    <!-- DIVIDER WITH OR -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+      <tr>
+        <td style="height:1px;background:#f0f0f0;font-size:1px;line-height:1px"></td>
+        <td style="padding:0 14px;white-space:nowrap;font-size:11px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:0.1em">or scan</td>
+        <td style="height:1px;background:#f0f0f0;font-size:1px;line-height:1px"></td>
+      </tr>
+    </table>
+
+    <!-- QR CODE -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+      <tr><td align="center">
+        <a href="${reviewUrl}">
+          <img src="${qrUrl}" width="160" height="160" alt="Scan to leave a Google review" style="display:block;border:1px solid #f0f0f0;border-radius:8px;padding:8px;background:#fff" />
+        </a>
+        <p style="margin:10px 0 0;font-size:12px;color:#999">Scan with your phone camera</p>
+      </td></tr>
+    </table>
+
+    <!-- DIVIDER -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0">
+      <tr><td style="height:1px;background:#f0f0f0;font-size:1px;line-height:1px">&nbsp;</td></tr>
+    </table>
+
+    <p style="margin:0;font-size:12px;color:#bbb;line-height:1.6;text-align:center">
+      Thanks for using Trackage Scheme. We're always working to make the experience better.<br>
+      Questions? Reach us at <a href="mailto:team@trackagescheme.com" style="color:#0a9e7f">team@trackagescheme.com</a>
+    </p>
+
+  </td></tr></table>
+
+  ${POWERED_BY}
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 /* backward compat aliases */
 export { ticketConfirmationEmail as buyerConfirmationEmail };
