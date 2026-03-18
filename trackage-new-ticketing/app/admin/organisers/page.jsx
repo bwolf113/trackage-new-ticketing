@@ -279,9 +279,13 @@ export default function OrganisersPage() {
       };
 
       if (modal === 'add') {
-        const { error } = await supabase.from('organisers').insert([payload]);
-        if (error) throw error;
-        showToast('✓ Organiser added successfully');
+        const res  = await adminFetch('/api/admin/create-organiser', {
+          method: 'POST',
+          body: JSON.stringify({ ...payload, password: form.password.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create organiser');
+        showToast('✓ Organiser added — welcome email sent');
       } else {
         const { error } = await supabase.from('organisers').update(payload).eq('id', selected.id);
         if (error) throw error;
