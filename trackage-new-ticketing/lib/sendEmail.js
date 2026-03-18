@@ -690,5 +690,64 @@ export async function reviewRequestEmail({ name, eventName }) {
 </body></html>`;
 }
 
+export async function eventPublishedEmail({ organiserName, eventName, eventUrl }) {
+  const logoUrl   = await getLogoURL();
+  const header    = makeHeader(logoUrl);
+  const firstName = (organiserName || 'there').split(' ')[0];
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0;padding:0;background:#f5f5f3}table{border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt}img{border:0}</style>
+</head>
+<body style="margin:0;padding:0;background:#f5f5f3;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3"><tr><td align="center" style="padding:24px 16px">
+<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08)">
+<tr><td>
+  ${header}
+
+  <!-- HERO -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a">
+    <tr><td style="padding:28px 32px">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#48C16E">You're live</p>
+      <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3">Your event is now<br>published, ${firstName}.</p>
+    </td></tr>
+  </table>
+
+  <!-- BODY -->
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:28px 32px">
+
+    <p style="margin:0 0 20px;font-size:14px;color:#555;line-height:1.6">
+      <strong style="color:#1a1a1a">${eventName}</strong> has been reviewed and is now live on Trackage Scheme. Tickets are available for purchase.
+    </p>
+
+    <!-- CTA -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+      <tr><td align="center">
+        <a href="${eventUrl}" style="display:inline-block;background:#0a0a0a;color:#ffffff;padding:13px 32px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:0.01em">View your event page →</a>
+      </td></tr>
+    </table>
+
+    <p style="margin:0 0 6px;font-size:13px;color:#999;text-align:center">Or copy this link to share:</p>
+    <p style="margin:0;font-size:12px;color:#0a9e7f;text-align:center;word-break:break-all"><a href="${eventUrl}" style="color:#0a9e7f">${eventUrl}</a></p>
+
+    <!-- DIVIDER -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0">
+      <tr><td style="height:1px;background:#f0f0f0;font-size:1px;line-height:1px">&nbsp;</td></tr>
+    </table>
+
+    <p style="margin:0;font-size:12px;color:#bbb;line-height:1.6;text-align:center">
+      Questions? Contact us at <a href="mailto:team@trackagescheme.com" style="color:#0a9e7f">team@trackagescheme.com</a>
+    </p>
+
+  </td></tr></table>
+
+  ${POWERED_BY}
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 /* backward compat aliases */
 export { ticketConfirmationEmail as buyerConfirmationEmail };

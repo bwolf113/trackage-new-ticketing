@@ -3,6 +3,7 @@
 */
 import { createClient } from '@supabase/supabase-js';
 import { checkAdminAuth } from '../../../../../lib/adminAuth';
+import { sendEmail, eventPublishedEmail } from '../../../../../lib/sendEmail';
 
 function adminSupabase() {
   return createClient(
@@ -21,12 +22,38 @@ export async function PUT(req, { params }) {
 
     const supabase = adminSupabase();
 
+    // Fetch current status before updating to detect publish transition
+    const { data: current } = await supabase
+      .from('events')
+      .select('status, name, slug, organisers(name, email)')
+      .eq('id', eventId)
+      .single();
+
     // Update event
     const { error: eventError } = await supabase
       .from('events')
       .update({ ...eventData, updated_at: new Date().toISOString() })
       .eq('id', eventId);
     if (eventError) return Response.json({ error: eventError.message }, { status: 500 });
+
+    // Notify organiser when event transitions to published
+    if (eventData.status === 'published' && current?.status !== 'published') {
+      const organiser = current?.organisers;
+      if (organiser?.email) {
+        const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL || 'https://tickets.trackagescheme.com';
+        const eventUrl = `${siteUrl}/events/${current.slug || eventId}`;
+        const html     = await eventPublishedEmail({
+          organiserName: organiser.name,
+          eventName:     current.name,
+          eventUrl,
+        });
+        sendEmail({
+          to:      organiser.email,
+          subject: `Your event "${current.name}" is now live`,
+          html,
+        }).catch(err => console.error('[event-published] Email failed:', err.message));
+      }
+    }
 
     // ── Reconcile event_days ─────────────────────────────────────
     const dayIdMap = {};
@@ -127,8 +154,34 @@ export async function PATCH(req, { params }) {
       const { error } = await supabase.from('events').update({ is_featured }).eq('id', eventId);
       if (error) return Response.json({ error: error.message }, { status: 500 });
     } else {
+      // Fetch current status before updating to detect publish transition
+      const { data: current } = await supabase
+        .from('events')
+        .select('status, name, slug, organisers(name, email)')
+        .eq('id', eventId)
+        .single();
+
       const { error } = await supabase.from('events').update({ status }).eq('id', eventId);
       if (error) return Response.json({ error: error.message }, { status: 500 });
+
+      // Notify organiser when event is published for the first time
+      if (status === 'published' && current?.status !== 'published') {
+        const organiser = current?.organisers;
+        if (organiser?.email) {
+          const siteUrl   = process.env.NEXT_PUBLIC_SITE_URL || 'https://tickets.trackagescheme.com';
+          const eventUrl  = `${siteUrl}/events/${current.slug || eventId}`;
+          const html      = await eventPublishedEmail({
+            organiserName: organiser.name,
+            eventName:     current.name,
+            eventUrl,
+          });
+          sendEmail({
+            to:      organiser.email,
+            subject: `Your event "${current.name}" is now live`,
+            html,
+          }).catch(err => console.error('[event-published] Email failed:', err.message));
+        }
+      }
     }
 
     return Response.json({ success: true });
