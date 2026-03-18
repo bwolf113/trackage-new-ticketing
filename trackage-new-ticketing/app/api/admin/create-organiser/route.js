@@ -44,17 +44,32 @@ export async function POST(req) {
 
     if (insertErr) throw new Error(insertErr.message);
 
-    // Set password in Supabase Auth (best-effort — don't let this block account creation)
+    // Create or update the Supabase Auth user so they can log in
     try {
       const { data: authData } = await supabase.auth.admin.listUsers();
       const users = authData?.users || [];
       const match = users.find(u => u.email?.toLowerCase() === email.trim().toLowerCase());
+
+      let authUserId;
       if (match) {
+        // Auth user exists — just update their password
         await supabase.auth.admin.updateUserById(match.id, { password: password.trim() });
-        await supabase.from('organisers').update({ user_id: match.id }).eq('id', organiser.id);
+        authUserId = match.id;
+      } else {
+        // No auth user yet — create one
+        const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+          email:          email.trim().toLowerCase(),
+          password:       password.trim(),
+          email_confirm:  true,
+        });
+        if (createErr) throw createErr;
+        authUserId = created.user.id;
       }
+
+      // Link the auth user to the organiser record
+      await supabase.from('organisers').update({ user_id: authUserId }).eq('id', organiser.id);
     } catch (authErr) {
-      console.error('[create-organiser] Auth password setup failed:', authErr.message);
+      console.error('[create-organiser] Auth setup failed:', authErr.message);
     }
 
     // Send welcome email (non-blocking — don't fail the request if email fails)
