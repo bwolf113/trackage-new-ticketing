@@ -270,6 +270,11 @@ export async function POST(req) {
         ...(utm_id ? { utm_id } : {}),
       },
       payment_intent_data: {
+        description: [
+          `Order #${orderId.slice(0, 8).toUpperCase()}`,
+          customer_name,
+          customer_email,
+        ].filter(Boolean).join(' — '),
         metadata: { order_id: orderId },
       },
     };
