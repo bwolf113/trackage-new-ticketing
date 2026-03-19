@@ -1,6 +1,6 @@
 /* app/admin/orders/page.jsx */
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { isSampleMode, setSampleMode, getSampleOrders, getSampleEvents } from '../../../lib/sampleData';
 import { adminFetch } from '../../../lib/adminFetch';
@@ -789,6 +789,14 @@ function Toast({ message, type = 'success' }) {
 
 /* ─── Main page ──────────────────────────────────────────────────── */
 export default function OrdersPage() {
+  return (
+    <Suspense>
+      <OrdersPageInner />
+    </Suspense>
+  );
+}
+
+function OrdersPageInner() {
   const [orders, setOrders]           = useState([]);
   const [counts, setCounts]           = useState({});
   const [loading, setLoading]         = useState(true);
