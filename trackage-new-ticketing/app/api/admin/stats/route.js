@@ -44,7 +44,7 @@ export async function GET(req) {
   // Fetch orders with their event's organiser_id via join
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, total, event_id, created_at, events(organiser_id)')
+    .select('id, total, stripe_fee, event_id, created_at, events(organiser_id)')
     .eq('status', 'completed')
     .gte('created_at', start)
     .lte('created_at', end);
@@ -90,7 +90,7 @@ export async function GET(req) {
   return Response.json({
     totalRevenue,
     totalTickets: ticketCount,
-    totalStripeFees: totalRevenue * 0.03,
+    totalStripeFees: (orders || []).reduce((s, o) => s + (o.stripe_fee || 0), 0),
     orderCount: (orders || []).length,
     activeOrgCount: activeOrgCount || 0,
     leaderboard,

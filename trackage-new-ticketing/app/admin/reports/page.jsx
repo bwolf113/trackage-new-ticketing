@@ -408,11 +408,11 @@ export default function ReportsPage() {
           prevValue={prevKpis ? fmt(prevKpis.totalBookingFees) : null}
           curRaw={kpis?.totalBookingFees} prevRaw={prevKpis?.totalBookingFees}
           sub="platform commission" />
-        <KpiCard label="Stripe Fees (est.)" icon="💳" iconBg="var(--purple-bg)" iconColor="var(--purple)"
+        <KpiCard label="Stripe Fees" icon="💳" iconBg="var(--purple-bg)" iconColor="var(--purple)"
           value={loading ? '—' : fmt(kpis?.totalStripeFees)}
           prevValue={prevKpis ? fmt(prevKpis.totalStripeFees) : null}
           curRaw={kpis?.totalStripeFees} prevRaw={prevKpis?.totalStripeFees}
-          sub="~3% of gross revenue" />
+          sub="actual processing fees" />
         <KpiCard label="Total Orders" icon="📋" iconBg="rgba(0,0,0,0.06)" iconColor="var(--muted)"
           value={loading ? '—' : (kpis?.orderCount || 0).toLocaleString()}
           prevValue={prevKpis ? prevKpis.orderCount.toLocaleString() : null}
@@ -428,7 +428,7 @@ export default function ReportsPage() {
             <div className="card">
               <div className="breakdown-row"><span className="breakdown-label">Gross Revenue</span><span className="breakdown-value">{fmt(revBreak?.grossRevenue)}</span></div>
               <div className="breakdown-row"><span className="breakdown-label">Booking Fees (earned)</span><span className="breakdown-value" style={{color:'var(--green)'}}>+{fmt(revBreak?.bookingFees)}</span></div>
-              <div className="breakdown-row"><span className="breakdown-label">Stripe Fees (est. 3%)</span><span className="breakdown-value" style={{color:'var(--danger)'}}>−{fmt(revBreak?.stripeFees)}</span></div>
+              <div className="breakdown-row"><span className="breakdown-label">Stripe Fees</span><span className="breakdown-value" style={{color:'var(--danger)'}}>−{fmt(revBreak?.stripeFees)}</span></div>
               <div className="breakdown-row" style={{borderTop:'2px solid var(--border)',background:'var(--bg)'}}>
                 <span className="breakdown-label" style={{fontWeight:700,color:'var(--black)'}}>Net Revenue</span>
                 <span className="breakdown-value" style={{fontSize:16,color:'var(--green)'}}>{fmt(revBreak?.netRevenue)}</span>

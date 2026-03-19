@@ -79,12 +79,27 @@ export async function POST(req) {
         // Generate unique QR token for this order
         const qrToken = crypto.randomUUID();
 
+        // Fetch actual Stripe fee from balance transaction
+        let stripeFee = null;
+        if (session.payment_intent) {
+          try {
+            const pi = await stripe.paymentIntents.retrieve(session.payment_intent, {
+              expand: ['latest_charge.balance_transaction'],
+            });
+            const fee = pi.latest_charge?.balance_transaction?.fee;
+            if (typeof fee === 'number') stripeFee = fee / 100; // cents → EUR
+          } catch (feeErr) {
+            console.error('Could not fetch Stripe fee:', feeErr.message);
+          }
+        }
+
         // Mark order completed
         await supabase.from('orders').update({
           status:                'completed',
           stripe_payment_intent: session.payment_intent || null,
           customer_email:        session.customer_email || session.customer_details?.email || null,
           qr_token:              qrToken,
+          ...(stripeFee !== null && { stripe_fee: stripeFee }),
           updated_at:            new Date().toISOString(),
         }).eq('id', orderId);
 

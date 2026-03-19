@@ -46,7 +46,7 @@ export default function AdminDashboard() {
   const STAT_CARDS = [
     { label: 'Total Revenue',      value: fmt(stats?.totalRevenue),                    sub: `${stats?.orderCount || 0} completed orders` },
     { label: 'Tickets Sold',       value: (stats?.totalTickets || 0).toLocaleString(), sub: 'across all events'                          },
-    { label: 'Stripe Fees (est.)', value: fmt(stats?.totalStripeFees),                 sub: '~3% of total processed'                     },
+    { label: 'Stripe Fees', value: fmt(stats?.totalStripeFees),                 sub: 'actual processing fees'                     },
     { label: 'Active Organisers',  value: (stats?.activeOrgCount || 0).toString(),     sub: 'registered on the platform'                 },
   ];
 

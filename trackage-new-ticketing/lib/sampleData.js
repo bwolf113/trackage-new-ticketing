@@ -106,6 +106,7 @@ export function getSampleOrders() {
     }
     const bookingFee = +(subtotal * 0.08).toFixed(2);
     const total      = +(subtotal + bookingFee).toFixed(2);
+    const stripeFee  = +(total * 0.025 + 0.25).toFixed(2); // simulate Stripe 2.5% + €0.25
 
     orders.push({
       id:          `ssample-${String(i).padStart(3,'0')}-${Math.random().toString(36).slice(2,6)}`,
@@ -119,6 +120,7 @@ export function getSampleOrders() {
       organiser_id: org.id,
       event_name:  event.name,
       booking_fee: bookingFee,
+      stripe_fee:  status === 'completed' ? stripeFee : null,
       stripe_payment_intent: status === 'completed' ? `pi_sample_${Math.random().toString(36).slice(2,18)}` : null,
       stripe_charge_id: null,
       events:      { name: event.name, start_time: event.start_time },
@@ -183,7 +185,7 @@ export function getSampleKpis(start, end) {
     kpis: {
       totalRevenue,
       totalBookingFees,
-      totalStripeFees: totalRevenue * 0.03,
+      totalStripeFees: inRange.reduce((s, o) => s + (o.stripe_fee || 0), 0),
       ticketCount,
       orderCount: inRange.length,
       orders: inRange,

@@ -15,7 +15,7 @@ function adminSupabase() {
 async function fetchKpis(supabase, start, end) {
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, total, organiser_id, booking_fee, created_at')
+    .select('id, total, organiser_id, booking_fee, stripe_fee, created_at')
     .eq('status', 'completed')
     .gte('created_at', start)
     .lte('created_at', end);
@@ -30,11 +30,12 @@ async function fetchKpis(supabase, start, end) {
 
   const totalRevenue     = (orders || []).reduce((s, o) => s + (o.total || 0), 0);
   const totalBookingFees = (orders || []).reduce((s, o) => s + (o.booking_fee || 0), 0);
+  const totalStripeFees  = (orders || []).reduce((s, o) => s + (o.stripe_fee || 0), 0);
 
   return {
     totalRevenue,
     totalBookingFees,
-    totalStripeFees: totalRevenue * 0.03,
+    totalStripeFees,
     ticketCount,
     orderCount: (orders || []).length,
     orders,
