@@ -15,7 +15,7 @@ function adminSupabase() {
 async function fetchKpis(supabase, start, end) {
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, total, organiser_id, booking_fee, stripe_fee, created_at')
+    .select('id, total, event_id, organiser_id, booking_fee, stripe_fee, created_at')
     .eq('status', 'completed')
     .gte('created_at', start)
     .lte('created_at', end);
@@ -75,23 +75,33 @@ export async function POST(req) {
     .order('start_time', { ascending: false })
     .limit(20);
 
+  // Build event performance from orders (event_id lives on orders, not order_items)
+  const evtMap = {};
+  for (const o of primary.orders || []) {
+    if (!o.event_id) continue;
+    if (!evtMap[o.event_id]) evtMap[o.event_id] = { revenue: 0, tickets: 0 };
+    evtMap[o.event_id].revenue += o.total || 0;
+  }
+  // Count tickets per event from order_items
   const orderIds = (primary.orders || []).map(o => o.id);
-  let eventPerf = events || [];
-  if (events?.length && orderIds.length) {
+  if (orderIds.length) {
+    // Build order→event lookup
+    const orderEventMap = {};
+    (primary.orders || []).forEach(o => { if (o.event_id) orderEventMap[o.id] = o.event_id; });
+
     const { data: evtItems } = await supabase
       .from('order_items')
-      .select('event_id, quantity, price')
+      .select('order_id, quantity')
       .in('order_id', orderIds);
-    const evtMap = {};
     (evtItems || []).forEach(i => {
-      if (!i.event_id) return;
-      if (!evtMap[i.event_id]) evtMap[i.event_id] = { revenue: 0, tickets: 0 };
-      evtMap[i.event_id].revenue += (i.price || 0) * (i.quantity || 0);
-      evtMap[i.event_id].tickets += i.quantity || 0;
+      const eventId = orderEventMap[i.order_id];
+      if (!eventId) return;
+      if (!evtMap[eventId]) evtMap[eventId] = { revenue: 0, tickets: 0 };
+      evtMap[eventId].tickets += i.quantity || 0;
     });
-    eventPerf = (events || []).map(e => ({ ...e, ...(evtMap[e.id] || { revenue: 0, tickets: 0 }) }))
-      .sort((a, b) => b.revenue - a.revenue);
   }
+  let eventPerf = (events || []).map(e => ({ ...e, ...(evtMap[e.id] || { revenue: 0, tickets: 0 }) }))
+    .sort((a, b) => b.revenue - a.revenue);
 
   // Comparison period (optional)
   let prevKpis = null;
