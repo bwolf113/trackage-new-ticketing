@@ -355,7 +355,11 @@ const CSS = `
   .ord-table th:nth-child(4),
   .ord-table td:nth-child(4),
   .ord-table th:nth-child(5),
-  .ord-table td:nth-child(5) { display: none; }
+  .ord-table td:nth-child(5),
+  .ord-table th:nth-child(6),
+  .ord-table td:nth-child(6),
+  .ord-table th:nth-child(7),
+  .ord-table td:nth-child(7) { display: none; }
   .modal-body { padding: 20px 16px; }
   .modal-header { padding: 18px 16px; }
   .modal-footer { padding: 16px; }
@@ -967,7 +971,9 @@ export default function OrdersPage() {
                   <th>Customer</th>
                   <th>Event</th>
                   <th>Date</th>
-                  <th>Total</th>
+                  <th>Gross</th>
+                  <th>Ticket Value</th>
+                  <th>Booking Fee</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -987,8 +993,14 @@ export default function OrdersPage() {
                     <td style={{ fontSize: 13, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                       {fmtDateShort(order.created_at)}
                     </td>
-                    <td style={{ fontWeight: 600, color: 'var(--green)', whiteSpace: 'nowrap' }}>
+                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {fmtComp(order.total)}
+                    </td>
+                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {fmtComp((order.total || 0) - (order.booking_fee || 0))}
+                    </td>
+                    <td style={{ fontWeight: 600, color: 'var(--green)', whiteSpace: 'nowrap' }}>
+                      {fmt(order.booking_fee)}
                     </td>
                     <td>
                       <StatusBadge status={order.status} />

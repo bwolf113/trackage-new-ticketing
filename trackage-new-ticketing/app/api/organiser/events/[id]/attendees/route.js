@@ -33,7 +33,7 @@ export async function GET(req, { params }) {
   // Completed orders for this event
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, customer_name, customer_email, customer_phone, total, created_at, qr_token, marketing_consent, checked_in_at')
+    .select('id, customer_name, customer_email, customer_phone, total, booking_fee, created_at, qr_token, marketing_consent, checked_in_at')
     .eq('event_id', eventId)
     .eq('status', 'completed')
     .order('created_at', { ascending: false });
@@ -80,7 +80,7 @@ export async function GET(req, { params }) {
       name:               order.customer_name   || '—',
       email:              order.customer_email  || '—',
       phone:              order.customer_phone  || '—',
-      total:              order.total,
+      total:              (order.total || 0) - (order.booking_fee || 0),
       created_at:         order.created_at,
       qr_token:           order.qr_token,
       marketing_consent:  order.marketing_consent || false,

@@ -52,20 +52,25 @@ export async function POST(req) {
   // Primary period KPIs
   const primary = await fetchKpis(supabase, start, end);
 
-  // Organiser ranking
+  // Organiser ranking with settlement data
   const byOrg = {};
   (primary.orders || []).forEach(o => {
     if (!o.organiser_id) return;
-    if (!byOrg[o.organiser_id]) byOrg[o.organiser_id] = { revenue: 0, orders: 0 };
-    byOrg[o.organiser_id].revenue += o.total || 0;
-    byOrg[o.organiser_id].orders  += 1;
+    if (!byOrg[o.organiser_id]) byOrg[o.organiser_id] = { revenue: 0, orders: 0, bookingFees: 0, stripeFees: 0 };
+    byOrg[o.organiser_id].revenue     += o.total || 0;
+    byOrg[o.organiser_id].orders      += 1;
+    byOrg[o.organiser_id].bookingFees += o.booking_fee || 0;
+    byOrg[o.organiser_id].stripeFees  += o.stripe_fee || 0;
   });
 
   const orgIds = Object.keys(byOrg);
   let orgRanking = [];
   if (orgIds.length) {
     const { data: orgs } = await supabase.from('organisers').select('id, name').in('id', orgIds);
-    orgRanking = (orgs || []).map(o => ({ ...o, ...byOrg[o.id] })).sort((a, b) => b.revenue - a.revenue);
+    orgRanking = (orgs || []).map(o => {
+      const d = byOrg[o.id];
+      return { ...o, ...d, ticketFaceValue: d.revenue - d.bookingFees, payout: d.revenue - d.bookingFees - d.stripeFees };
+    }).sort((a, b) => b.revenue - a.revenue);
   }
 
   // Event performance
@@ -79,8 +84,9 @@ export async function POST(req) {
   const evtMap = {};
   for (const o of primary.orders || []) {
     if (!o.event_id) continue;
-    if (!evtMap[o.event_id]) evtMap[o.event_id] = { revenue: 0, tickets: 0 };
-    evtMap[o.event_id].revenue += o.total || 0;
+    if (!evtMap[o.event_id]) evtMap[o.event_id] = { revenue: 0, bookingFees: 0, tickets: 0 };
+    evtMap[o.event_id].revenue     += o.total || 0;
+    evtMap[o.event_id].bookingFees += o.booking_fee || 0;
   }
   // Count tickets per event from order_items
   const orderIds = (primary.orders || []).map(o => o.id);
@@ -96,7 +102,7 @@ export async function POST(req) {
     (evtItems || []).forEach(i => {
       const eventId = orderEventMap[i.order_id];
       if (!eventId) return;
-      if (!evtMap[eventId]) evtMap[eventId] = { revenue: 0, tickets: 0 };
+      if (!evtMap[eventId]) evtMap[eventId] = { revenue: 0, bookingFees: 0, tickets: 0 };
       evtMap[eventId].tickets += i.quantity || 0;
     });
   }

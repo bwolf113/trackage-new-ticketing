@@ -44,7 +44,7 @@ export async function GET(req) {
   // Fetch orders with their event's organiser_id via join
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, total, stripe_fee, event_id, created_at, events(organiser_id)')
+    .select('id, total, booking_fee, stripe_fee, event_id, created_at, events(organiser_id)')
     .eq('status', 'completed')
     .gte('created_at', start)
     .lte('created_at', end);
@@ -59,7 +59,9 @@ export async function GET(req) {
     ticketCount = (items || []).reduce((s, i) => s + (i.quantity || 0), 0);
   }
 
-  const totalRevenue = (orders || []).reduce((s, o) => s + (o.total || 0), 0);
+  const totalRevenue     = (orders || []).reduce((s, o) => s + (o.total || 0), 0);
+  const totalBookingFees = (orders || []).reduce((s, o) => s + (o.booking_fee || 0), 0);
+  const totalTicketRevenue = totalRevenue - totalBookingFees;
 
   // Group by organiser via events join
   const byOrg = {};
@@ -67,7 +69,7 @@ export async function GET(req) {
     const orgId = o.events?.organiser_id;
     if (!orgId) return;
     if (!byOrg[orgId]) byOrg[orgId] = { revenue: 0, orders: 0 };
-    byOrg[orgId].revenue += o.total || 0;
+    byOrg[orgId].revenue += (o.total || 0) - (o.booking_fee || 0);
     byOrg[orgId].orders  += 1;
   });
 
@@ -89,8 +91,10 @@ export async function GET(req) {
 
   return Response.json({
     totalRevenue,
-    totalTickets: ticketCount,
+    totalTicketRevenue,
+    totalBookingFees,
     totalStripeFees: (orders || []).reduce((s, o) => s + (o.stripe_fee || 0), 0),
+    totalTickets: ticketCount,
     orderCount: (orders || []).length,
     activeOrgCount: activeOrgCount || 0,
     leaderboard,

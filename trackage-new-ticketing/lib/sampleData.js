@@ -160,11 +160,13 @@ export function getSampleKpis(start, end) {
   const byOrg = {};
   inRange.forEach(o => {
     if (!o.organiser_id) return;
-    if (!byOrg[o.organiser_id]) byOrg[o.organiser_id] = { id: o.organiser_id, name: o.organisers?.name, revenue: 0, orders: 0 };
-    byOrg[o.organiser_id].revenue += o.total || 0;
-    byOrg[o.organiser_id].orders  += 1;
+    if (!byOrg[o.organiser_id]) byOrg[o.organiser_id] = { id: o.organiser_id, name: o.organisers?.name, revenue: 0, orders: 0, bookingFees: 0, stripeFees: 0 };
+    byOrg[o.organiser_id].revenue     += o.total || 0;
+    byOrg[o.organiser_id].orders      += 1;
+    byOrg[o.organiser_id].bookingFees += o.booking_fee || 0;
+    byOrg[o.organiser_id].stripeFees  += o.stripe_fee || 0;
   });
-  const orgRanking = Object.values(byOrg).sort((a, b) => b.revenue - a.revenue);
+  const orgRanking = Object.values(byOrg).map(d => ({ ...d, payout: d.revenue - d.bookingFees - d.stripeFees })).sort((a, b) => b.revenue - a.revenue);
 
   // Event breakdown
   const byEvt = {};

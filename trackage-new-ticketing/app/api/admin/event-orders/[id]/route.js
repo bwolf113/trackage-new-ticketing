@@ -20,7 +20,7 @@ export async function GET(req, { params }) {
       .select('id, name, start_time, venue_name, organiser_id')
       .eq('id', eventId).single(),
     supabase.from('orders')
-      .select('id, status, total, booking_fee, customer_name, customer_email, created_at')
+      .select('id, status, total, booking_fee, stripe_fee, customer_name, customer_email, created_at')
       .eq('event_id', eventId)
       .order('created_at', { ascending: false }),
     supabase.from('tickets')
@@ -69,17 +69,23 @@ export async function GET(req, { params }) {
     sold:      soldByName[t.name] ?? 0,
   }));
 
-  const totalRevenue     = completedOrders.reduce((s, o) => s + (o.total || 0), 0);
-  const totalTicketsSold = allItems.reduce((s, i) => s + (i.quantity || 0), 0);
+  const totalRevenue      = completedOrders.reduce((s, o) => s + (o.total || 0), 0);
+  const totalBookingFees  = completedOrders.reduce((s, o) => s + (o.booking_fee || 0), 0);
+  const totalStripeFees   = completedOrders.reduce((s, o) => s + (o.stripe_fee || 0), 0);
+  const totalTicketRev    = totalRevenue - totalBookingFees;
+  const totalTicketsSold  = allItems.reduce((s, i) => s + (i.quantity || 0), 0);
 
   return Response.json({
     event: event ? { ...event, organisers: organiser } : null,
     orders: orders || [],
     ticketSummary,
     stats: {
-      total_revenue: totalRevenue,
-      tickets_sold:  totalTicketsSold,
-      order_count:   completedOrders.length,
+      total_revenue:     totalRevenue,
+      total_ticket_rev:  totalTicketRev,
+      total_booking_fees: totalBookingFees,
+      total_stripe_fees: totalStripeFees,
+      tickets_sold:      totalTicketsSold,
+      order_count:       completedOrders.length,
     },
   });
 }

@@ -83,7 +83,7 @@ tbody tr { cursor: pointer; }
 .msg-ok  { background: var(--green-dim); color: var(--green); border-radius: 8px; padding: 9px 12px; font-size: 13px; font-weight: 700; margin-bottom: 14px; }
 .msg-err { background: rgba(239,68,68,0.1); color: #ef4444; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-weight: 700; margin-bottom: 14px; }
 @media(min-width:700px) {
-  .stats-row { grid-template-columns: repeat(4, 1fr); }
+  .stats-row { grid-template-columns: repeat(5, 1fr); }
 }
 @media(max-width:700px) {
   .stat-val { font-size: 18px; }
@@ -192,8 +192,8 @@ function OrderModal({ order, onClose, onUpdated }) {
 
           <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 16px' }} />
 
-          <div className="field-label">Total paid</div>
-          <div className="field-value" style={{ color: 'var(--green)', fontWeight: 700 }}>{fmtComp(order.total)}</div>
+          <div className="field-label">Ticket value</div>
+          <div className="field-value" style={{ color: 'var(--green)', fontWeight: 700 }}>{fmtComp((order.total || 0) - (order.booking_fee || 0))}</div>
         </div>
 
         <div className="modal-footer">
@@ -248,7 +248,7 @@ export default function OrgEventOrdersPage() {
         o.customer_name  || '',
         o.customer_email || '',
         fmtDate(o.created_at),
-        (o.total || 0).toFixed(2),
+        ((o.total || 0) - (o.booking_fee || 0)).toFixed(2),
       ]);
     }
     const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -294,16 +294,20 @@ export default function OrgEventOrdersPage() {
       {/* Stats */}
       <div className="stats-row">
         <div className="stat-card">
-          <div className="stat-label">Orders</div>
-          {loading ? <div className="skel" style={{ height: 24, width: '50%' }} /> : <div className="stat-val">{stats.order_count || 0}</div>}
+          <div className="stat-label">Ticket Face Value</div>
+          {loading ? <div className="skel" style={{ height: 24, width: '50%' }} /> : <div className="stat-val stat-accent">{fmt(stats.total_revenue)}</div>}
+        </div>
+        <div className="stat-card">
+          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Stripe Processing Fees <a href="https://stripe.com/pricing" target="_blank" rel="noopener noreferrer" title="View Stripe's pricing page" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: 'var(--border)', color: 'var(--muted)', fontSize: 9, fontWeight: 700, textDecoration: 'none' }}>?</a></div>
+          {loading ? <div className="skel" style={{ height: 24, width: '50%' }} /> : <div className="stat-val" style={{ color: 'var(--danger, #e53e3e)' }}>{fmt(stats.total_stripe_fees)}</div>}
         </div>
         <div className="stat-card">
           <div className="stat-label">Tickets Sold</div>
           {loading ? <div className="skel" style={{ height: 24, width: '50%' }} /> : <div className="stat-val">{stats.tickets_sold || 0}</div>}
         </div>
         <div className="stat-card">
-          <div className="stat-label">Revenue</div>
-          {loading ? <div className="skel" style={{ height: 24, width: '50%' }} /> : <div className="stat-val stat-accent">{fmt(stats.total_revenue)}</div>}
+          <div className="stat-label">Orders</div>
+          {loading ? <div className="skel" style={{ height: 24, width: '50%' }} /> : <div className="stat-val">{stats.order_count || 0}</div>}
         </div>
         <div className="stat-card">
           <div className="stat-label">Comp Tickets</div>
@@ -376,7 +380,7 @@ export default function OrgEventOrdersPage() {
                       </span>
                     </td>
                     <td style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>{fmtDate(o.created_at)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--green)' }}>{fmtComp(o.total)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--green)' }}>{fmtComp((o.total || 0) - (o.booking_fee || 0))}</td>
                   </tr>
                 );
               })}

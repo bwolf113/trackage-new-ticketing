@@ -19,10 +19,10 @@ function fmtDateShort(dt) {
 }
 
 const CSS = `
-.dash { max-width: 900px; margin: -24px; padding: 32px; }
+.dash { margin: -24px; padding: 32px; }
 .dash-welcome { font-size: 24px; font-weight: 800; color: var(--black); margin-bottom: 4px; letter-spacing: -0.02em; }
 .dash-sub { font-size: 14px; color: var(--muted); font-weight: 500; margin-bottom: 28px; }
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+.stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 28px; }
 .stat-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 20px; }
 .stat-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
 .stat-value { font-size: 26px; font-weight: 700; color: var(--black); }
@@ -42,19 +42,57 @@ const CSS = `
 .badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; }
 .badge-pub { background: var(--green-dim); color: var(--green); }
 .badge-draft { background: rgba(0,0,0,0.06); color: var(--muted); }
+.period-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+.period-btn { padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.period-btn:hover { border-color: var(--black); color: var(--black); }
+.period-btn.active { background: var(--black); color: var(--white); border-color: var(--black); }
+.date-range { display: flex; gap: 8px; align-items: center; }
+.date-input { padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 13px; font-family: inherit; }
 .btn-create { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; background: var(--black); color: var(--white); border: none; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
 .btn-create:hover { opacity: 0.8; }
 .skel { height: 14px; border-radius: 8px; background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media(max-width:900px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
 @media(max-width:700px) { .stats-grid { grid-template-columns: 1fr 1fr; } .two-col { grid-template-columns: 1fr; } }
 @media(max-width:460px) { .stats-grid { grid-template-columns: 1fr; } }
 `;
+
+function getRange(period, customFrom, customTo) {
+  const now = new Date();
+  if (period === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const end   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+    return { from: start, to: end };
+  }
+  if (period === 'last') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+    const end   = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+    return { from: start, to: end };
+  }
+  if (period === 'custom' && customFrom && customTo) {
+    return { from: customFrom, to: customTo };
+  }
+  return {};
+}
 
 export default function OrganiserDashboard() {
   const router = useRouter();
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
   const [name,    setName]    = useState('');
+  const [period,  setPeriod]  = useState('all');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo,   setCustomTo]   = useState('');
+
+  function fetchDashboard(p, cf, ct) {
+    setLoading(true);
+    const range = p === 'all' ? {} : getRange(p, cf, ct);
+    const qs = range.from ? `?from=${range.from}&to=${range.to}` : '';
+    orgFetch(`/api/organiser/dashboard${qs}`)
+      .then(r => r.json())
+      .then(json => { setData(json); setLoading(false); })
+      .catch(() => setLoading(false));
+  }
 
   useEffect(() => {
     const organiser_id = (localStorage.getItem('organiser_id') || sessionStorage.getItem('organiser_id'));
@@ -63,11 +101,16 @@ export default function OrganiserDashboard() {
 
     if (!organiser_id) { router.push('/organiser/login'); return; }
 
-    orgFetch('/api/organiser/dashboard')
-      .then(r => r.json())
-      .then(json => { setData(json); setLoading(false); })
-      .catch(() => setLoading(false));
+    fetchDashboard('all');
   }, []);
+
+  function handlePeriod(p) {
+    setPeriod(p);
+    if (p !== 'custom') fetchDashboard(p);
+  }
+  function handleCustomApply() {
+    if (customFrom && customTo) fetchDashboard('custom', customFrom, customTo);
+  }
 
   const stats = data?.stats || {};
   const upcoming = data?.upcoming_events || [];
@@ -80,19 +123,36 @@ export default function OrganiserDashboard() {
         <div className="dash-welcome">Welcome back, {name} 👋</div>
         <div className="dash-sub">Here's what's happening with your events.</div>
 
+        {/* Period filter */}
+        <div className="period-bar">
+          {[['all', 'All Time'], ['month', 'This Month'], ['last', 'Last Month'], ['custom', 'Custom']].map(([k, l]) => (
+            <button key={k} className={`period-btn ${period === k ? 'active' : ''}`} onClick={() => handlePeriod(k)}>{l}</button>
+          ))}
+          {period === 'custom' && (
+            <div className="date-range">
+              <input type="date" className="date-input" value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+              <span style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 500 }}>to</span>
+              <input type="date" className="date-input" value={customTo} onChange={e => setCustomTo(e.target.value)} />
+              <button className="period-btn active" onClick={handleCustomApply}>Apply</button>
+            </div>
+          )}
+        </div>
+
         {/* Stats */}
         <div className="stats-grid">
           {[
             { label: 'Total Events',       value: loading ? null : stats.total_events     || 0,  accent: false },
             { label: 'Completed Orders',   value: loading ? null : stats.completed_orders || 0,  accent: false },
             { label: 'Tickets Sold',       value: loading ? null : stats.tickets_sold     || 0,  accent: false },
-            { label: 'Total Revenue',      value: loading ? null : fmt(stats.total_revenue || 0), accent: true  },
-          ].map(({ label, value, accent }) => (
+            { label: 'Ticket Revenue',          value: loading ? null : fmt(stats.total_revenue || 0),     accent: false },
+            { label: 'Stripe Processing Fees', value: loading ? null : fmt(stats.total_stripe_fees || 0), accent: false, danger: true, tooltip: true },
+            { label: 'Your Payout',            value: loading ? null : fmt(stats.total_payout  || 0),     accent: true  },
+          ].map(({ label, value, accent, danger, tooltip }) => (
             <div className="stat-card" key={label}>
-              <div className="stat-label">{label}</div>
+              <div className="stat-label" style={tooltip ? { display: 'flex', alignItems: 'center', gap: 4 } : undefined}>{label}{tooltip && <a href="https://stripe.com/pricing" target="_blank" rel="noopener noreferrer" title="View Stripe's pricing page" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: 'var(--border)', color: 'var(--muted)', fontSize: 9, fontWeight: 700, textDecoration: 'none' }}>?</a>}</div>
               {loading
                 ? <div className="skel" style={{ height: 28, width: '60%' }} />
-                : <div className={`stat-value ${accent ? 'stat-accent' : ''}`}>{value}</div>
+                : <div className={`stat-value ${accent ? 'stat-accent' : ''}`} style={danger ? { color: 'var(--danger)' } : undefined}>{value}</div>
               }
             </div>
           ))}

@@ -31,7 +31,7 @@ export async function GET(req, { params }) {
 
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, status, total, booking_fee, customer_name, customer_email, customer_phone, created_at')
+    .select('id, status, total, booking_fee, stripe_fee, customer_name, customer_email, customer_phone, created_at')
     .eq('event_id', eventId)
     .order('created_at', { ascending: false });
 
@@ -65,7 +65,7 @@ export async function GET(req, { params }) {
       ...t,
       sold: soldByName[t.name] ?? 0,
     }));
-    totalRevenue = completedOrders.reduce((s, o) => s + (o.total || 0), 0);
+    totalRevenue = completedOrders.reduce((s, o) => s + ((o.total || 0) - (o.booking_fee || 0)), 0);
   }
 
   const compOrders = completedOrders.filter(o => !o.total || o.total === 0);
@@ -84,6 +84,7 @@ export async function GET(req, { params }) {
     ticketSummary,
     stats: {
       total_revenue:      totalRevenue,
+      total_stripe_fees:  completedOrders.reduce((s, o) => s + (o.stripe_fee || 0), 0),
       tickets_sold:       totalTicketsSold,
       order_count:        completedOrders.length,
       comp_tickets_count: compTicketsCount,

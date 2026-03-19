@@ -230,7 +230,7 @@ export default function ReportsPage() {
         // ── Sample data path ──
         const { kpis: k, orgRanking: orgs, eventPerf: evts } = getSampleKpis(start, end);
         setKpis(k);
-        setRevBreak({ grossRevenue: k.totalRevenue, bookingFees: k.totalBookingFees, stripeFees: k.totalStripeFees, netRevenue: k.totalRevenue - k.totalStripeFees });
+        setRevBreak({ grossRevenue: k.totalRevenue, bookingFees: k.totalBookingFees, stripeFees: k.totalStripeFees, organiserPayout: k.totalRevenue - k.totalBookingFees - k.totalStripeFees, platformNet: k.totalBookingFees });
         setOrgRanking(orgs);
         setEventPerf(evts);
 
@@ -248,10 +248,11 @@ export default function ReportsPage() {
 
       setKpis(data.kpis);
       setRevBreak({
-        grossRevenue: data.kpis.totalRevenue,
-        bookingFees:  data.kpis.totalBookingFees,
-        stripeFees:   data.kpis.totalStripeFees,
-        netRevenue:   data.kpis.totalRevenue - data.kpis.totalStripeFees,
+        grossRevenue:    data.kpis.totalRevenue,
+        bookingFees:     data.kpis.totalBookingFees,
+        stripeFees:      data.kpis.totalStripeFees,
+        organiserPayout: data.kpis.totalRevenue - data.kpis.totalBookingFees - data.kpis.totalStripeFees,
+        platformNet:     data.kpis.totalBookingFees,
       });
       setOrgRanking(data.orgRanking || []);
       setEventPerf(data.eventPerf || []);
@@ -262,7 +263,7 @@ export default function ReportsPage() {
 
   function handleExportCSV() {
     if (!orgRanking.length) return;
-    const rows = [['Rank','Organiser','Orders','Revenue (€)'], ...orgRanking.map((o,i) => [i+1, o.name, o.orders, o.revenue.toFixed(2)])];
+    const rows = [['Rank','Organiser','Orders','Gross (€)','Ticket Value (€)','Booking Fee (€)','Stripe Fee (€)','Payout (€)'], ...orgRanking.map((o,i) => [i+1, o.name, o.orders, o.revenue.toFixed(2), o.ticketFaceValue.toFixed(2), o.bookingFees.toFixed(2), o.stripeFees.toFixed(2), o.payout.toFixed(2)])];
     const blob = new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `trackage-report-${period}.csv`; a.click();
@@ -427,11 +428,13 @@ export default function ReportsPage() {
             <div className="section-header"><div className="section-title">Revenue Breakdown</div></div>
             <div className="card">
               <div className="breakdown-row"><span className="breakdown-label">Gross Revenue</span><span className="breakdown-value">{fmt(revBreak?.grossRevenue)}</span></div>
-              <div className="breakdown-row"><span className="breakdown-label">Booking Fees (earned)</span><span className="breakdown-value" style={{color:'var(--green)'}}>+{fmt(revBreak?.bookingFees)}</span></div>
-              <div className="breakdown-row"><span className="breakdown-label">Stripe Fees</span><span className="breakdown-value" style={{color:'var(--danger)'}}>−{fmt(revBreak?.stripeFees)}</span></div>
+              <div className="breakdown-row"><span className="breakdown-label">Ticket Face Value</span><span className="breakdown-value">{fmt((revBreak?.grossRevenue || 0) - (revBreak?.bookingFees || 0))}</span></div>
+              <div className="breakdown-row"><span className="breakdown-label">Booking Fees (you keep)</span><span className="breakdown-value" style={{color:'var(--green)'}}>+{fmt(revBreak?.bookingFees)}</span></div>
+              <div className="breakdown-row"><span className="breakdown-label">Stripe Fees (organiser cost)</span><span className="breakdown-value" style={{color:'var(--danger)'}}>−{fmt(revBreak?.stripeFees)}</span></div>
+              <div className="breakdown-row"><span className="breakdown-label">Organiser Payout</span><span className="breakdown-value">{fmt(revBreak?.organiserPayout)}</span></div>
               <div className="breakdown-row" style={{borderTop:'2px solid var(--border)',background:'var(--bg)'}}>
-                <span className="breakdown-label" style={{fontWeight:700,color:'var(--black)'}}>Net Revenue</span>
-                <span className="breakdown-value" style={{fontSize:16,color:'var(--green)'}}>{fmt(revBreak?.netRevenue)}</span>
+                <span className="breakdown-label" style={{fontWeight:700,color:'var(--black)'}}>Platform Net</span>
+                <span className="breakdown-value" style={{fontSize:16,color:'var(--green)'}}>{fmt(revBreak?.platformNet)}</span>
               </div>
             </div>
           </div>
@@ -462,7 +465,7 @@ export default function ReportsPage() {
                     <div className="bar-label" title={org.name}>{org.name}</div>
                     <div className="bar-track">
                       <div className="bar-fill" style={{width:`${Math.max(4,(org.revenue/maxRev)*100)}%`,background:colors[i%colors.length]}}>
-                        <span className="bar-val">{fmt(org.revenue)}</span>
+                        <span className="bar-val">{fmt(org.revenue)} (Tickets: {fmt(org.ticketFaceValue)} · Fees: {fmt(org.bookingFees)})</span>
                       </div>
                     </div>
                   </div>
@@ -475,7 +478,7 @@ export default function ReportsPage() {
 
       {/* ── Organiser rankings table ── */}
       <div className="section">
-        <div className="section-header"><div className="section-title">Organiser Rankings</div><button className="btn-outline" onClick={handleExportCSV}>⬇ Export CSV</button></div>
+        <div className="section-header"><div className="section-title">Organiser Settlements</div><button className="btn-outline" onClick={handleExportCSV}>⬇ Export CSV</button></div>
         <div className="card">
           {loading ? (
             <div style={{padding:24,display:'flex',flexDirection:'column',gap:10}}>{[1,2,3,4].map(i=><div key={i} className="skel" style={{height:40}}/>)}</div>
@@ -484,24 +487,19 @@ export default function ReportsPage() {
           ) : (
             <div className="table-wrap">
               <table>
-                <thead><tr><th>#</th><th>Organiser</th><th>Orders</th><th>Revenue</th><th>Share</th></tr></thead>
+                <thead><tr><th>#</th><th>Organiser</th><th>Orders</th><th>Gross</th><th>Ticket Value</th><th>Booking Fee</th><th>Stripe Fee</th><th>Payout</th></tr></thead>
                 <tbody>
                   {orgRanking.map((org,i) => {
-                    const share = kpis?.totalRevenue ? ((org.revenue/kpis.totalRevenue)*100).toFixed(1) : '0';
                     return (
                       <tr key={org.id}>
                         <td><span className={`rank ${i===0?'r1':i===1?'r2':i===2?'r3':'rn'}`}>{i+1}</span></td>
                         <td style={{fontWeight:600}}>{org.name}</td>
                         <td style={{color:'var(--muted)'}}>{org.orders}</td>
-                        <td style={{fontWeight:700,color:'var(--green)'}}>{fmt(org.revenue)}</td>
-                        <td>
-                          <div style={{display:'flex',alignItems:'center',gap:8}}>
-                            <div style={{width:60,height:6,background:'var(--bg)',borderRadius:4,border:'1px solid var(--border)',overflow:'hidden'}}>
-                              <div style={{width:`${share}%`,height:'100%',background:'var(--green)',borderRadius:4}}/>
-                            </div>
-                            <span style={{fontSize:12,color:'var(--muted)'}}>{share}%</span>
-                          </div>
-                        </td>
+                        <td>{fmt(org.revenue)}</td>
+                        <td>{fmt(org.ticketFaceValue)}</td>
+                        <td style={{color:'var(--green)'}}>{fmt(org.bookingFees)}</td>
+                        <td style={{color:'var(--danger)'}}>{fmt(org.stripeFees)}</td>
+                        <td style={{fontWeight:700}}>{fmt(org.payout)}</td>
                       </tr>
                     );
                   })}
@@ -523,17 +521,22 @@ export default function ReportsPage() {
           ) : (
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Event</th><th>Date</th><th>Status</th><th>Tickets Sold</th><th>Revenue</th></tr></thead>
+                <thead><tr><th>Event</th><th>Date</th><th>Status</th><th>Tickets Sold</th><th>Gross Revenue</th><th>Ticket Value</th><th>Booking Fees</th></tr></thead>
                 <tbody>
-                  {eventPerf.map(e => (
-                    <tr key={e.id}>
-                      <td style={{fontWeight:600}}>{e.name}</td>
-                      <td style={{color:'var(--muted)',fontSize:13}}>{fmtDate(e.start_time)}</td>
-                      <td>{eventStatus(e)}</td>
-                      <td style={{color:'var(--muted)'}}>{e.tickets||0}</td>
-                      <td style={{fontWeight:700,color:'var(--green)'}}>{fmt(e.revenue)}</td>
-                    </tr>
-                  ))}
+                  {eventPerf.map(e => {
+                    const ticketValue = (e.revenue || 0) - (e.bookingFees || 0);
+                    return (
+                      <tr key={e.id}>
+                        <td style={{fontWeight:600}}>{e.name}</td>
+                        <td style={{color:'var(--muted)',fontSize:13}}>{fmtDate(e.start_time)}</td>
+                        <td>{eventStatus(e)}</td>
+                        <td style={{color:'var(--muted)'}}>{e.tickets||0}</td>
+                        <td style={{fontWeight:700}}>{fmt(e.revenue)}</td>
+                        <td style={{fontWeight:600}}>{fmt(ticketValue)}</td>
+                        <td style={{color:'var(--green)'}}>{fmt(e.bookingFees)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

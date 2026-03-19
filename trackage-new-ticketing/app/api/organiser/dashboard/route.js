@@ -37,16 +37,30 @@ export async function GET(req) {
       });
     }
 
+    // Date filter
+    const { searchParams } = new URL(req.url);
+    const from = searchParams.get('from');
+    const to   = searchParams.get('to');
+
     // Fetch completed orders for those events
-    const { data: orders } = await supabase
+    let orderQuery = supabase
       .from('orders')
-      .select('id, status, total, customer_name, customer_email, created_at, event_id')
+      .select('id, status, total, booking_fee, stripe_fee, customer_name, customer_email, created_at, event_id')
       .in('event_id', eventIds)
       .eq('status', 'completed')
       .order('created_at', { ascending: false });
 
+    if (from) orderQuery = orderQuery.gte('created_at', from);
+    if (to)   orderQuery = orderQuery.lte('created_at', to + 'T23:59:59');
+
+    const { data: orders } = await orderQuery;
+
     const completedOrders = orders || [];
-    const totalRevenue = completedOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const totalGross       = completedOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const totalBookingFees = completedOrders.reduce((s, o) => s + (o.booking_fee || 0), 0);
+    const totalStripeFees  = completedOrders.reduce((s, o) => s + (o.stripe_fee || 0), 0);
+    const totalRevenue     = totalGross - totalBookingFees;
+    const totalPayout      = totalRevenue - totalStripeFees;
 
     // Count tickets sold from order_items
     let ticketsSold = 0;
@@ -75,6 +89,8 @@ export async function GET(req) {
       stats: {
         total_events:     eventIds.length,
         total_revenue:    totalRevenue,
+        total_stripe_fees: totalStripeFees,
+        total_payout:     totalPayout,
         tickets_sold:     ticketsSold,
         completed_orders: completedOrders.length,
       },

@@ -31,11 +31,13 @@ export default function AdminDashboard() {
 
       setOrgLeaders(data.leaderboard || []);
       setStats({
-        totalRevenue:    data.totalRevenue,
-        totalTickets:    data.totalTickets,
-        totalStripeFees: data.totalStripeFees,
-        orderCount:      data.orderCount,
-        activeOrgCount:  data.activeOrgCount,
+        totalRevenue:       data.totalRevenue,
+        totalTicketRevenue: data.totalTicketRevenue,
+        totalBookingFees:   data.totalBookingFees,
+        totalStripeFees:    data.totalStripeFees,
+        totalTickets:       data.totalTickets,
+        orderCount:         data.orderCount,
+        activeOrgCount:     data.activeOrgCount,
       });
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -44,10 +46,12 @@ export default function AdminDashboard() {
   const top = orgLeaders[0];
   const bottom = orgLeaders[orgLeaders.length - 1];
   const STAT_CARDS = [
-    { label: 'Total Revenue',      value: fmt(stats?.totalRevenue),                    sub: `${stats?.orderCount || 0} completed orders` },
-    { label: 'Tickets Sold',       value: (stats?.totalTickets || 0).toLocaleString(), sub: 'across all events'                          },
-    { label: 'Stripe Fees', value: fmt(stats?.totalStripeFees),                 sub: 'actual processing fees'                     },
-    { label: 'Active Organisers',  value: (stats?.activeOrgCount || 0).toString(),     sub: 'registered on the platform'                 },
+    { label: 'Total Revenue',       value: fmt(stats?.totalRevenue),                    sub: `${stats?.orderCount || 0} completed orders`, accent: true },
+    { label: 'Ticket Face Value',   value: fmt(stats?.totalTicketRevenue),              sub: 'excl. booking fees' },
+    { label: 'Booking Fees',        value: fmt(stats?.totalBookingFees),                sub: 'platform revenue', accent: true },
+    { label: 'Stripe Fees',         value: fmt(stats?.totalStripeFees),                 sub: 'actual processing fees', danger: true },
+    { label: 'Tickets Sold',        value: (stats?.totalTickets || 0).toLocaleString(), sub: 'across all events' },
+    { label: 'Active Organisers',   value: (stats?.activeOrgCount || 0).toString(),     sub: 'registered on the platform' },
   ];
 
   return (
@@ -120,11 +124,11 @@ export default function AdminDashboard() {
       </div>
 
       <div className="stats-grid">
-        {STAT_CARDS.map((card, i) => (
-          <div key={card.label} className={`stat-card ${i===0?'stat-card-accent':''}`}>
-            {i===0 && <div className="stat-dot"/>}
+        {STAT_CARDS.map((card) => (
+          <div key={card.label} className={`stat-card ${card.accent?'stat-card-accent':''}`}>
+            {card.accent && <div className="stat-dot"/>}
             <div className="stat-label">{card.label}</div>
-            {loading ? <div className="skel"/> : <div className={`stat-value ${i===0?'stat-value-green':''}`}>{card.value}</div>}
+            {loading ? <div className="skel"/> : <div className="stat-value" style={card.accent ? { color: 'var(--green)' } : card.danger ? { color: 'var(--danger, #e53e3e)' } : undefined}>{card.value}</div>}
             {!loading && <div className="stat-sub">{card.sub}</div>}
           </div>
         ))}

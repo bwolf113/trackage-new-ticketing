@@ -392,8 +392,12 @@ export default function CRMPage() {
           {/* Stat tiles */}
           <div className="tiles">
             <div className="tile">
-              <div className="tile-label">Total Revenue</div>
-              {rLoading ? <div className="skel" style={{ height: 32, width: 100 }} /> : <div className="tile-value green">{fmt(summary.total_revenue)}</div>}
+              <div className="tile-label">Gross Revenue</div>
+              {rLoading ? <div className="skel" style={{ height: 32, width: 100 }} /> : <div className="tile-value">{fmt(summary.total_revenue)}</div>}
+            </div>
+            <div className="tile">
+              <div className="tile-label">Your Payout</div>
+              {rLoading ? <div className="skel" style={{ height: 32, width: 100 }} /> : <div className="tile-value green">{fmt(summary.total_payout)}</div>}
             </div>
             <div className="tile">
               <div className="tile-label">Tickets Sold</div>
@@ -404,6 +408,18 @@ export default function CRMPage() {
               {rLoading ? <div className="skel" style={{ height: 32, width: 50 }} /> : <div className="tile-value purple">{summary.total_orders ?? 0}</div>}
             </div>
           </div>
+
+          {/* Payout breakdown */}
+          {!rLoading && summary.total_revenue > 0 && (
+            <div className="chart-card" style={{ padding: '16px 20px' }}>
+              <div className="chart-title" style={{ marginBottom: 12 }}>Payout Breakdown</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Ticket Revenue</span><span>{fmt(summary.total_revenue)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Stripe Processing Fees <a href="https://stripe.com/pricing" target="_blank" rel="noopener noreferrer" title="View Stripe's pricing page" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: 'var(--border)', color: 'var(--muted)', fontSize: 10, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>?</a></span><span style={{ color: 'var(--danger)' }}>−{fmt(summary.total_stripe_fees)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid var(--border)', paddingTop: 8, fontWeight: 700 }}><span>Your Payout</span><span style={{ color: 'var(--green)' }}>{fmt(summary.total_payout)}</span></div>
+              </div>
+            </div>
+          )}
 
           {/* Daily Revenue */}
           <div className="chart-card">

@@ -126,14 +126,15 @@ export default function EventOrdersPage() {
   });
 
   function exportCSV() {
-    const rows = [['Order #', 'Name', 'Email', 'Date', 'Total (€)']];
+    const rows = [['Order #', 'Name', 'Email', 'Date', 'Ticket Value (€)', 'Booking Fee (€)']];
     for (const o of filtered) {
       rows.push([
         `#${(o.id || '').slice(0, 8).toUpperCase()}`,
         o.customer_name || '',
         o.customer_email || '',
         fmtDateShort(o.created_at),
-        (o.total || 0).toFixed(2),
+        ((o.total || 0) - (o.booking_fee || 0)).toFixed(2),
+        (o.booking_fee || 0).toFixed(2),
       ]);
     }
     const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -200,9 +201,25 @@ export default function EventOrdersPage() {
                     <span className="total-row-label">Completed orders</span>
                     <span className="total-row-value" style={{ fontSize: 14 }}>{stats.order_count || 0}</span>
                   </div>
+                  <div className="total-row">
+                    <span className="total-row-label">Gross Revenue</span>
+                    <span className="total-row-value" style={{ fontSize: 14 }}>{fmt(stats.total_revenue)}</span>
+                  </div>
+                  <div className="total-row">
+                    <span className="total-row-label">Ticket Face Value</span>
+                    <span className="total-row-value" style={{ fontSize: 14 }}>{fmt(stats.total_ticket_rev)}</span>
+                  </div>
+                  <div className="total-row">
+                    <span className="total-row-label">Booking Fees</span>
+                    <span className="total-row-value" style={{ fontSize: 14, color: 'var(--green)' }}>{fmt(stats.total_booking_fees)}</span>
+                  </div>
+                  <div className="total-row">
+                    <span className="total-row-label">Stripe Fees</span>
+                    <span className="total-row-value" style={{ fontSize: 14, color: '#e53e3e' }}>{fmt(stats.total_stripe_fees)}</span>
+                  </div>
                   <div className="total-row highlight">
-                    <span className="total-row-label">Total Revenue</span>
-                    <span className="total-row-value">{fmt(stats.total_revenue)}</span>
+                    <span className="total-row-label">Organiser Payout</span>
+                    <span className="total-row-value">{fmt((stats.total_ticket_rev || 0) - (stats.total_stripe_fees || 0))}</span>
                   </div>
                 </div>
               </div>
@@ -239,7 +256,8 @@ export default function EventOrdersPage() {
                     <th>Name</th>
                     <th>Email</th>
                     <th>Date</th>
-                    <th>Total</th>
+                    <th>Ticket Value</th>
+                    <th>Booking Fee</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -249,7 +267,8 @@ export default function EventOrdersPage() {
                       <td><div className="name-cell">{order.customer_name || '—'}</div></td>
                       <td><div className="email-cell">{order.customer_email || '—'}</div></td>
                       <td style={{ fontSize: 13, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmtDateShort(order.created_at)}</td>
-                      <td style={{ fontWeight: 700, color: 'var(--green)', whiteSpace: 'nowrap' }}>{fmtComp(order.total)}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--green)', whiteSpace: 'nowrap' }}>{fmtComp((order.total || 0) - (order.booking_fee || 0))}</td>
+                      <td style={{ fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmt(order.booking_fee)}</td>
                     </tr>
                   ))}
                 </tbody>

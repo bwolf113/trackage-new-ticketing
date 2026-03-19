@@ -80,16 +80,20 @@ export async function POST(req) {
         const qrToken = crypto.randomUUID();
 
         // Fetch actual Stripe fee from balance transaction
+        // Small delay — balance_transaction may not be available immediately
         let stripeFee = null;
         if (session.payment_intent) {
-          try {
-            const pi = await stripe.paymentIntents.retrieve(session.payment_intent, {
-              expand: ['latest_charge.balance_transaction'],
-            });
-            const fee = pi.latest_charge?.balance_transaction?.fee;
-            if (typeof fee === 'number') stripeFee = fee / 100; // cents → EUR
-          } catch (feeErr) {
-            console.error('Could not fetch Stripe fee:', feeErr.message);
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+              const pi = await stripe.paymentIntents.retrieve(session.payment_intent, {
+                expand: ['latest_charge.balance_transaction'],
+              });
+              const fee = pi.latest_charge?.balance_transaction?.fee;
+              if (typeof fee === 'number') { stripeFee = fee / 100; break; }
+            } catch (feeErr) {
+              console.error(`Stripe fee fetch attempt ${attempt + 1}:`, feeErr.message);
+            }
           }
         }
 

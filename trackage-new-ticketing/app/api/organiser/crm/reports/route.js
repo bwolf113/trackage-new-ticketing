@@ -31,7 +31,7 @@ export async function GET(req) {
 
   let q = supabase
     .from('orders')
-    .select('id, total, created_at, event_id')
+    .select('id, total, booking_fee, stripe_fee, created_at, event_id')
     .in('event_id', eventIds)
     .eq('status', 'completed')
     .order('created_at', { ascending: true });
@@ -50,9 +50,13 @@ export async function GET(req) {
     allItems = items || [];
   }
 
-  const totalRevenue = paidOrders.reduce((s, o) => s + (o.total || 0), 0);
-  const totalTickets = allItems.reduce((s, i) => s + (i.quantity || 0), 0);
-  const totalOrders  = paidOrders.length;
+  const totalGross       = paidOrders.reduce((s, o) => s + (o.total || 0), 0);
+  const totalBookingFees = paidOrders.reduce((s, o) => s + (o.booking_fee || 0), 0);
+  const totalStripeFees  = paidOrders.reduce((s, o) => s + (o.stripe_fee || 0), 0);
+  const totalTicketRevenue = totalGross - totalBookingFees; // face value only
+  const totalPayout      = totalTicketRevenue - totalStripeFees;
+  const totalTickets     = allItems.reduce((s, i) => s + (i.quantity || 0), 0);
+  const totalOrders      = paidOrders.length;
 
   // Daily map
   const dailyMap     = {};
@@ -62,7 +66,7 @@ export async function GET(req) {
     if (!date) continue;
     orderDateMap[o.id] = date;
     if (!dailyMap[date]) dailyMap[date] = { revenue: 0, tickets: 0 };
-    dailyMap[date].revenue += o.total || 0;
+    dailyMap[date].revenue += (o.total || 0) - (o.booking_fee || 0);
   }
   for (const item of allItems) {
     const date = orderDateMap[item.order_id];
@@ -81,7 +85,7 @@ export async function GET(req) {
   const eventTixMap   = {};
   for (const o of paidOrders) {
     orderEventMap[o.id]    = o.event_id;
-    eventRevMap[o.event_id] = (eventRevMap[o.event_id] || 0) + (o.total || 0);
+    eventRevMap[o.event_id] = (eventRevMap[o.event_id] || 0) + ((o.total || 0) - (o.booking_fee || 0));
     eventOrdMap[o.event_id] = (eventOrdMap[o.event_id] || 0) + 1;
   }
   for (const item of allItems) {
@@ -100,7 +104,7 @@ export async function GET(req) {
     .sort((a, b) => b.revenue - a.revenue);
 
   return Response.json({
-    summary: { total_revenue: totalRevenue, total_tickets: totalTickets, total_orders: totalOrders },
+    summary: { total_revenue: totalTicketRevenue, total_stripe_fees: totalStripeFees, total_payout: totalPayout, total_tickets: totalTickets, total_orders: totalOrders },
     daily_sales,
     by_event,
   });
