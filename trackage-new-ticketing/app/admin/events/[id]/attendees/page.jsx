@@ -1,7 +1,7 @@
 /* app/admin/events/[id]/attendees/page.jsx */
 'use client';
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { adminFetch } from '../../../../../lib/adminFetch';
 
@@ -29,7 +29,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black); backgr
 .att-table { width: 100%; border-collapse: collapse; }
 .att-table th { background: var(--bg); padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 1.5px solid var(--border); white-space: nowrap; }
 .att-table td { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 14px; color: var(--black); vertical-align: middle; font-weight: 500; }
-.att-table tr:hover td { background: var(--bg); }
+.att-table tr:hover td { background: var(--bg); cursor: pointer; }
 .name-cell { font-weight: 600; color: var(--black); }
 .email-cell { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .mono { font-family: monospace; font-size: 12px; color: var(--muted); }
@@ -52,6 +52,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; color: var(--black); backgr
 
 export default function AttendeesPage() {
   const { id: eventId } = useParams();
+  const router = useRouter();
   const [event,      setEvent]     = useState(null);
   const [attendees,  setAttendees] = useState([]);
   const [loading,    setLoading]   = useState(true);
@@ -199,7 +200,7 @@ export default function AttendeesPage() {
                 const allCheckedIn = a.checkin_total > 0 && a.checkin_count === a.checkin_total;
                 const partialCheckedIn = a.checkin_count > 0 && !allCheckedIn;
                 return (
-                  <tr key={i}>
+                  <tr key={i} onClick={() => router.push(`/admin/orders?order=${a.order_id}`)}>
                     <td>
                       <div className="name-cell">{a.customer_name || '—'}</div>
                     </td>
@@ -225,7 +226,7 @@ export default function AttendeesPage() {
                           <button
                             className="btn-undo"
                             disabled={undoing[a.order_id] === 'loading'}
-                            onClick={() => undoCheckIn(a.order_id)}
+                            onClick={e => { e.stopPropagation(); undoCheckIn(a.order_id); }}
                           >
                             {undoing[a.order_id] === 'loading' ? '…' : 'Undo check-in'}
                           </button>
@@ -237,7 +238,7 @@ export default function AttendeesPage() {
                             className="btn-checkin"
                             style={{ marginTop: 4 }}
                             disabled={checkingIn[a.order_id] === 'loading'}
-                            onClick={() => checkIn(a.order_id)}
+                            onClick={e => { e.stopPropagation(); checkIn(a.order_id); }}
                           >
                             {checkingIn[a.order_id] === 'loading' ? '…' : 'Check in remaining'}
                           </button>
@@ -246,7 +247,7 @@ export default function AttendeesPage() {
                         <button
                           className="btn-checkin"
                           disabled={checkingIn[a.order_id] === 'loading'}
-                          onClick={() => checkIn(a.order_id)}
+                          onClick={e => { e.stopPropagation(); checkIn(a.order_id); }}
                         >
                           {checkingIn[a.order_id] === 'loading' ? '…' : 'Check in'}
                         </button>

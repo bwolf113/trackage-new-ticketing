@@ -1,6 +1,7 @@
 /* app/admin/orders/page.jsx */
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { isSampleMode, setSampleMode, getSampleOrders, getSampleEvents } from '../../../lib/sampleData';
 import { adminFetch } from '../../../lib/adminFetch';
 
@@ -396,10 +397,16 @@ function OrderDetail({ orderId, onClose, onStatusChange }) {
   const [refundAmt,     setRefundAmt]     = useState('');
   const [refundLoading, setRefundLoading] = useState(false);
   const [showStatus,    setShowStatus]    = useState(false);
+  const statusRef = useRef(null);
   const [statusSaving,  setStatusSaving]  = useState(false);
   const [msg, setMsg] = useState(null); // { text, ok }
 
   useEffect(() => { fetchOrder(); }, [orderId]);
+  useEffect(() => {
+    if (showStatus && statusRef.current) {
+      statusRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [showStatus]);
 
   async function fetchOrder() {
     setLoading(true);
@@ -696,7 +703,7 @@ function OrderDetail({ orderId, onClose, onStatusChange }) {
 
           {/* ── Change Status panel ── */}
           {showStatus && (
-            <div style={{ border: '1.5px solid var(--border)', borderRadius: 10, padding: '16px 18px', background: 'var(--bg)', marginTop: 4, marginBottom: 4 }}>
+            <div ref={statusRef} style={{ border: '1.5px solid var(--border)', borderRadius: 10, padding: '16px 18px', background: 'var(--bg)', marginTop: 4, marginBottom: 4 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--black)', marginBottom: 12 }}>Change Order Status</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {[
@@ -794,9 +801,12 @@ export default function OrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [toast, setToast]             = useState(null);
   const [sampleMode, setSampleModeState] = useState(false);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     setSampleModeState(isSampleMode());
+    const orderParam = searchParams.get('order');
+    if (orderParam) setSelectedOrderId(orderParam);
   }, []);
   useEffect(() => { loadOrdersWithMode(sampleMode, activeTab, search, eventFilter, page); }, [activeTab, search, eventFilter, page, sampleMode]);
 
