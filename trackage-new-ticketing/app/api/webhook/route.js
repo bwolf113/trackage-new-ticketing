@@ -83,9 +83,9 @@ export async function POST(req) {
         // Small delay — balance_transaction may not be available immediately
         let stripeFee = null;
         if (session.payment_intent) {
-          for (let attempt = 0; attempt < 3; attempt++) {
+          for (let attempt = 0; attempt < 5; attempt++) {
             try {
-              if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+              if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
               const pi = await stripe.paymentIntents.retrieve(session.payment_intent, {
                 expand: ['latest_charge.balance_transaction'],
               });
