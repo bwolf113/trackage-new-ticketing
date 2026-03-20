@@ -104,7 +104,7 @@ const jsonLd = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${dmSerif.variable} ${dmSans.variable}`}>
-      <body>
+      <head>
         <Script
           id="Cookiebot"
           src="https://consent.cookiebot.com/uc.js"
@@ -112,6 +112,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           data-blockingmode="auto"
           strategy="beforeInteractive"
         />
+      </head>
+      <body>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
