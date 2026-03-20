@@ -1,5 +1,6 @@
 /* app/layout.tsx */
 import './globals.css';
+import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { DM_Serif_Display, DM_Sans } from 'next/font/google';
@@ -37,7 +38,18 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${dmSerif.variable} ${dmSans.variable}`}>
-      <body>{children}<Analytics /><SpeedInsights /></body>
+      <body>
+        <Script
+          id="Cookiebot"
+          src="https://consent.cookiebot.com/uc.js"
+          data-cbid="d641050e-dd62-411e-b26a-681f0073051a"
+          data-blockingmode="auto"
+          strategy="beforeInteractive"
+        />
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
